@@ -5,4 +5,4 @@ Deploy forum app:
 
 #Backend: https://github.com/dannguyenmessi1705/social
 - Spring Boot
-
+- Mysql
