@@ -1,0 +1,26 @@
+version: '3.3'
+
+services:
+  frontend:
+    build:
+      context: ./path/to/frontend  # Đường dẫn đến thư mục frontend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    networks:
+      - app-network
+    depends_on:
+      - app
+
+  app:
+    # ... (giữ nguyên phần cấu hình app)
+
+  db:
+    # ... (giữ nguyên phần cấu hình db)
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  mysql-data:

@@ -1,0 +1,38 @@
+.m-dialog-overlay {
+}
+.m-dialog {
+	position: fixed;
+	left: 50%;
+	top: 86px;
+	transform: translateX(-50%);
+	background-color: #fff;
+	border-radius: 8px;
+	overflow: hidden;
+	box-shadow: 0 4px 16px rgba(23, 27, 42, 0.24);
+	width: 415px;
+	z-index: 10000;
+}
+.m-dialog__header {
+	padding: 24px;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+.m-dialog__title {
+	font-size: 24px;
+	letter-spacing: 0.567px;
+	font-weight: bold;
+}
+.m-dialog__body {
+	padding: 0 24px;
+}
+.m-dialog__footer {
+	margin-top: 24px;
+	height: 68px;
+	display: flex;
+	justify-content: flex-end;
+	align-items: center;
+	padding: 0 24px;
+	gap: 12px;
+	background-color: #f2f2f2;
+}

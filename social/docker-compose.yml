@@ -1,0 +1,59 @@
+version: '3.3'
+
+services:
+  frontend:
+    build:
+      context: ../forum_fe
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    networks:
+      - app-network
+    depends_on:
+      - app
+
+  app:
+    build: 
+      context: ./social
+    ports:
+      - "${SERVER_PORT:-80}:80"
+      - "${SOCKET_SERVER_PORT:-8082}:8082"
+    environment:
+      - MYSQL_HOST=db
+      - MYSQL_PORT=3306
+      - MYSQL_DATABASE=socialapp
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=tranhiep12345
+      - SERVER_PORT=80
+      - JWT_SECRET=wyD7j04/rzm+8EABKgQTPO9cFojZI2Q2xRPycfhHtZc=
+      - SENDGRID_API_KEY=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
+      - SENDGRID_FROM_EMAIL=social-service@didan.id.vn
+      - SENDGRID_FROM_NAME=Social Service
+      - SOCKET_SERVER_PORT=8082
+      - SOCKET_SERVER_HOST=0.0.0.0
+    volumes:
+      - ./social/uploads:/workspace/app/uploads
+    depends_on:
+      - db
+    networks:
+      - app-network
+
+  db:
+    image: mysql:8.0
+    environment:
+      - MYSQL_ROOT_PASSWORD=tranhiep12345
+      - MYSQL_DATABASE=socialapp
+    ports:
+      - "3307:3306"
+    volumes:
+      - ./social/db.sql:/docker-entrypoint-initdb.d/init.sql
+      - mysql-data:/var/lib/mysql
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
