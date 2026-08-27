@@ -23,7 +23,8 @@
             <img
                 v-if="commentImgUrl"
                 :src="commentImgUrl"
-                class="mt-1.5 max-w-xs rounded-lg border"
+                class="mt-1.5 max-w-xs rounded-lg border cursor-zoom-in"
+                @click="openLightbox(commentImgUrl)"
                 @error="(e) => e.target.style.display = 'none'"
             />
 
@@ -86,6 +87,7 @@ const isShowEditComment = ref(false);
 const showDialog = inject("openDialogError");
 const openConfirm = inject("openConfirm");
 const toast = inject("toast");
+const openLightbox = inject("openLightbox", () => {});
 
 const myId = getItemLocal(LOCALKEYS.USER_ID);
 const isOwner = computed(() => comment.value?.userComments == myId);

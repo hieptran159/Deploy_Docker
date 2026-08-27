@@ -38,7 +38,7 @@
 
                     <div class="my-3 whitespace-pre-wrap">{{ post?.body }}</div>
 
-                    <img :src="linkPostImg" v-if="post?.postImg" class="max-w-md rounded-xl border" />
+                    <img :src="linkPostImg" v-if="post?.postImg" class="max-w-md rounded-xl border cursor-zoom-in" @click="openLightbox(linkPostImg)" />
 
                     <div class="row-actions mt-3">
                         <DxButton
@@ -143,6 +143,7 @@ const linkAvt = ref();
 const showDialog = inject("openDialogError");
 const openConfirm = inject("openConfirm");
 const toast = inject("toast");
+const openLightbox = inject("openLightbox", () => {});
 const isShowSetting = ref(false);
 const ishowEditPost = ref(false);
 const commentImg = ref(null);

@@ -110,7 +110,8 @@
                                     : 'bg-white text-[var(--text)] rounded-bl-md'">
                                 <span v-if="m.content">{{ m.content }}</span>
                                 <img v-if="m.messageImg && !String(m.messageImg).includes('null')"
-                                    :src="IMAGE_BASE + m.messageImg" class="mt-1 max-w-[220px] rounded-lg" />
+                                    :src="IMAGE_BASE + m.messageImg" class="mt-1 max-w-[220px] rounded-lg cursor-zoom-in"
+                                    @click="openLightbox(IMAGE_BASE + m.messageImg)" />
                             </div>
                             <span class="text-[11px] muted mt-0.5">
                                 <template v-if="idx === lastMineIndex">{{ otherSeen ? 'Đã xem · ' : 'Đã gửi · ' }}</template>{{ formatTime(m.sentAt) }}
@@ -179,6 +180,7 @@ import EmojiPicker from '@/components/EmojiPicker.vue';
 const showDialog = inject('openDialogError');
 const openConfirm = inject('openConfirm');
 const toast = inject('toast');
+const openLightbox = inject('openLightbox', () => {});
 const router = useRouter();
 const myId = getItemLocal(LOCALKEYS.USER_ID);
 

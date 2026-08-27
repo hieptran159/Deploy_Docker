@@ -26,12 +26,17 @@
             <button class="toast__x" @click.stop="dismissToast(t.id)">×</button>
         </div>
     </div>
+
+    <div v-if="lightbox" class="lightbox" @click="lightbox = ''">
+        <img :src="lightbox" class="lightbox__img" @click.stop />
+        <button class="lightbox__x" @click="lightbox = ''">×</button>
+    </div>
 </template>
 
 <script setup>
 import TheHeader from '@/components/layout/TheHeader.vue';
 import MDialog from './components/Dialog/MDialog.vue';
-import { provide, ref } from 'vue';
+import { provide, ref, onMounted, onBeforeUnmount } from 'vue';
 
 /* ---------- modal (lỗi + xác nhận) ---------- */
 const dlg = ref({ show: false, title: '', content: '', buttons: [], onDismiss: null });
@@ -100,7 +105,15 @@ const toast = (msg, opts = {}) => {
     setTimeout(() => dismissToast(id), opts.duration || 3200);
 };
 
+/* ---------- lightbox xem ảnh phóng to ---------- */
+const lightbox = ref('');
+const openLightbox = (url) => { if (url) lightbox.value = url; };
+const onEsc = (e) => { if (e.key === 'Escape') lightbox.value = ''; };
+onMounted(() => document.addEventListener('keydown', onEsc));
+onBeforeUnmount(() => document.removeEventListener('keydown', onEsc));
+
 provide('openDialogError', openDialogError);
 provide('openConfirm', openConfirm);
 provide('toast', toast);
+provide('openLightbox', openLightbox);
 </script>
