@@ -172,7 +172,7 @@ let pollTimer = null;
 let seenIds = new Set();
 let firstPoll = true;
 
-const POST_TYPES = ['COMMENT', 'COMMENT_LIKE', 'POST_LIKE', 'MENTION'];
+const POST_TYPES = ['COMMENT', 'COMMENT_LIKE', 'POST_LIKE', 'MENTION', 'REPLY'];
 const targetOf = (n) => {
     if (POST_TYPES.includes(n.type) && n.targetId) return () => route.push(`/post/${n.targetId}`);
     if (n.type === 'MESSAGE' && n.targetId) return () => route.push({ path: '/chat', query: { c: n.targetId, name: n.actorName || '' } });

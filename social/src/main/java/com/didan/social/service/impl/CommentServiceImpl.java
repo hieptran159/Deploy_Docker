@@ -141,7 +141,7 @@ public class CommentServiceImpl extends ConvertDTO implements CommentService {
         }
         // báo cho chủ bình luận được trả lời
         if (parentAuthorId != null) {
-            notificationService.pushUniquePerActor(parentAuthorId, user.getUserId(), "COMMENT", postId,
+            notificationService.pushUniquePerActor(parentAuthorId, user.getUserId(), "REPLY", postId,
                     user.getFullName() + " đã trả lời bình luận của bạn");
         }
         // @nhắc tên: tách các token dạng @[Tên](userId) trong nội dung
