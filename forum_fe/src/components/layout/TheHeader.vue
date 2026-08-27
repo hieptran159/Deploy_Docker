@@ -174,6 +174,7 @@ const POST_TYPES = ['COMMENT', 'COMMENT_LIKE', 'POST_LIKE'];
 const targetOf = (n) => {
     if (POST_TYPES.includes(n.type) && n.targetId) return () => route.push(`/post/${n.targetId}`);
     if (n.type === 'MESSAGE' && n.targetId) return () => route.push({ path: '/chat', query: { c: n.targetId, name: n.actorName || '' } });
+    if (n.type === 'FRIEND_REQUEST') return () => route.push({ path: '/follow', query: { tab: 'incoming' } });
     if (n.actorId) return () => route.push(`/user/${n.actorId}`);
     return null;
 }

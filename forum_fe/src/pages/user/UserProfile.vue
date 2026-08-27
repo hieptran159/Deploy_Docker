@@ -11,22 +11,22 @@
                 <div class="text-2xl font-bold truncate">{{ user?.fullName || '…' }}</div>
                 <div class="muted truncate">{{ user?.email }}</div>
                 <div class="flex flex-wrap gap-x-5 gap-y-1 mt-2 text-sm">
-                    <span class="link" @click="goFollow('followers')"><b>{{ user?.followers ?? 0 }}</b> người theo dõi</span>
-                    <span class="link" @click="goFollow('followings')"><b>{{ user?.followings ?? 0 }}</b> đang theo dõi</span>
+                    <span class="link" @click="goFriends"><b>{{ friendCount }}</b> bạn bè</span>
                     <span><b>{{ user?.posts ?? 0 }}</b> bài viết</span>
                 </div>
             </div>
 
             <div v-if="!isMe" class="flex flex-col gap-2 flex-none">
                 <DxButton type="success" icon="message" text="Nhắn tin" @click="messageUser" />
-                <DxButton
-                    v-if="!isFollowing"
-                    type="default" icon="user" text="Theo dõi" @click="follow"
-                />
-                <DxButton
-                    v-else
-                    type="normal" stylingMode="outlined" icon="check" text="Đang theo dõi" @click="unfollow"
-                />
+
+                <DxButton v-if="fStatus === 'none'" type="default" icon="user" text="Kết bạn" @click="doSend" />
+                <DxButton v-else-if="fStatus === 'pending_out'" type="normal" stylingMode="outlined" text="Huỷ lời mời" @click="doCancel" />
+                <template v-else-if="fStatus === 'pending_in'">
+                    <DxButton type="default" text="Chấp nhận kết bạn" @click="doAccept" />
+                    <DxButton type="normal" stylingMode="outlined" text="Từ chối" @click="doDecline" />
+                </template>
+                <DxButton v-else-if="fStatus === 'friends'" type="normal" stylingMode="outlined" icon="check" text="Bạn bè" @click="doUnfriend" />
+
                 <DxButton type="danger" stylingMode="text" icon="warning" text="Báo cáo" @click="report" />
             </div>
         </div>
@@ -54,9 +54,13 @@ import { onMounted, ref, computed, watch, inject } from 'vue';
 import { useRouter } from 'vue-router';
 import { getUserInfo, reportUser } from '@/apis/user';
 import { getPostById } from '@/apis/post';
-import { followApi, unFollowApi, getFollowings } from '@/apis/follow';
+import {
+    friendStatus, getFriends, sendFriendRequest, cancelFriendRequest,
+    acceptFriendRequest, declineFriendRequest, unfriend,
+} from '@/apis/friend';
 import { openDirectConversation } from '@/apis/chat';
 import { LOCALKEYS, getItemLocal } from '@/storages/localStorage';
+import { bumpNotifRefresh } from '@/storages/appState';
 import { IMAGE_BASE } from '@/config';
 
 const showDialog = inject('openDialogError');
@@ -71,19 +75,21 @@ const user = ref(null);
 const posts = ref([]);
 const avatarOk = ref(true);
 const loading = ref(false);
-const isFollowing = ref(false);
+const fStatus = ref('none');       // none|pending_out|pending_in|friends|self
+const friendCount = ref(0);
 
 const isMe = computed(() => userId.value === myId);
 const avatarUrl = computed(() => (user.value?.avtUrl ? IMAGE_BASE + user.value.avtUrl : ""));
 
-const checkFollowing = async () => {
-    if (isMe.value) { isFollowing.value = false; return; }
+const refreshStatus = async () => {
     try {
-        const res = await getFollowings(myId);
-        const ids = res?.data?.data?.userId || [];
-        isFollowing.value = ids.includes(userId.value);
+        friendCount.value = (await getFriends(userId.value))?.data?.data?.quantity || 0;
+    } catch (e) { friendCount.value = 0; }
+    if (isMe.value) { fStatus.value = 'self'; return; }
+    try {
+        fStatus.value = (await friendStatus(userId.value))?.data?.data?.status || 'none';
     } catch (e) {
-        isFollowing.value = false;
+        fStatus.value = 'none';
     }
 }
 
@@ -106,29 +112,35 @@ const load = async () => {
     } finally {
         loading.value = false;
     }
-    checkFollowing();
+    refreshStatus();
 }
 
-const follow = async () => {
+const wrap = (fn, okMsg) => async () => {
     try {
-        await followApi(userId.value);
-        isFollowing.value = true;
-        if (user.value) user.value.followers = (user.value.followers ?? 0) + 1;
-        toast?.('Đã theo dõi');
+        await fn(userId.value);
+        if (okMsg) toast?.(okMsg);
+        bumpNotifRefresh();
+        await refreshStatus();
     } catch (e) {
-        showDialog?.('Thông báo', e?.description || 'Theo dõi thất bại');
+        showDialog?.('Thông báo', e?.description || 'Thao tác thất bại');
     }
-}
-const unfollow = async () => {
-    try {
-        await unFollowApi(userId.value);
-        isFollowing.value = false;
-        if (user.value) user.value.followers = Math.max((user.value.followers ?? 1) - 1, 0);
-        toast?.('Đã bỏ theo dõi');
-    } catch (e) {
-        showDialog?.('Thông báo', e?.description || 'Bỏ theo dõi thất bại');
-    }
-}
+};
+const doSend = wrap(sendFriendRequest, 'Đã gửi lời mời kết bạn');
+const doCancel = wrap(cancelFriendRequest, 'Đã huỷ lời mời');
+const doAccept = wrap(acceptFriendRequest, 'Đã kết bạn');
+const doDecline = wrap(declineFriendRequest, 'Đã từ chối');
+const doUnfriend = () => {
+    openConfirm?.('Huỷ kết bạn', `Huỷ kết bạn với ${user.value?.fullName || 'người này'}?`, async () => {
+        try {
+            await unfriend(userId.value);
+            toast?.('Đã huỷ kết bạn');
+            await refreshStatus();
+        } catch (e) {
+            showDialog?.('Thông báo', e?.description || 'Huỷ kết bạn thất bại');
+        }
+    }, { danger: true, confirmText: 'Huỷ kết bạn' });
+};
+
 const report = () => {
     openConfirm?.('Báo cáo người dùng', `Báo cáo ${user.value?.fullName || 'người dùng này'}?`, async () => {
         try {
@@ -138,11 +150,11 @@ const report = () => {
             showDialog?.('Thông báo', e?.description || 'Báo cáo thất bại');
         }
     }, { danger: true, confirmText: 'Báo cáo' });
-}
+};
 
-const goFollow = (tab) => {
-    route.push({ path: '/follow', query: { user: userId.value, tab } });
-}
+const goFriends = () => {
+    route.push({ path: '/follow', query: { user: userId.value, tab: 'friends' } });
+};
 
 const messageUser = async () => {
     try {
@@ -159,7 +171,7 @@ const messageUser = async () => {
     } catch (e) {
         showDialog?.('Thông báo', e?.description || 'Không mở được cuộc trò chuyện');
     }
-}
+};
 
 watch(userId, load);
 onMounted(load);

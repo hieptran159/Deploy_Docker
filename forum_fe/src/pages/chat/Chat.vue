@@ -12,14 +12,18 @@
                         </div>
                         <div v-if="showCreate" class="mt-2 flex flex-col gap-2">
                             <DxTextBox v-model="createName" placeholder="Tên nhóm" />
-                            <DxTextBox v-model="memberQuery" placeholder="Thêm thành viên (tên/email)" @enter-key="searchMembers" />
-                            <div v-if="memberResults.length" class="border rounded-lg divide-y max-h-40 overflow-y-auto">
+                            <DxTextBox v-model="memberQuery" placeholder="Lọc bạn bè để thêm…"
+                                @input="searchMembers" @enter-key="searchMembers" />
+                            <div class="border rounded-lg divide-y max-h-40 overflow-y-auto">
                                 <button v-for="u in memberResults" :key="u.userId"
                                     class="w-full text-left px-2 py-1.5 text-sm hover:bg-gray-50 flex justify-between"
                                     @click="pickMember(u)">
                                     <span class="truncate">{{ u.fullName }}</span>
                                     <span class="text-[var(--accent)]">+ thêm</span>
                                 </button>
+                                <div v-if="!memberResults.length" class="px-2 py-1.5 text-xs muted">
+                                    {{ friends.length ? 'Không có bạn bè phù hợp' : 'Bạn chưa có bạn bè nào' }}
+                                </div>
                             </div>
                             <div v-if="pickedMembers.length" class="flex flex-wrap gap-1">
                                 <span v-for="u in pickedMembers" :key="u.userId"
@@ -135,18 +139,19 @@
             </div>
         </div>
 
-        <!-- Thêm thành viên vào nhóm đang mở -->
-        <DxPopup title="Thêm thành viên" v-model:visible="showAddMember" :width="460" :height="420" :hide-on-outside-click="true">
+        <!-- Thêm thành viên vào nhóm đang mở (chỉ bạn bè) -->
+        <DxPopup title="Thêm bạn bè vào nhóm" v-model:visible="showAddMember" :width="460" :height="440" :hide-on-outside-click="true">
             <div class="flex flex-col gap-2">
-                <DxTextBox v-model="addQuery" placeholder="Tìm theo tên hoặc email" @enter-key="searchAdd" />
-                <DxButton text="Tìm" type="default" @click="searchAdd" />
-                <div v-if="addResults.length" class="border rounded-lg divide-y">
+                <DxTextBox v-model="addQuery" placeholder="Lọc bạn bè…" @input="searchAdd" @enter-key="searchAdd" />
+                <div v-if="addResults.length" class="border rounded-lg divide-y max-h-72 overflow-y-auto">
                     <div v-for="u in addResults" :key="u.userId" class="flex items-center justify-between px-2 py-2 text-sm">
                         <span class="truncate">{{ u.fullName }}</span>
                         <DxButton text="Thêm" stylingMode="text" @click="() => doAddMember(u)" />
                     </div>
                 </div>
-                <div v-else class="muted text-sm">Không có kết quả</div>
+                <div v-else class="muted text-sm">
+                    {{ friends.length ? 'Không có bạn bè phù hợp' : 'Bạn chưa có bạn bè nào để thêm' }}
+                </div>
             </div>
         </DxPopup>
     </div>
@@ -161,7 +166,8 @@ import {
     getMyConversations, searchConversations, getMessages,
     createConversation, joinConversation, leaveConversation, sendMessageRest, addMember, getMembers,
 } from '@/apis/chat';
-import { getUserInfo, searchUserApi } from '@/apis/user';
+import { getUserInfo } from '@/apis/user';
+import { getFriends } from '@/apis/friend';
 import { markReadByTarget } from '@/apis/notification';
 import { LOCALKEYS, getItemLocal } from '@/storages/localStorage';
 import { activeConversationId, bumpNotifRefresh } from '@/storages/appState';
@@ -270,8 +276,38 @@ const loadConversations = async () => {
     resolveDmNames();
 }
 
+/* ---------- bạn bè (chỉ thêm bạn bè vào nhóm) ---------- */
+const friends = ref([]);
+const loadFriends = async () => {
+    try {
+        const ids = (await getFriends(myId))?.data?.data?.userId || [];
+        const out = [];
+        for (const id of ids) {
+            try {
+                const u = await getUserInfo(id);
+                out.push({ userId: id, fullName: u?.data?.data?.fullName || id });
+            } catch (e) {
+                out.push({ userId: id, fullName: id });
+            }
+        }
+        friends.value = out;
+    } catch (e) {
+        friends.value = [];
+    }
+}
+const filterFriends = (q, excludeIds) => {
+    const s = (q || '').trim().toLowerCase();
+    return friends.value.filter((f) =>
+        !excludeIds.has(f.userId)
+        && (s === '' || (f.fullName || '').toLowerCase().includes(s))
+    );
+}
+
 /* ---------- tạo nhóm ---------- */
-const toggleCreate = () => { showCreate.value = !showCreate.value; }
+const toggleCreate = () => {
+    showCreate.value = !showCreate.value;
+    if (showCreate.value) searchMembers();
+}
 const resetCreate = () => {
     showCreate.value = false;
     createName.value = '';
@@ -279,16 +315,9 @@ const resetCreate = () => {
     memberResults.value = [];
     pickedMembers.value = [];
 }
-const searchMembers = async () => {
-    if (!memberQuery.value.trim()) { memberResults.value = []; return; }
-    try {
-        const res = await searchUserApi(memberQuery.value.trim());
-        const pickedIds = new Set(pickedMembers.value.map((u) => u.userId));
-        memberResults.value = (res?.data?.data || [])
-            .filter((u) => u.userId !== myId && !pickedIds.has(u.userId));
-    } catch (e) {
-        memberResults.value = [];
-    }
+const searchMembers = () => {
+    const picked = new Set(pickedMembers.value.map((u) => u.userId));
+    memberResults.value = filterFriends(memberQuery.value, picked);
 }
 const pickMember = (u) => {
     pickedMembers.value.push({ userId: u.userId, fullName: u.fullName });
@@ -331,16 +360,15 @@ const toggleMembers = () => {
     if (showMembers.value) loadMembers();
 }
 
-const openAddMember = () => { showAddMember.value = true; addQuery.value = ''; addResults.value = []; }
-const searchAdd = async () => {
-    if (!addQuery.value.trim()) { addResults.value = []; return; }
-    try {
-        const res = await searchUserApi(addQuery.value.trim());
-        const inGroup = new Set(members.value.map((m) => m.userId));
-        addResults.value = (res?.data?.data || []).filter((u) => u.userId !== myId && !inGroup.has(u.userId));
-    } catch (e) {
-        addResults.value = [];
-    }
+const openAddMember = async () => {
+    showAddMember.value = true;
+    addQuery.value = '';
+    await loadMembers();
+    searchAdd();
+}
+const searchAdd = () => {
+    const inGroup = new Set(members.value.map((m) => m.userId));
+    addResults.value = filterFriends(addQuery.value, inGroup);
 }
 const doAddMember = async (u) => {
     try {
@@ -537,6 +565,7 @@ const openFromQuery = () => {
 }
 
 onMounted(async () => {
+    loadFriends();
     await loadConversations();
     openFromQuery();
 });
