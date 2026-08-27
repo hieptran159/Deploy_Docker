@@ -59,8 +59,20 @@ npm run build     # → dist/, served by nginx in the Docker image
 
 ## Tests
 
-There is effectively no test suite — only `social/src/test/.../SocialApplicationTests.java`
-(empty context-load test). There are no frontend tests.
+Small JUnit 5 unit-test suite under `social/src/test/java` — **no DB / Docker / Spring
+context**, runs on plain `./mvnw test` (deps already in `spring-boot-starter-test` +
+`spring-security-test`):
+
+| Test | Covers |
+|------|--------|
+| `security/RateLimitFilterTest` | `RateLimitFilter` window counter (per-IP, per-bucket, XFF, GET/non-auth bypass, disabled flag) via `MockHttpServletRequest`/`MockFilterChain` |
+| `service/impl/FileUploadsServiceImplTest` | upload validation + downscale/recompress + small-image passthrough + non-image reject, `MockEnvironment` + `@TempDir` |
+| `service/impl/NormReactionTest` | `PostServiceImpl.normReaction` (static pkg-private) |
+| `utils/EmailTemplateTest` | `EmailTemplate.otp` HTML + HTML-escaping |
+
+`SocialApplicationTests` (`@SpringBootTest` context-load) is the exception — it needs a
+running MySQL on the configured host, so `./mvnw test` fails without one; the normal build
+uses `./mvnw install -DskipTests`. No frontend tests.
 
 ## Backend architecture notes
 
