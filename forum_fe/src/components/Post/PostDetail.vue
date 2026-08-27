@@ -57,23 +57,33 @@
         <div class="card">
             <div class="section-title">Bình luận ({{ post?.comments?.length ?? 0 }})</div>
 
-            <div class="flex items-center gap-3 pb-3 border-b">
-                <BaseAvatar
-                    :linkAvt="getItemLocal(LOCALKEYS.LINK_AVT)"
-                    :userCreatedPost="getItemLocal(LOCALKEYS.USER_NAME)"
-                    :is-show="false"
-                />
-                <DxTextBox class="flex-1" placeholder="Viết bình luận…" v-model="contentPost" @enter-key="commentPost" />
-                <EmojiPicker direction="down" @pick="addCommentEmoji" />
-                <DxButton
-                    :icon="commentImg ? 'photo' : 'image'"
-                    :type="commentImg ? 'success' : 'normal'"
-                    stylingMode="text"
-                    hint="Đính kèm ảnh"
-                    @click="pickCommentImg"
-                />
-                <input ref="commentFileEl" type="file" accept="image/*" class="hidden" @change="onCommentImg" />
-                <DxButton type="default" text="Gửi" @click="commentPost" />
+            <div class="pb-3 border-b">
+                <div class="flex items-center gap-3">
+                    <BaseAvatar
+                        :linkAvt="getItemLocal(LOCALKEYS.LINK_AVT)"
+                        :userCreatedPost="getItemLocal(LOCALKEYS.USER_NAME)"
+                        :is-show="false"
+                    />
+                    <DxTextBox class="flex-1" placeholder="Viết bình luận…" v-model="contentPost" @enter-key="commentPost" />
+                    <EmojiPicker direction="down" @pick="addCommentEmoji" />
+                    <DxButton
+                        :icon="commentImg ? 'photo' : 'image'"
+                        :type="commentImg ? 'success' : 'normal'"
+                        stylingMode="text"
+                        hint="Đính kèm ảnh"
+                        @click="pickCommentImg"
+                    />
+                    <input ref="commentFileEl" type="file" accept="image/*" class="hidden" @change="onCommentImg" />
+                    <DxButton type="default" text="Gửi" @click="commentPost" />
+                </div>
+                <div v-if="commentImgPreview" class="mt-2 ml-14 relative inline-block">
+                    <img :src="commentImgPreview" class="max-h-32 rounded-lg border" />
+                    <button
+                        class="absolute -top-2 -right-2 size-6 rounded-full bg-[var(--danger)] text-white text-xs leading-6 text-center shadow"
+                        title="Bỏ ảnh"
+                        @click="clearCommentImg"
+                    >✕</button>
+                </div>
             </div>
 
             <div v-if="!post?.comments?.length" class="state">Chưa có bình luận</div>
@@ -136,6 +146,7 @@ const toast = inject("toast");
 const isShowSetting = ref(false);
 const ishowEditPost = ref(false);
 const commentImg = ref(null);
+const commentImgPreview = ref('');
 const commentFileEl = ref(null);
 
 const getDataPostById = async() => {
@@ -157,7 +168,18 @@ const getDataUser = async() => {
 const addCommentEmoji = (e) => { contentPost.value = (contentPost.value || '') + e; };
 
 const pickCommentImg = () => commentFileEl.value?.click();
-const onCommentImg = (e) => { commentImg.value = e.target.files[0] || null; };
+const onCommentImg = (e) => {
+    const f = e.target.files[0] || null;
+    commentImg.value = f;
+    if (commentImgPreview.value) URL.revokeObjectURL(commentImgPreview.value);
+    commentImgPreview.value = f ? URL.createObjectURL(f) : '';
+};
+const clearCommentImg = () => {
+    commentImg.value = null;
+    if (commentImgPreview.value) URL.revokeObjectURL(commentImgPreview.value);
+    commentImgPreview.value = '';
+    if (commentFileEl.value) commentFileEl.value.value = '';
+};
 
 const commentPost = async()=> {
     if (!contentPost.value && !commentImg.value) return;
@@ -166,8 +188,7 @@ const commentPost = async()=> {
         if (commentImg.value) payload.commentImg = commentImg.value;
         await createComment(id.value, payload);
         contentPost.value = '';
-        commentImg.value = null;
-        if (commentFileEl.value) commentFileEl.value.value = '';
+        clearCommentImg();
         await getDataPostById();
     } catch (error) {
         showDialog?.('Thông báo', error?.description || 'Gửi bình luận thất bại');

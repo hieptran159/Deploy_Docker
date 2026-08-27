@@ -19,7 +19,7 @@
                 </span>
                 <span class="text-xs muted">· {{ comment?.commentLikes ?? 0 }} thích</span>
             </div>
-            <div class="mt-0.5 whitespace-pre-wrap">{{ comment.content }}</div>
+            <div v-if="comment.content" class="mt-0.5 whitespace-pre-wrap">{{ comment.content }}</div>
             <img
                 v-if="commentImgUrl"
                 :src="commentImgUrl"

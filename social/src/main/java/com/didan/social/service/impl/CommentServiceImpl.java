@@ -74,9 +74,10 @@ public class CommentServiceImpl extends ConvertDTO implements CommentService {
     @Transactional
     @Override
     public String postCommentInPost(String postId, CreateCommentRequest createCommentRequest) throws Exception {
-        if (!StringUtils.hasText(createCommentRequest.getContent())){
+        boolean hasImg = createCommentRequest.getCommentImg() != null && !createCommentRequest.getCommentImg().isEmpty();
+        if (!StringUtils.hasText(createCommentRequest.getContent()) && !hasImg){
             logger.error("Miss some fields");
-            throw new Exception("Miss some fields");
+            throw new Exception("Bình luận phải có nội dung hoặc hình ảnh");
         }
         String userId = authorizePathService.getUserIdAuthoried();
         Users user = userRepository.findFirstByUserId(userId);
