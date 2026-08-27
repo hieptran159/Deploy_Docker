@@ -62,6 +62,15 @@
                 <DxButton type="default" text="Cập nhật ảnh" @click="updateAvatar" />
             </div>
         </div>
+
+        <div class="card border border-[var(--danger)]/40">
+            <div class="section-title text-[var(--danger)]">Vùng nguy hiểm</div>
+            <p class="muted text-sm mb-2">
+                Xoá tài khoản là <b>vĩnh viễn</b>: bài viết, bình luận, tin nhắn, bạn bè của bạn sẽ bị xoá.
+                Nhập mật khẩu hiện tại ở thẻ “Xác thực” phía trên rồi bấm nút dưới.
+            </p>
+            <DxButton type="danger" text="Xoá tài khoản của tôi" @click="deleteMe" />
+        </div>
     </div>
 </template>
 
@@ -69,12 +78,13 @@
 import { DxButton, DxTextBox, DxTextArea } from 'devextreme-vue';
 import { useRouter } from 'vue-router';
 import { inject, onMounted, ref } from 'vue';
-import { editUser, updateProfile, getUserInfo } from '@/apis/user';
-import { LOCALKEYS, getItemLocal, setItemLocal } from '@/storages/localStorage';
+import { editUser, updateProfile, getUserInfo, deleteAccount } from '@/apis/user';
+import { LOCALKEYS, getItemLocal, setItemLocal, delItemLocal } from '@/storages/localStorage';
 import { IMAGE_BASE } from '@/config';
 
 const route = useRouter();
 const showDialog = inject("openDialogError");
+const openConfirm = inject("openConfirm");
 const toast = inject("toast");
 
 const fields = [
@@ -197,6 +207,25 @@ const updateAvatar = async () => {
     } catch (e) {
         showDialog("Thông báo", e?.description || "Cập nhật ảnh thất bại");
     }
+}
+
+const deleteMe = () => {
+    if (!requirePassword()) return;
+    openConfirm?.(
+        'Xoá tài khoản',
+        'Hành động này KHÔNG THỂ hoàn tác. Toàn bộ bài viết, bình luận, tin nhắn của bạn sẽ bị xoá. Tiếp tục?',
+        async () => {
+            try {
+                await deleteAccount(currentPassword.value);
+                [LOCALKEYS.ACCESS_TOKEN, LOCALKEYS.USER_ID, LOCALKEYS.USER_NAME, LOCALKEYS.LINK_AVT, LOCALKEYS.IS_ADMIN]
+                    .forEach(delItemLocal);
+                window.location.assign('/signup');
+            } catch (e) {
+                showDialog('Thông báo', e?.description || 'Xoá tài khoản thất bại');
+            }
+        },
+        { danger: true, confirmText: 'Xoá vĩnh viễn' }
+    );
 }
 
 onMounted(loadProfile);

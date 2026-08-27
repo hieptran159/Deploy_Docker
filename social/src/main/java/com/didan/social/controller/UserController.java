@@ -22,6 +22,24 @@ import java.util.List;
 public class UserController {
     @Autowired
     UserServiceImpl userService;
+
+    @Operation(summary = "Xoá tài khoản của tôi", description = "Cần mật khẩu hiện tại; xoá vĩnh viễn",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @DeleteMapping
+    public ResponseEntity<?> deleteMyAccount(@RequestParam String password){
+        ResponseData payload = new ResponseData();
+        try {
+            userService.deleteMyAccount(password);
+            payload.setDescription("Đã xoá tài khoản");
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e){
+            payload.setSuccess(false);
+            payload.setStatusCode(500);
+            payload.setDescription(e.getMessage());
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
     @Operation(summary = "Get all users",
             description = "Get all users",
             security = @SecurityRequirement(name = "bearerAuth"))

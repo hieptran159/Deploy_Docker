@@ -23,4 +23,7 @@ public interface UserService {
     // Report user
     boolean reportUser(String userId) throws Exception;
 
+    // Người dùng tự xoá tài khoản (cần mật khẩu hiện tại)
+    boolean deleteMyAccount(String password) throws Exception;
+
 }

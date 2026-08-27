@@ -2,6 +2,7 @@ package com.didan.social.service.impl;
 
 import com.didan.social.dto.UserDTO;
 import com.didan.social.entity.BlacklistUser;
+import com.didan.social.entity.Posts;
 import com.didan.social.entity.UserPosts;
 import com.didan.social.entity.Users;
 import com.didan.social.payload.request.EditUserRequest;
@@ -31,18 +32,27 @@ public class UserServiceImpl extends ConvertDTO implements UserService {
     private final PasswordEncoder passwordEncoder;
     private final FileUploadsServiceImpl fileUploadsService;
     private final BlacklistUserRepository blacklistUserRepository;
+    private final com.didan.social.repository.PostRepository postRepository;
+    private final com.didan.social.repository.CommentRepository commentRepository;
+    private final com.didan.social.repository.BlacklistRepository blacklistRepository;
     @Autowired
     public UserServiceImpl(UserRepository userRepository,
                            AuthorizePathService authorizePathService,
                            PasswordEncoder passwordEncoder,
                            FileUploadsServiceImpl fileUploadsService,
-                           BlacklistUserRepository blacklistUserRepository
+                           BlacklistUserRepository blacklistUserRepository,
+                           com.didan.social.repository.PostRepository postRepository,
+                           com.didan.social.repository.CommentRepository commentRepository,
+                           com.didan.social.repository.BlacklistRepository blacklistRepository
     ){
         this.userRepository = userRepository;
         this.authorizePathService = authorizePathService;
         this.passwordEncoder = passwordEncoder;
         this.fileUploadsService = fileUploadsService;
         this.blacklistUserRepository = blacklistUserRepository;
+        this.postRepository = postRepository;
+        this.commentRepository = commentRepository;
+        this.blacklistRepository = blacklistRepository;
     }
     @Override
     public List<UserDTO> getAllUser(){
@@ -194,6 +204,52 @@ public class UserServiceImpl extends ConvertDTO implements UserService {
                 blacklistUser.setBlockedAt(nowSql);
             }
             blacklistUserRepository.save(blacklistUser);
+        }
+        return true;
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    @Override
+    public boolean deleteMyAccount(String password) throws Exception {
+        String myId = authorizePathService.getUserIdAuthoried();
+        Users me = userRepository.findFirstByUserId(myId);
+        if (me == null) {
+            throw new Exception("User is not found");
+        }
+        if (!org.springframework.util.StringUtils.hasText(password)
+                || !passwordEncoder.matches(password, me.getPassword())) {
+            throw new Exception("Mật khẩu không đúng");
+        }
+        if (me.getIsAdmin() == 1) {
+            throw new Exception("Tài khoản quản trị không thể tự xoá");
+        }
+
+        // 1) xoá bài viết của mình (kèm ảnh) — cascade lo phần like/comment-join của bài
+        for (UserPosts up : new ArrayList<>(me.getUserPosts())) {
+            Posts p = up.getPosts();
+            if (p == null) continue;
+            if (org.springframework.util.StringUtils.hasText(p.getPostImg())) {
+                try { fileUploadsService.deleteFile(p.getPostImg()); } catch (Exception ignore) { }
+            }
+            postRepository.delete(p);
+        }
+
+        // 2) chặn token đang dùng
+        if (org.springframework.util.StringUtils.hasText(me.getAccessToken())) {
+            try { blacklistRepository.save(new com.didan.social.entity.BlacklistToken(me.getAccessToken())); } catch (Exception ignore) { }
+        }
+        // 3) xoá avatar
+        if (org.springframework.util.StringUtils.hasText(me.getAvtUrl())) {
+            try { fileUploadsService.deleteFile(me.getAvtUrl()); } catch (Exception ignore) { }
+        }
+
+        // 4) xoá user -> cascade followers/postLikes/userPosts/participants/messages/userComments/commentLikes/blacklistUser
+        userRepository.delete(me);
+        userRepository.flush();
+
+        // 5) dọn bình luận mồ côi (bình luận mình viết trên bài người khác)
+        for (String cid : commentRepository.findCommentIdNotInUserComment()) {
+            try { commentRepository.deleteById(cid); } catch (Exception ignore) { }
         }
         return true;
     }

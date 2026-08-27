@@ -28,3 +28,7 @@ export const updateProfile = (data) => {
 export const reportUser = (userId) => {
     return authApi.post(`/user/${userId}`);
 }
+
+export const deleteAccount = (password) => {
+    return authApi.delete(`/user?password=${encodeURIComponent(password)}`);
+}
