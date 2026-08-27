@@ -12,6 +12,7 @@ import com.didan.social.repository.UserRepository;
 import com.didan.social.service.AuthorizePathService;
 import com.didan.social.service.ChatService;
 import com.didan.social.service.FileUploadsService;
+import com.didan.social.socket.RealtimeGateway;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +34,7 @@ public class ChatServiceImpl implements ChatService {
     private final AuthorizePathService authorizePathService;
     private final com.didan.social.service.NotificationService notificationService;
     private final com.didan.social.service.FollowService followService;
+    private final RealtimeGateway realtimeGateway;
     @Autowired
     public ChatServiceImpl(ConversationRepository conversationRepository,
                            UserRepository userRepository,
@@ -41,7 +43,8 @@ public class ChatServiceImpl implements ChatService {
                            MessageRepository messageRepository,
                            AuthorizePathService authorizePathService,
                            com.didan.social.service.NotificationService notificationService,
-                           com.didan.social.service.FollowService followService){
+                           com.didan.social.service.FollowService followService,
+                           RealtimeGateway realtimeGateway){
         this.conversationRepository = conversationRepository;
         this.userRepository = userRepository;
         this.participantRepository = participantRepository;
@@ -50,6 +53,7 @@ public class ChatServiceImpl implements ChatService {
         this.authorizePathService = authorizePathService;
         this.notificationService = notificationService;
         this.followService = followService;
+        this.realtimeGateway = realtimeGateway;
     }
 
     // Bắn thông báo "đã nhắn tin cho bạn" cho các participant khác trong hội thoại 1-1
@@ -357,15 +361,68 @@ public class ChatServiceImpl implements ChatService {
         }
         List<MessageDTO> messageDTOs = new ArrayList<>();
         for (Messages message : messages){
-            MessageDTO messageDTO = new MessageDTO();
-            messageDTO.setMessageId(message.getMessageId());
-            messageDTO.setContent(message.getContent());
-            messageDTO.setMessageImg(message.getMessageImg());
-            messageDTO.setSentAt(message.getSentAt().toString());
-            messageDTO.setSenderId(message.getUsers().getUserId());
-            messageDTO.setConversationId(conversationId);
-            messageDTOs.add(messageDTO);
+            messageDTOs.add(toDTO(message, conversationId));
         }
         return messageDTOs;
+    }
+
+    private MessageDTO toDTO(Messages message, String conversationId) {
+        boolean recalled = Boolean.TRUE.equals(message.getRecalled());
+        MessageDTO messageDTO = new MessageDTO();
+        messageDTO.setMessageId(message.getMessageId());
+        messageDTO.setContent(recalled ? "" : message.getContent());
+        messageDTO.setMessageImg(recalled ? null : message.getMessageImg());
+        messageDTO.setSentAt(message.getSentAt() != null ? message.getSentAt().toString() : null);
+        messageDTO.setSenderId(message.getUsers() != null ? message.getUsers().getUserId() : null);
+        messageDTO.setConversationId(conversationId);
+        messageDTO.setRecalled(recalled);
+        return messageDTO;
+    }
+
+    @Override
+    public MessageDTO editMessage(String messageId, String content) throws Exception {
+        String userId = authorizePathService.getUserIdAuthoried();
+        if (content == null || content.trim().isEmpty()) {
+            throw new Exception("Nội dung tin nhắn không được để trống");
+        }
+        Messages message = messageRepository.findById(messageId).orElse(null);
+        if (message == null) {
+            throw new Exception("Không tìm thấy tin nhắn");
+        }
+        if (message.getUsers() == null || !userId.equals(message.getUsers().getUserId())) {
+            throw new Exception("Bạn không thể sửa tin nhắn của người khác");
+        }
+        if (Boolean.TRUE.equals(message.getRecalled())) {
+            throw new Exception("Tin nhắn đã thu hồi, không thể sửa");
+        }
+        message.setContent(content.trim());
+        messageRepository.save(message);
+        String conversationId = message.getConversations() != null ? message.getConversations().getConversationId() : null;
+        MessageDTO dto = toDTO(message, conversationId);
+        realtimeGateway.toRoom(conversationId, "message_updated", dto);
+        return dto;
+    }
+
+    @Override
+    public MessageDTO recallMessage(String messageId) throws Exception {
+        String userId = authorizePathService.getUserIdAuthoried();
+        Messages message = messageRepository.findById(messageId).orElse(null);
+        if (message == null) {
+            throw new Exception("Không tìm thấy tin nhắn");
+        }
+        if (message.getUsers() == null || !userId.equals(message.getUsers().getUserId())) {
+            throw new Exception("Bạn không thể thu hồi tin nhắn của người khác");
+        }
+        if (!Boolean.TRUE.equals(message.getRecalled()) && message.getMessageImg() != null) {
+            try { fileUploadsService.deleteFile(message.getMessageImg()); } catch (Exception ignore) { }
+        }
+        message.setRecalled(true);
+        message.setContent("");
+        message.setMessageImg(null);
+        messageRepository.save(message);
+        String conversationId = message.getConversations() != null ? message.getConversations().getConversationId() : null;
+        MessageDTO dto = toDTO(message, conversationId);
+        realtimeGateway.toRoom(conversationId, "message_updated", dto);
+        return dto;
     }
 }

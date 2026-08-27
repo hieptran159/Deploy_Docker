@@ -39,3 +39,11 @@ export const leaveConversation = (conversationId) => {
 export const sendMessageRest = (conversationId, data) => {
     return authApiFormData.post(`/chat/send/${conversationId}`, data);
 }
+
+export const editMessage = (messageId, content) => {
+    return authApi.patch(`/chat/message/${messageId}`, { content });
+}
+
+export const recallMessage = (messageId) => {
+    return authApi.delete(`/chat/message/${messageId}`);
+}

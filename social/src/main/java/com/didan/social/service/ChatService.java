@@ -29,4 +29,8 @@ public interface ChatService {
     List<ConversationDTO> searchConversation(String conversationName) throws Exception;
     // Lấy ra tất cả đoạn chat trong nhóm chat
     List<MessageDTO> getAllMessagesInConversation(String conversationId) throws Exception;
+    // Sửa nội dung 1 tin nhắn (chỉ chủ tin nhắn, tin chưa thu hồi)
+    MessageDTO editMessage(String messageId, String content) throws Exception;
+    // Thu hồi 1 tin nhắn (chỉ chủ tin nhắn)
+    MessageDTO recallMessage(String messageId) throws Exception;
 }

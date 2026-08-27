@@ -110,21 +110,44 @@
 
                     <div ref="listEl" class="flex-1 overflow-y-auto p-4 flex flex-col gap-1 bg-[var(--bg)]">
                         <div v-for="(m, idx) in messages" :key="m.messageId"
-                            class="flex flex-col max-w-[72%]"
+                            class="group flex flex-col max-w-[72%]"
                             :class="m.senderId === myId ? 'self-end items-end' : 'self-start items-start'">
-                            <div
-                                class="px-3 py-2 rounded-2xl text-sm shadow-sm"
-                                :class="m.senderId === myId
-                                    ? 'bg-[var(--accent)] text-white rounded-br-md'
-                                    : 'bg-white text-[var(--text)] rounded-bl-md'">
-                                <span v-if="m.content">{{ m.content }}</span>
-                                <img v-if="m.messageImg && !String(m.messageImg).includes('null')"
-                                    :src="IMAGE_BASE + m.messageImg" class="mt-1 max-w-[220px] rounded-lg cursor-zoom-in"
-                                    @click="openLightbox(IMAGE_BASE + m.messageImg)" />
+
+                            <!-- chế độ sửa -->
+                            <div v-if="editingId === m.messageId" class="flex items-center gap-1 w-[280px]">
+                                <DxTextBox v-model="editText" class="flex-1" @enter-key="saveEdit(m)" />
+                                <DxButton icon="check" type="success" stylingMode="text" @click="saveEdit(m)" />
+                                <DxButton icon="close" stylingMode="text" @click="cancelEdit" />
                             </div>
-                            <span class="text-[11px] muted mt-0.5">
-                                <template v-if="idx === lastMineIndex">{{ otherSeen ? 'Đã xem · ' : 'Đã gửi · ' }}</template>{{ formatTime(m.sentAt) }}
-                            </span>
+
+                            <template v-else>
+                                <div class="flex items-end gap-1"
+                                    :class="m.senderId === myId ? 'flex-row' : 'flex-row-reverse'">
+                                    <!-- nút sửa / thu hồi cho tin của mình -->
+                                    <div v-if="canModify(m)"
+                                        class="flex-none flex gap-0.5 opacity-0 group-hover:opacity-100 transition">
+                                        <button class="text-[11px] muted hover:text-[var(--text)] px-1" @click="startEdit(m)">Sửa</button>
+                                        <button class="text-[11px] muted hover:text-[var(--danger)] px-1" @click="confirmRecall(m)">Thu hồi</button>
+                                    </div>
+                                    <div
+                                        class="px-3 py-2 rounded-2xl text-sm shadow-sm"
+                                        :class="[
+                                            m.senderId === myId ? 'bg-[var(--accent)] text-white rounded-br-md' : 'bg-white text-[var(--text)] rounded-bl-md',
+                                            m.recalled ? 'italic opacity-70' : ''
+                                        ]">
+                                        <span v-if="m.recalled">Tin nhắn đã được thu hồi</span>
+                                        <template v-else>
+                                            <span v-if="m.content">{{ m.content }}</span>
+                                            <img v-if="m.messageImg && !String(m.messageImg).includes('null')"
+                                                :src="IMAGE_BASE + m.messageImg" class="mt-1 max-w-[220px] rounded-lg cursor-zoom-in"
+                                                @click="openLightbox(IMAGE_BASE + m.messageImg)" />
+                                        </template>
+                                    </div>
+                                </div>
+                                <span class="text-[11px] muted mt-0.5">
+                                    <template v-if="idx === lastMineIndex && !m.recalled">{{ otherSeen ? 'Đã xem · ' : 'Đã gửi · ' }}</template>{{ formatTime(m.sentAt) }}
+                                </span>
+                            </template>
                         </div>
 
                         <div v-if="otherTyping" class="self-start flex items-center gap-1 px-3 py-2 bg-white rounded-2xl rounded-bl-md shadow-sm">
@@ -176,6 +199,7 @@ import { io } from 'socket.io-client';
 import {
     getMyConversations, searchConversations, getMessages,
     createConversation, joinConversation, leaveConversation, sendMessageRest, addMember, getMembers,
+    editMessage, recallMessage,
 } from '@/apis/chat';
 import { getUserInfo } from '@/apis/user';
 import { getFriends } from '@/apis/friend';
@@ -218,6 +242,10 @@ const pickedMembers = ref([]);
 const showAddMember = ref(false);
 const addQuery = ref('');
 const addResults = ref([]);
+
+// sửa / thu hồi tin nhắn
+const editingId = ref(null);
+const editText = ref('');
 
 // typing / seen / presence
 const otherTyping = ref(false);
@@ -545,6 +573,7 @@ const connectSocket = (conversationId) => {
         typingHideTimer = setTimeout(() => { otherTyping.value = false; }, 3000);
     });
     socket.on('seen', () => { otherSeen.value = true; otherOnline.value = true; });
+    socket.on('message_updated', (dto) => { applyUpdated(dto); });
     socket.on('presence', (p) => {
         otherOnline.value = !!(p && p.online);
         if (p && !p.online) otherSeen.value = false;
@@ -601,6 +630,52 @@ const sendMessage = async () => {
 }
 
 const addDraftEmoji = (e) => { draft.value = (draft.value || '') + e; };
+
+/* ---------- sửa / thu hồi tin nhắn ---------- */
+const canModify = (m) => m.senderId === myId && !m.recalled && !String(m.messageId || '').startsWith('local-');
+
+const startEdit = (m) => { editingId.value = m.messageId; editText.value = m.content || ''; };
+const cancelEdit = () => { editingId.value = null; editText.value = ''; };
+
+const applyUpdated = (dto) => {
+    if (!dto || !dto.messageId) return;
+    const i = messages.value.findIndex((x) => x.messageId === dto.messageId);
+    if (i === -1) return;
+    const next = { ...messages.value[i] };
+    if ('recalled' in dto) next.recalled = !!dto.recalled;
+    if (next.recalled) {
+        next.content = '';
+        next.messageImg = null;
+    } else {
+        if ('content' in dto) next.content = dto.content || '';
+        if ('messageImg' in dto) next.messageImg = dto.messageImg;
+    }
+    messages.value[i] = next;
+};
+
+const saveEdit = async (m) => {
+    const text = (editText.value || '').trim();
+    if (!text) { showDialog?.('Thông báo', 'Nội dung không được để trống'); return; }
+    if (text === (m.content || '')) { cancelEdit(); return; }
+    try {
+        const res = await editMessage(m.messageId, text);
+        applyUpdated(res?.data?.data || { messageId: m.messageId, content: text });
+        cancelEdit();
+    } catch (e) {
+        showDialog?.('Thông báo', e?.description || 'Sửa tin nhắn thất bại');
+    }
+};
+
+const confirmRecall = (m) => {
+    openConfirm?.('Thu hồi tin nhắn', 'Thu hồi tin nhắn này với mọi người?', async () => {
+        try {
+            const res = await recallMessage(m.messageId);
+            applyUpdated(res?.data?.data || { messageId: m.messageId, recalled: true, content: '' });
+        } catch (e) {
+            showDialog?.('Thông báo', e?.description || 'Thu hồi thất bại');
+        }
+    }, { danger: true, confirmText: 'Thu hồi' });
+};
 
 const pickImg = () => fileEl.value?.click();
 const onPickImg = (e) => { pendingImg.value = e.target.files[0] || null; };

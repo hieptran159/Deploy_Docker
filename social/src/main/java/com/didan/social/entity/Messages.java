@@ -20,6 +20,9 @@ public class Messages {
     @Temporal(TemporalType.TIMESTAMP)
     private Date sentAt;
 
+    @Column(name = "recalled")
+    private Boolean recalled;
+
     @ManyToOne
     @JoinColumn(name = "conversation_id")
     private Conversations conversations;
@@ -69,6 +72,14 @@ public class Messages {
 
     public void setSentAt(Date sentAt) {
         this.sentAt = sentAt;
+    }
+
+    public Boolean getRecalled() {
+        return recalled;
+    }
+
+    public void setRecalled(Boolean recalled) {
+        this.recalled = recalled;
     }
 
     public Conversations getConversations() {

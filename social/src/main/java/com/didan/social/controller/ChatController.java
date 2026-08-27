@@ -3,6 +3,7 @@ package com.didan.social.controller;
 import com.didan.social.dto.ConversationDTO;
 import com.didan.social.dto.MessageDTO;
 import com.didan.social.payload.ResponseData;
+import com.didan.social.payload.request.EditMessageRequest;
 import com.didan.social.payload.request.SendMessageRequest;
 import com.didan.social.service.ChatService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -180,6 +181,44 @@ public class ChatController {
                 payload.setDescription("Send message failed");
                 payload.setStatusCode(422);
             }
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e){
+            payload.setSuccess(false);
+            payload.setStatusCode(500);
+            payload.setDescription(e.getMessage());
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+    // Edit Message
+    @Operation(summary = "Edit your message",
+            description = "Only the sender can edit, and only a message that is not recalled",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @PatchMapping("/message/{message_id}")
+    public ResponseEntity<?> editMessage(@PathVariable("message_id") String messageId, @RequestBody EditMessageRequest request){
+        ResponseData payload = new ResponseData();
+        try {
+            MessageDTO data = chatService.editMessage(messageId, request == null ? null : request.getContent());
+            payload.setDescription("Edit message successful");
+            payload.setData(data);
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e){
+            payload.setSuccess(false);
+            payload.setStatusCode(500);
+            payload.setDescription(e.getMessage());
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+    // Recall (unsend) Message
+    @Operation(summary = "Recall your message",
+            description = "Only the sender can recall the message",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @DeleteMapping("/message/{message_id}")
+    public ResponseEntity<?> recallMessage(@PathVariable("message_id") String messageId){
+        ResponseData payload = new ResponseData();
+        try {
+            MessageDTO data = chatService.recallMessage(messageId);
+            payload.setDescription("Recall message successful");
+            payload.setData(data);
             return new ResponseEntity<>(payload, HttpStatus.OK);
         } catch (Exception e){
             payload.setSuccess(false);

@@ -7,6 +7,7 @@ public class MessageDTO {
     private String sentAt;
     private String conversationId;
     private String senderId;
+    private Boolean recalled;
 
     public MessageDTO() {
     }
@@ -66,5 +67,13 @@ public class MessageDTO {
 
     public void setSenderId(String senderId) {
         this.senderId = senderId;
+    }
+
+    public Boolean getRecalled() {
+        return recalled;
+    }
+
+    public void setRecalled(Boolean recalled) {
+        this.recalled = recalled;
     }
 }
