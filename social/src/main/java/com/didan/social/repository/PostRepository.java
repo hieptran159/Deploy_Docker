@@ -1,7 +1,6 @@
 package com.didan.social.repository;
 
 import com.didan.social.entity.Posts;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -15,8 +14,9 @@ public interface PostRepository extends JpaRepository<Posts, String> {
     // Bài mới đăng lên trước; p.postId làm tiebreaker để phân trang không bị xáo trộn
     @Query("SELECT p FROM posts p ORDER BY p.postedAt DESC, p.postId ASC")
     List<Posts> findAllPost();
+    // Trả List (không phải Page) -> Spring Data chỉ chạy SELECT có LIMIT/OFFSET, bỏ COUNT thừa mỗi lần đổi trang
     @Query("SELECT p FROM posts p ORDER BY p.postedAt DESC, p.postId ASC")
-    Page<Posts> findAllPostByCommentAtOrPostAt(Pageable pageable);
+    List<Posts> findAllPostByCommentAtOrPostAt(Pageable pageable);
 
     // Join all the tables to get the post, user, likes, comments and sub-comments
     @EntityGraph(attributePaths = {"userPost", "postLikes", "userComments", "userComments.comments"}, type = EntityGraph.EntityGraphType.FETCH)

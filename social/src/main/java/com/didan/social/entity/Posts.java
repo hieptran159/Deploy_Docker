@@ -6,6 +6,10 @@ import java.util.Date;
 import java.util.Set;
 
 @Entity(name = "posts")
+@Table(name = "posts", indexes = {
+        // Feed sắp xếp theo posted_at DESC -> index cho phép quét ngược thay vì filesort toàn bảng
+        @Index(name = "idx_posts_posted_at", columnList = "posted_at")
+})
 public class Posts {
     @Id
     @Column(name = "post_id")

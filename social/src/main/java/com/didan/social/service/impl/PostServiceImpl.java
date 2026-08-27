@@ -13,7 +13,6 @@ import com.didan.social.service.convertdto.ConvertDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -103,14 +102,15 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
 
     @Override
     public List<PostDTO> getAllPostsByPage(int index) throws Exception {
-        PageRequest pageRequest = PageRequest.of(index-1, 10);
-        Page<Posts> posts = postRepository.findAllPostByCommentAtOrPostAt(pageRequest);
-        if (posts == null) {
+        if (index < 1) index = 1;
+        PageRequest pageRequest = PageRequest.of(index - 1, 10);
+        List<Posts> posts = postRepository.findAllPostByCommentAtOrPostAt(pageRequest);
+        if (posts == null || posts.isEmpty()) {
             logger.info("No posts are here");
             return Collections.emptyList();
         }
         String meId = currentUserOrNull();
-        return posts.getContent().stream().map(post -> toListDTO(post, meId)).collect(Collectors.toList());
+        return posts.stream().map(post -> toListDTO(post, meId)).collect(Collectors.toList());
     }
 
     @Override
