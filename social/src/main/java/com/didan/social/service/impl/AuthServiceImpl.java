@@ -124,6 +124,7 @@ public class AuthServiceImpl implements AuthService {
             userSave.setEmailVerified(0);
             userSave.setVerifyCode(code);
             userRepository.save(userSave);
+            logger.info("[verify] signup {} code={}", signupRequest.getEmail(), code); // tiện test khi email chưa gửi được
             try {
                 mailService.sendTextEmail(signupRequest.getEmail(), "Xác thực email",
                         "<h2>Chào mừng bạn!</h2><p>Mã xác thực email của bạn là: <b style='font-size:20px'>" + code + "</b></p>");
@@ -268,6 +269,7 @@ public class AuthServiceImpl implements AuthService {
         user.setEmailVerified(0);
         user.setVerifyCode(code);
         userRepository.save(user);
+        logger.info("[verify] resend {} code={}", email, code);
         mailService.sendTextEmail(email, "Xác thực email",
                 "<h2>Mã xác thực mới</h2><p>Mã xác thực email của bạn là: <b style='font-size:20px'>" + code + "</b></p>");
     }
