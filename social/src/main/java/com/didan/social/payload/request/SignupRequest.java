@@ -14,8 +14,8 @@ public class SignupRequest {
     private String password;
     @JsonProperty(required = true)
     private String birthday;
-    @JsonProperty(required = true)
-    private MultipartFile avatar;
+    @JsonProperty(required = false)
+    private MultipartFile avatar = null;
 
     public MultipartFile getAvatar() {
         return avatar;
