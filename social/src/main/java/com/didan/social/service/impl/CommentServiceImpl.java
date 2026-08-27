@@ -144,6 +144,12 @@ public class CommentServiceImpl extends ConvertDTO implements CommentService {
         newCommentLike.setUsers(user);
         newCommentLike.setComments(comment);
         commentLikeRepository.save(newCommentLike);
+        UserComment uc = userCommentRepository.findFirstByComments_CommentId(commentId);
+        if (uc != null && uc.getUsers() != null) {
+            String postId = uc.getPosts() != null ? uc.getPosts().getPostId() : null;
+            notificationService.pushUniquePerActor(uc.getUsers().getUserId(), user.getUserId(), "COMMENT_LIKE", postId,
+                    user.getFullName() + " đã thích bình luận của bạn");
+        }
         return true;
     }
 

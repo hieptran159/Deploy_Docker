@@ -1,7 +1,7 @@
 <template>
     <header class="app-header">
         <div class="app-header__inner">
-            <span class="app-brand" @click="() => route.push('/')">HIP-DIDAN&nbsp;Forum</span>
+            <span class="app-brand" @click="() => route.push('/')">HIPDN-EA&nbsp;Forum</span>
 
             <div v-if="isLogin" class="flex-1 min-w-0">
                 <DxTabs
@@ -170,8 +170,9 @@ let pollTimer = null;
 let seenIds = new Set();
 let firstPoll = true;
 
+const POST_TYPES = ['COMMENT', 'COMMENT_LIKE', 'POST_LIKE'];
 const targetOf = (n) => {
-    if (n.type === 'COMMENT' && n.targetId) return () => route.push(`/post/${n.targetId}`);
+    if (POST_TYPES.includes(n.type) && n.targetId) return () => route.push(`/post/${n.targetId}`);
     if (n.type === 'MESSAGE' && n.targetId) return () => route.push({ path: '/chat', query: { c: n.targetId, name: n.actorName || '' } });
     if (n.actorId) return () => route.push(`/user/${n.actorId}`);
     return null;

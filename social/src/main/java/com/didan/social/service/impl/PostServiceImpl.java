@@ -36,6 +36,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
     private final PostLikeRepository postLikeRepository;
     private final CommentRepository commentRepository;
     private final AuthorizePathService authorizePathService;
+    private final com.didan.social.service.NotificationService notificationService;
     @Autowired
     public PostServiceImpl(PostRepository postRepository,
                        UserPostRepository userPostRepository,
@@ -43,7 +44,8 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
                        UserRepository userRepository,
                        PostLikeRepository postLikeRepository,
                        CommentRepository commentRepository,
-                       AuthorizePathService authorizePathService
+                       AuthorizePathService authorizePathService,
+                       com.didan.social.service.NotificationService notificationService
     ){
         this.postRepository = postRepository;
         this.userPostRepository = userPostRepository;
@@ -52,6 +54,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         this.postLikeRepository = postLikeRepository;
         this.commentRepository =commentRepository;
         this.authorizePathService = authorizePathService;
+        this.notificationService = notificationService;
     }
     @Transactional
     @Override
@@ -148,6 +151,11 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         PostLikes newPostLike = new PostLikes();
         newPostLike.setPostLikeId(new PostLikeId(postId, user.getUserId()));
         postLikeRepository.save(newPostLike);
+        UserPosts up = userPostRepository.findFirstByPosts_PostId(postId);
+        if (up != null && up.getUsers() != null) {
+            notificationService.pushUniquePerActor(up.getUsers().getUserId(), user.getUserId(), "POST_LIKE", postId,
+                    user.getFullName() + " đã thích bài viết của bạn");
+        }
         return true;
     }
 

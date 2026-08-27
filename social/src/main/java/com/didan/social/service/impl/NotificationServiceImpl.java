@@ -120,6 +120,23 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     @Override
+    public void pushUniquePerActor(String recipientId, String actorId, String type, String targetId, String message) {
+        try {
+            if (!StringUtils.hasText(recipientId) || recipientId.equals(actorId)) {
+                return;
+            }
+            Notifications existing = notificationRepository
+                    .findFirstByRecipientIdAndActorIdAndTypeAndTargetIdAndIsRead(recipientId, actorId, type, targetId, 0);
+            if (existing != null) {
+                return;
+            }
+        } catch (Exception e) {
+            logger.error("pushUniquePerActor check failed: " + e.getMessage());
+        }
+        push(recipientId, actorId, type, targetId, message);
+    }
+
+    @Override
     public int markReadByTarget(String targetId) throws Exception {
         String myId = authorizePathService.getUserIdAuthoried();
         List<Notifications> unread = notificationRepository.findByRecipientIdAndIsRead(myId, 0);
