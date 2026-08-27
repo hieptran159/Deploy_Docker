@@ -2,7 +2,7 @@ import axios from 'axios';
 
 import { LOCALKEYS, getItemLocal } from './localStorage';
 
-const BASE_URL = "http://hp11.hipe.id.vn:8081/";
+const BASE_URL = "http://localhost:8081/";
 
 /**
  * Khởi tạo cách truyền và xử lí Rest-API
