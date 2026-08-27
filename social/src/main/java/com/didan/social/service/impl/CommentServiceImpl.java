@@ -37,6 +37,7 @@ public class CommentServiceImpl extends ConvertDTO implements CommentService {
     private final AuthorizePathService authorizePathService;
     private final UserPostRepository userPostRepository;
     private final com.didan.social.service.NotificationService notificationService;
+    private final com.didan.social.socket.RealtimeGateway realtimeGateway;
     @Autowired
     public CommentServiceImpl(UserCommentRepository userCommentRepository,
                               CommentRepository commentRepository,
@@ -46,7 +47,8 @@ public class CommentServiceImpl extends ConvertDTO implements CommentService {
                               AuthorizePathService authorizePathService,
                               PostRepository postRepository,
                               UserPostRepository userPostRepository,
-                              com.didan.social.service.NotificationService notificationService){
+                              com.didan.social.service.NotificationService notificationService,
+                              com.didan.social.socket.RealtimeGateway realtimeGateway){
         this.userCommentRepository = userCommentRepository;
         this.commentRepository = commentRepository;
         this.commentLikeRepository = commentLikeRepository;
@@ -56,6 +58,17 @@ public class CommentServiceImpl extends ConvertDTO implements CommentService {
         this.postRepository = postRepository;
         this.userPostRepository = userPostRepository;
         this.notificationService = notificationService;
+        this.realtimeGateway = realtimeGateway;
+    }
+
+    // báo cho mọi người đang mở bài viết biết danh sách bình luận vừa đổi
+    private void broadcastCommentsChanged(String postId) {
+        if (postId == null) return;
+        try {
+            java.util.Map<String, Object> p = new java.util.HashMap<>();
+            p.put("postId", postId);
+            realtimeGateway.toRoom("post:" + postId, "post_comments_changed", p);
+        } catch (Exception ignore) { /* realtime là phụ */ }
     }
 
     @Override
@@ -127,6 +140,7 @@ public class CommentServiceImpl extends ConvertDTO implements CommentService {
         } catch (Exception ex) {
             logger.error("mention parse failed: " + ex.getMessage());
         }
+        broadcastCommentsChanged(postId);
         return commentId.toString();
     }
 
@@ -163,11 +177,12 @@ public class CommentServiceImpl extends ConvertDTO implements CommentService {
         newCommentLike.setComments(comment);
         commentLikeRepository.save(newCommentLike);
         UserComment uc = userCommentRepository.findFirstByComments_CommentId(commentId);
+        String likedPostId = (uc != null && uc.getPosts() != null) ? uc.getPosts().getPostId() : null;
         if (uc != null && uc.getUsers() != null) {
-            String postId = uc.getPosts() != null ? uc.getPosts().getPostId() : null;
-            notificationService.pushUniquePerActor(uc.getUsers().getUserId(), user.getUserId(), "COMMENT_LIKE", postId,
+            notificationService.pushUniquePerActor(uc.getUsers().getUserId(), user.getUserId(), "COMMENT_LIKE", likedPostId,
                     user.getFullName() + " đã thích bình luận của bạn");
         }
+        broadcastCommentsChanged(likedPostId);
         return true;
     }
 
@@ -191,6 +206,8 @@ public class CommentServiceImpl extends ConvertDTO implements CommentService {
             throw new Exception("User hasn't liked post yet");
         }
         commentLikeRepository.delete(commentLike);
+        UserComment uc = userCommentRepository.findFirstByComments_CommentId(commentId);
+        broadcastCommentsChanged(uc != null && uc.getPosts() != null ? uc.getPosts().getPostId() : null);
         return true;
     }
 
@@ -229,6 +246,7 @@ public class CommentServiceImpl extends ConvertDTO implements CommentService {
         commentDTO.setCommentLikes(commentLikes.size());
         List<String> userLikes = commentLikes.stream().map(commentLike -> commentLike.getUsers().getUserId()).collect(Collectors.toList());
         commentDTO.setUserLikes(userLikes);
+        broadcastCommentsChanged(userComment.getPosts() != null ? userComment.getPosts().getPostId() : null);
         return commentDTO;
     }
 
@@ -255,11 +273,13 @@ public class CommentServiceImpl extends ConvertDTO implements CommentService {
             logger.error("The user hasn't this post or not authorized to edit this post");
             throw new Exception("The user hasn't this post or not authorized to edit this post");
         }
+        String deletedPostId = userComment.getPosts() != null ? userComment.getPosts().getPostId() : null;
         userCommentRepository.delete(userComment);
         if(StringUtils.hasText(comment.getCommentImg())){
             fileUploadsService.deleteFile(comment.getCommentImg());
         }
         commentRepository.delete(comment);
+        broadcastCommentsChanged(deletedPostId);
         return true;
     }
 

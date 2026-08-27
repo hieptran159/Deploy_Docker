@@ -90,6 +90,13 @@ public class SocketModule {
                 String conversationId = client.getHandshakeData().getSingleUrlParam("conversationID"); // Lấy ra các tham số và giá trị của URL mà client gửi lên
                 client.set("userId", userId); // lưu userId lên session để người khác biết
                 client.joinRoom("user:" + userId); // phòng riêng để nhận thông báo realtime
+                String postId = client.getHandshakeData().getSingleUrlParam("postID");
+                if (StringUtils.hasText(postId)) {
+                    // socket theo dõi 1 bài viết (bình luận realtime)
+                    client.joinRoom("post:" + postId);
+                    logger.info(String.format("Post socket connected - userId[%s] postId[%s]", userId, postId));
+                    return;
+                }
                 if (!StringUtils.hasText(conversationId)) {
                     // socket chỉ để nhận thông báo cá nhân, không tham gia phòng chat nào
                     logger.info(String.format("Notification socket connected - userId[%s]", userId));
@@ -121,6 +128,10 @@ public class SocketModule {
                 jwtUtils.validateAccessToken(accessToken);
                 String userId = jwtUtils.getUserIdFromAccessToken(accessToken);
                 String conversationId = client.getHandshakeData().getSingleUrlParam("conversationID"); // Lấy ra các tham số và giá trị của URL mà client gửi lên
+                if (StringUtils.hasText(client.getHandshakeData().getSingleUrlParam("postID"))) {
+                    // socket theo dõi bài viết: netty tự rời phòng khi ngắt kết nối
+                    return;
+                }
                 if (!StringUtils.hasText(conversationId)) {
                     // socket thông báo cá nhân: không có phòng chat để xử lý
                     logger.info(String.format("Notification socket disconnected - userId[%s]", userId));

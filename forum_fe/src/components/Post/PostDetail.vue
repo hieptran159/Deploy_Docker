@@ -142,7 +142,8 @@ import EmojiPicker from '@/components/EmojiPicker.vue';
 import { LOCALKEYS, getItemLocal } from '@/storages/localStorage';
 import { activePostId, bumpNotifRefresh } from '@/storages/appState';
 import EditPost from '@/components/Post/EditPost.vue';
-import { IMAGE_BASE } from '@/config';
+import { IMAGE_BASE, SOCKET_URL } from '@/config';
+import { io } from 'socket.io-client';
 
 const  route = useRouter();
 
@@ -298,6 +299,26 @@ const markPostNotifsRead = async () => {
     } catch (e) { /* ignore */ }
 }
 
+/* ---------- realtime: bình luận từ người khác ---------- */
+let postSocket = null;
+let refetchTimer = null;
+const connectPostSocket = () => {
+    const token = getItemLocal(LOCALKEYS.ACCESS_TOKEN);
+    if (!token) return;
+    try {
+        postSocket = io(SOCKET_URL, { transports: ['websocket'], query: { token, postID: id.value } });
+        postSocket.on('post_comments_changed', (p) => {
+            if (!p || p.postId !== id.value) return;
+            clearTimeout(refetchTimer);
+            refetchTimer = setTimeout(getDataPostById, 300);
+        });
+    } catch (e) { /* ignore */ }
+}
+const teardownPostSocket = () => {
+    clearTimeout(refetchTimer);
+    if (postSocket) { postSocket.removeAllListeners(); postSocket.disconnect(); postSocket = null; }
+}
+
 onMounted(async() => {
     activePostId.value = id.value;
     loadUsers();
@@ -305,10 +326,12 @@ onMounted(async() => {
     await getDataUser();
     // đang xem bài này -> đánh dấu đã đọc các thông báo bình luận / thích của bài
     markPostNotifsRead();
+    connectPostSocket();
 })
 
 onBeforeUnmount(() => {
     activePostId.value = null;
+    teardownPostSocket();
 })
 
 </script>
