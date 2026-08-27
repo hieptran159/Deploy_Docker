@@ -154,7 +154,9 @@
                                         ]">
                                         <span v-if="m.recalled">Tin nhắn đã được thu hồi</span>
                                         <template v-else>
-                                            <span v-if="m.content">{{ m.content }}</span>
+                                            <span v-if="m.content"><template v-for="(p, pi) in msgParts(m.content)" :key="pi"><span
+                                                v-if="p.mention" class="font-semibold underline cursor-pointer"
+                                                @click="() => router.push('/user/' + p.id)">@{{ p.mention }}</span><template v-else>{{ p.t }}</template></template></span>
                                             <img v-if="m.messageImg && !String(m.messageImg).includes('null')"
                                                 :src="IMAGE_BASE + m.messageImg" class="mt-1 max-w-[220px] rounded-lg cursor-zoom-in"
                                                 @click="openLightbox(IMAGE_BASE + m.messageImg)" />
@@ -182,8 +184,19 @@
                         />
                         <input ref="fileEl" type="file" accept="image/*" class="hidden" @change="onPickImg" />
                         <EmojiPicker direction="up" @pick="addDraftEmoji" />
-                        <DxTextBox v-model="draft" placeholder="Nhập tin nhắn…" class="flex-1"
-                            @enter-key="sendMessage" @input="onTyping" @focus-in="onInputFocus" />
+                        <div class="flex-1 relative">
+                            <DxTextBox v-model="draft" placeholder="Nhập tin nhắn… (@ để nhắc tên)" class="w-full"
+                                @enter-key="sendMessage" @input="onDraftInput" @focus-in="onInputFocus" @focus-out="onDraftBlur" />
+                            <div v-if="mentionOpen && mentionResults.length"
+                                class="absolute z-40 left-0 right-0 bottom-full mb-1 bg-[var(--surface)] border rounded-lg shadow-lg overflow-hidden">
+                                <button v-for="u in mentionResults" :key="u.userId" type="button"
+                                    class="w-full text-left px-3 py-2 text-sm hover:bg-[var(--brand-soft)] truncate flex items-center gap-2"
+                                    @mousedown.prevent="pickChatMention(u)">
+                                    <span class="avatar-fallback size-6 text-xs">{{ (u.fullName || '?')[0] }}</span>
+                                    <span class="truncate">{{ u.fullName }}</span>
+                                </button>
+                            </div>
+                        </div>
                         <DxButton text="Gửi" type="default" @click="sendMessage" />
                     </div>
                 </template>
@@ -333,7 +346,7 @@ const unreadByConv = ref({});
 
 const previewOf = (c) => {
     const hasImg = c.lastMessageImg && !String(c.lastMessageImg).includes('null');
-    let body = c.lastMessage || '';
+    let body = (c.lastMessage || '').replace(/@\[([^\]]+)\]\([0-9a-fA-F-]{8,}\)/g, '@$1');
     if (!body && hasImg) body = '🖼 Hình ảnh';
     if (!body) return 'Chưa có tin nhắn';
     const mine = c.lastSenderId && c.lastSenderId === myId;
@@ -697,6 +710,58 @@ const onTyping = () => {
 
 const onInputFocus = () => { markConvRead(); }
 
+/* ---------- @nhắc tên trong tin nhắn nhóm ---------- */
+const mentionOpen = ref(false);
+const mentionResults = ref([]);
+const chatPicked = ref([]);            // [{ name, id }]
+const MENTION_TAIL = /@([^\s@[\]]{0,30})$/;
+
+const mentionCandidates = () => {
+    // chỉ nhắc trong nhóm; lấy từ danh sách thành viên (senderMap) + members
+    if (!active.value || isDm(active.value.conversationName)) return [];
+    const seen = new Set();
+    const out = [];
+    for (const m of members.value) {
+        if (m.userId === myId || seen.has(m.userId)) continue;
+        seen.add(m.userId); out.push({ userId: m.userId, fullName: m.fullName });
+    }
+    for (const [uid, v] of Object.entries(senderMap.value)) {
+        if (uid === myId || seen.has(uid)) continue;
+        seen.add(uid); out.push({ userId: uid, fullName: v.fullName });
+    }
+    return out;
+};
+
+const onDraftInput = (e) => {
+    onTyping();
+    let v = e?.event?.target?.value;
+    if (v == null && e?.component?.option) v = e.component.option('text');
+    if (v == null) return;
+    draft.value = v;
+    const mm = v.match(MENTION_TAIL);
+    if (!mm || (active.value && isDm(active.value.conversationName))) { mentionOpen.value = false; return; }
+    const q = mm[1].toLowerCase();
+    mentionResults.value = mentionCandidates()
+        .filter((u) => (u.fullName || '').toLowerCase().includes(q))
+        .slice(0, 6);
+    mentionOpen.value = mentionResults.value.length > 0;
+};
+const onDraftBlur = () => { setTimeout(() => { mentionOpen.value = false; }, 120); };
+
+const pickChatMention = (u) => {
+    draft.value = (draft.value || '').replace(MENTION_TAIL, `@${u.fullName} `);
+    if (!chatPicked.value.some((p) => p.id === u.userId)) chatPicked.value.push({ name: u.fullName, id: u.userId });
+    mentionOpen.value = false;
+};
+const resolveChatMentions = (text) => {
+    let out = text || '';
+    for (const { name, id } of chatPicked.value) {
+        const tag = '@' + name;
+        if (out.includes(tag)) out = out.split(tag).join(`@[${name}](${id})`);
+    }
+    return out;
+};
+
 const appendLocal = (extra) => {
     const localId = 'local-' + Date.now();
     messages.value.push({
@@ -731,9 +796,10 @@ const replaceLocal = (localId, saved) => {
 
 const sendMessage = async () => {
     if (!active.value) return;
-    const text = draft.value.trim();
+    const raw = draft.value.trim();
+    const text = resolveChatMentions(raw);
     const img = pendingImg.value;
-    if (!text && !img) return;
+    if (!raw && !img) return;
 
     if (img) {
         try {
@@ -747,17 +813,35 @@ const sendMessage = async () => {
         pendingImg.value = null;
         if (fileEl.value) fileEl.value.value = '';
         draft.value = '';
+        chatPicked.value = [];
+        mentionOpen.value = false;
         return;
     }
 
     const localId = appendLocal({ content: text });
     draft.value = '';
+    chatPicked.value = [];
+    mentionOpen.value = false;
     if (socket && connected.value) {
         socket.emit('send_message', { content: text }, (saved) => { replaceLocal(localId, saved); });
     }
 }
 
 const addDraftEmoji = (e) => { draft.value = (draft.value || '') + e; };
+
+// tách @[Tên](id) trong tin nhắn để hiển thị @Tên
+const msgParts = (text) => {
+    const re = /@\[([^\]]+)\]\(([0-9a-fA-F-]{8,})\)/g;
+    const out = [];
+    let last = 0, m;
+    while ((m = re.exec(text || '')) !== null) {
+        if (m.index > last) out.push({ t: text.slice(last, m.index) });
+        out.push({ mention: m[1], id: m[2] });
+        last = m.index + m[0].length;
+    }
+    if (last < (text || '').length) out.push({ t: text.slice(last) });
+    return out;
+};
 
 /* ---------- sửa / thu hồi tin nhắn ---------- */
 const canModify = (m) => m.senderId === myId && !m.recalled && !String(m.messageId || '').startsWith('local-');
