@@ -104,17 +104,19 @@
 </template>
 
 <script setup>
-import { onMounted, ref, computed, inject } from 'vue';
+import { onMounted, onBeforeUnmount, ref, computed, inject } from 'vue';
 import { getPostById } from '@/apis/post';
 import { createComment } from '@/apis/comment';
 import { likePostApi, unLikePostApi, deletePost } from '@/apis/post';
 import { getUserInfo } from '@/apis/user';
+import { markReadByTarget } from '@/apis/notification';
 import { useRouter } from 'vue-router';
 import { calculateTimeDifference } from '@/js/helper';
 import Comment from '../comment/Comment.vue';
 import { DxTextBox, DxButton, DxPopup } from 'devextreme-vue';
 import BaseAvatar from '../BaseAvatar.vue';
 import { LOCALKEYS, getItemLocal } from '@/storages/localStorage';
+import { activePostId, bumpNotifRefresh } from '@/storages/appState';
 import EditPost from '@/components/Post/EditPost.vue';
 import { IMAGE_BASE } from '@/config';
 
@@ -197,9 +199,23 @@ const goAuthor = () => {
     if (post.value?.userCreatedPost) route.push(`/user/${post.value.userCreatedPost}`);
 }
 
+const markPostNotifsRead = async () => {
+    try {
+        await markReadByTarget(id.value);
+        bumpNotifRefresh();
+    } catch (e) { /* ignore */ }
+}
+
 onMounted(async() => {
+    activePostId.value = id.value;
     await getDataPostById();
     await getDataUser();
+    // đang xem bài này -> đánh dấu đã đọc các thông báo bình luận / thích của bài
+    markPostNotifsRead();
+})
+
+onBeforeUnmount(() => {
+    activePostId.value = null;
 })
 
 </script>

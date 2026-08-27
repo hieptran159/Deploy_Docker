@@ -105,7 +105,7 @@ import { logout as logoutApi } from '@/apis/auth';
 import { checkIsAdmin } from '@/apis/admin';
 import { getNotifications, markAllRead, markRead } from '@/apis/notification';
 import { timeAgo } from '@/js/helper';
-import { activeConversationId, notifRefreshTick } from '@/storages/appState';
+import { activeConversationId, activePostId, notifRefreshTick } from '@/storages/appState';
 import BaseAvatar from '../BaseAvatar.vue';
 
 const route = useRouter();
@@ -211,6 +211,8 @@ const pollNotifs = async () => {
                 && !seenIds.has(n.notificationId)
                 // đang mở đúng hội thoại đó -> không cần toast
                 && !(n.type === 'MESSAGE' && n.targetId && n.targetId === activeConversationId.value)
+                // đang xem đúng bài viết đó -> không cần toast bình luận / thích
+                && !(POST_TYPES.includes(n.type) && n.targetId && n.targetId === activePostId.value)
             );
             if (fresh.length > 3) {
                 toast?.(`Bạn có ${fresh.length} thông báo mới`, { type: 'info', onClick: () => { showNotif.value = true; }, duration: 6000 });
