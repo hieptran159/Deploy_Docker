@@ -29,6 +29,15 @@
                         Chỉnh sửa
                     </DxButton>
                     <DxButton
+                        v-if="comment?.userComments == getItemLocal(LOCALKEYS.USER_ID)"
+                        class = "ml-2"
+                        icon = "trash"
+                        type = "danger"
+                        @click="handleDeleteComment"
+                    >
+                        Xoá
+                    </DxButton>
+                    <DxButton
                         class= "ml-auto"
                         icon = "like"
                         type = "danger"
@@ -68,7 +77,7 @@
 import { onMounted, ref, inject, defineProps, defineEmits } from 'vue';
 import {getUserInfo} from '../../apis/user';
 import { DxButton, DxPopup } from 'devextreme-vue';
-import { likeCommentApi, unLikeCommentApi } from '@/apis/comment';
+import { likeCommentApi, unLikeCommentApi, deleteComment } from '@/apis/comment';
 import { LOCALKEYS, getItemLocal } from '@/storages/localStorage';
 import BaseAvatar from '../BaseAvatar.vue';
 import EditComments from './EditComments.vue';
@@ -111,6 +120,15 @@ const likePost = async() => {
 const unLikePost = async() => {
     try {
         await unLikeCommentApi(comment.value.commentId);
+        emits('refresh');
+    } catch (error) {
+        console.log(error);
+    }
+}
+
+const handleDeleteComment = async() => {
+    try {
+        await deleteComment(comment.value.commentId);
         emits('refresh');
     } catch (error) {
         console.log(error);

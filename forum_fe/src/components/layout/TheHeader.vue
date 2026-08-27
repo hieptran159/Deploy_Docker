@@ -50,6 +50,7 @@ import DxButton from 'devextreme-vue/button';
 import { ref, watch } from 'vue';
 import { LOCALKEYS, getItemLocal, delItemLocal } from '@/storages/localStorage';
 import { useRouter } from 'vue-router';
+import { logout as logoutApi } from '@/apis/auth';
 import BaseAvatar from '../BaseAvatar.vue';
 
 const  route = useRouter();
@@ -76,7 +77,12 @@ const isLogin = ref(
     getItemLocal(LOCALKEYS.ACCESS_TOKEN) != null
 )
 
-const logout = () => {
+const logout = async () => {
+    try {
+        await logoutApi();
+    } catch (error) {
+        console.log(error);
+    }
     delItemLocal(LOCALKEYS.ACCESS_TOKEN);
     delItemLocal(LOCALKEYS.USER_ID);
     delItemLocal(LOCALKEYS.LINK_AVT);
