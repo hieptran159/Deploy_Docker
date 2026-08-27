@@ -19,3 +19,7 @@ export const markRead = (id) => {
 export const markReadByTarget = (targetId) => {
     return authApi.patch(`/notification/target/${targetId}/read`);
 }
+
+export const markReadByType = (type) => {
+    return authApi.patch(`/notification/type/${type}/read`);
+}

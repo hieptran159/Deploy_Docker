@@ -8,7 +8,11 @@
             </div>
 
             <div class="min-w-0 flex-1">
-                <div class="text-2xl font-bold truncate">{{ user?.fullName || '…' }}</div>
+                <div class="text-2xl font-bold truncate">
+                    {{ user?.fullName || '…' }}
+                    <span v-if="user?.nickname" class="text-base muted font-normal">({{ user.nickname }})</span>
+                </div>
+                <div v-if="user?.slogan" class="text-sm italic muted">“{{ user.slogan }}”</div>
                 <div class="muted truncate">{{ user?.email }}</div>
                 <div class="flex flex-wrap gap-x-5 gap-y-1 mt-2 text-sm">
                     <span class="link" @click="goFriends"><b>{{ friendCount }}</b> bạn bè</span>
@@ -28,6 +32,15 @@
                 <DxButton v-else-if="fStatus === 'friends'" type="normal" stylingMode="outlined" icon="check" text="Bạn bè" @click="doUnfriend" />
 
                 <DxButton type="danger" stylingMode="text" icon="warning" text="Báo cáo" @click="report" />
+            </div>
+        </div>
+
+        <div v-if="hasInfo" class="card">
+            <div class="section-title">Thông tin</div>
+            <div class="flex flex-col gap-1.5 text-sm">
+                <div v-if="user?.phone" class="flex gap-2"><span class="w-28 flex-none muted">Số điện thoại</span><span>{{ user.phone }}</span></div>
+                <div v-if="user?.address" class="flex gap-2"><span class="w-28 flex-none muted">Địa chỉ</span><span>{{ user.address }}</span></div>
+                <div v-if="user?.hobbies" class="flex gap-2"><span class="w-28 flex-none muted">Sở thích</span><span class="whitespace-pre-wrap">{{ user.hobbies }}</span></div>
             </div>
         </div>
 
@@ -80,6 +93,7 @@ const friendCount = ref(0);
 
 const isMe = computed(() => userId.value === myId);
 const avatarUrl = computed(() => (user.value?.avtUrl ? IMAGE_BASE + user.value.avtUrl : ""));
+const hasInfo = computed(() => !!(user.value?.phone || user.value?.address || user.value?.hobbies));
 
 const refreshStatus = async () => {
     try {

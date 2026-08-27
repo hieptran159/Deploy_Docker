@@ -16,6 +16,11 @@ export const editUser = (data) => {
     return authApiFormData.patch('/user/edit', data);
 }
 
+// Cập nhật hồ sơ mở rộng (JSON, không cần mật khẩu)
+export const updateProfile = (data) => {
+    return authApi.patch('/user/profile', data);
+}
+
 export const reportUser = (userId) => {
     return authApi.post(`/user/${userId}`);
 }

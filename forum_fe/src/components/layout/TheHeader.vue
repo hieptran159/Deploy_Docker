@@ -214,6 +214,8 @@ const pollNotifs = async () => {
                 && !(n.type === 'MESSAGE' && n.targetId && n.targetId === activeConversationId.value)
                 // đang xem đúng bài viết đó -> không cần toast bình luận / thích
                 && !(POST_TYPES.includes(n.type) && n.targetId && n.targetId === activePostId.value)
+                // đang ở trang Bạn bè -> không cần toast lời mời / chấp nhận kết bạn
+                && !((n.type === 'FRIEND_REQUEST' || n.type === 'FRIEND_ACCEPT') && route.currentRoute.value.path === '/follow')
             );
             if (fresh.length > 3) {
                 toast?.(`Bạn có ${fresh.length} thông báo mới`, { type: 'info', onClick: () => { showNotif.value = true; }, duration: 6000 });

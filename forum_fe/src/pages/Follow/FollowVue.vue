@@ -51,6 +51,7 @@ import {
     acceptFriendRequest, declineFriendRequest, cancelFriendRequest, unfriend,
 } from '@/apis/friend';
 import { getUserInfo } from "@/apis/user";
+import { markReadByType } from '@/apis/notification';
 import { openDirectConversation } from '@/apis/chat';
 import { onMounted, ref, computed, watch, inject } from 'vue';
 import { useRouter } from 'vue-router';
@@ -197,6 +198,15 @@ const confirmUnfriend = (item) => {
     }, { danger: true, confirmText: 'Huỷ kết bạn' });
 }
 
+const clearFriendNotifs = async () => {
+    if (!isMe.value) return;
+    try {
+        await markReadByType('FRIEND_REQUEST');
+        await markReadByType('FRIEND_ACCEPT');
+        bumpNotifRefresh();
+    } catch (e) { /* ignore */ }
+};
+
 watch(targetUser, () => { if (!validTab(tab.value)) tab.value = 'friends'; load(); });
-onMounted(load);
+onMounted(() => { load(); clearFriendNotifs(); });
 </script>
