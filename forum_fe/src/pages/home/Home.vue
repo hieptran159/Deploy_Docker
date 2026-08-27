@@ -47,10 +47,20 @@
                 <Post :post="post" />
             </div>
 
-            <div class="flex items-center justify-center gap-2 mt-4">
+            <div class="flex items-center justify-center gap-2 mt-4 flex-wrap">
                 <DxButton icon="chevronleft" :disabled="currentPage <= 1" @click="currentPageChange(-1)" />
-                <span class="muted text-sm px-2">Trang {{ currentPage }}</span>
-                <DxButton icon="chevronright" :disabled="!posts.length" @click="currentPageChange(1)" />
+                <span class="muted text-sm">Trang</span>
+                <input
+                    type="number"
+                    min="1"
+                    :max="totalPages"
+                    v-model.number="gotoPage"
+                    class="w-14 text-center text-sm rounded-lg border px-2 py-1 bg-[var(--surface)]"
+                    @keyup.enter="doGoto"
+                />
+                <span class="muted text-sm">/ {{ totalPages }}</span>
+                <DxButton icon="chevronright" :disabled="currentPage >= totalPages" @click="currentPageChange(1)" />
+                <DxButton text="Đi tới" stylingMode="text" @click="doGoto" />
             </div>
         </div>
     </div>
@@ -59,7 +69,7 @@
 <script setup>
 import Post from '../../components/Post/Post.vue';
 import { DxButton, DxPopup, DxTextBox } from 'devextreme-vue';
-import { getListPostApi, searchPost } from '@/apis/post';
+import { getListPostApi, searchPost, getFeedPages } from '@/apis/post';
 import { inject, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import BaseAvatar from '@/components/BaseAvatar.vue';
@@ -69,8 +79,24 @@ import CreatePost from '../../components/Post/CreatePost.vue';
 const router = useRouter();
 const posts = ref([]);
 const currentPage = ref(pageFromQuery());
+const totalPages = ref(1);
+const gotoPage = ref(currentPage.value);
 const ishowCreatePost = ref(false);
 const loading = ref(false);
+
+const loadPageInfo = async () => {
+    try {
+        totalPages.value = (await getFeedPages())?.data?.data?.totalPages || 1;
+    } catch (e) { totalPages.value = 1; }
+}
+
+const doGoto = () => {
+    let p = parseInt(gotoPage.value, 10);
+    if (!Number.isFinite(p)) return;
+    p = Math.min(Math.max(p, 1), totalPages.value);
+    gotoPage.value = p;
+    if (p !== currentPage.value) router.push({ query: { ...router.currentRoute.value.query, page: p } });
+}
 
 const showDialog = inject("openDialogError");
 const searchText = ref("");
@@ -104,6 +130,7 @@ watch(() => router.currentRoute.value.query.page, () => {
     const p = pageFromQuery();
     if (p !== currentPage.value) {
         currentPage.value = p;
+        gotoPage.value = p;
         getListPost();
     }
 });
@@ -125,5 +152,5 @@ const handleSearch = async () => {
     }
 }
 
-onMounted(getListPost);
+onMounted(() => { getListPost(); loadPageInfo(); });
 </script>

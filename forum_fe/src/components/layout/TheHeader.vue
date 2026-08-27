@@ -1,7 +1,7 @@
 <template>
     <header class="app-header">
         <div class="app-header__inner">
-            <span class="app-brand" @click="() => route.push('/')">HIPDN-EA&nbsp;Forum</span>
+            <span class="app-brand" @click="goHomeReload">HIPDN-EA&nbsp;Forum</span>
 
             <div v-if="isLogin" class="flex-1 min-w-0">
                 <DxTabs
@@ -149,6 +149,12 @@ const options = computed(() => {
 })
 
 const routeById = { 0: '/', 1: '/chat', 2: '/follow', 3: '/users', 4: '/admin', 5: '/saved' };
+
+// bấm logo -> tải lại toàn bộ trang chủ (F5)
+const goHomeReload = () => {
+    if (route.currentRoute.value.path === '/') window.location.reload();
+    else window.location.assign('/');
+};
 const selectChange = (e) => { route.push(routeById[e.itemData.id] || '/'); }
 const signUp = () => route.push('/signup');
 
