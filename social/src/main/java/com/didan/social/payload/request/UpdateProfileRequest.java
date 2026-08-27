@@ -3,6 +3,7 @@ package com.didan.social.payload.request;
 // Cập nhật thông tin hồ sơ (không cần mật khẩu). Trường nào null thì giữ nguyên.
 // *Public: 1 = công khai, 0 = riêng tư.
 public class UpdateProfileRequest {
+    private String fullName;
     private String nickname;
     private String phone;
     private String address;
@@ -14,6 +15,8 @@ public class UpdateProfileRequest {
     private Integer hobbiesPublic;
     private Integer sloganPublic;
 
+    public String getFullName() { return fullName; }
+    public void setFullName(String fullName) { this.fullName = fullName; }
     public String getNickname() { return nickname; }
     public void setNickname(String nickname) { this.nickname = nickname; }
     public String getPhone() { return phone; }

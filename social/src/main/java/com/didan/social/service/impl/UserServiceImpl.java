@@ -98,6 +98,7 @@ public class UserServiceImpl extends ConvertDTO implements UserService {
             logger.error("User is not found");
             throw new Exception("User is not found");
         }
+        if (req.getFullName() != null && !req.getFullName().trim().isEmpty()) user.setFullName(req.getFullName().trim());
         if (req.getNickname() != null) user.setNickname(req.getNickname().trim());
         if (req.getPhone() != null) user.setPhone(req.getPhone().trim());
         if (req.getAddress() != null) user.setAddress(req.getAddress().trim());

@@ -7,6 +7,11 @@
             </p>
 
             <div class="flex flex-col gap-3">
+                <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+                    <label class="text-sm font-semibold w-32 flex-none">Tên hiển thị</label>
+                    <DxTextBox v-model="profile.fullName" class="flex-1" placeholder="Tên của bạn" />
+                    <span class="flex-none w-32 text-xs muted text-center">Luôn công khai</span>
+                </div>
                 <div v-for="f in fields" :key="f.key" class="flex flex-col sm:flex-row sm:items-center gap-2">
                     <label class="text-sm font-semibold w-32 flex-none">{{ f.label }}</label>
                     <DxTextArea v-if="f.area" v-model="profile[f.key]" class="flex-1" :height="60" />
@@ -80,7 +85,7 @@ const fields = [
     { key: 'slogan', label: 'Câu slogan', ph: '' },
 ];
 
-const profile = ref({ nickname: '', phone: '', address: '', hobbies: '', slogan: '' });
+const profile = ref({ fullName: '', nickname: '', phone: '', address: '', hobbies: '', slogan: '' });
 const visible = ref({ nickname: true, phone: false, address: false, hobbies: true, slogan: true });
 
 const currentPassword = ref("");
@@ -103,6 +108,7 @@ const requirePassword = () => {
 const loadProfile = async () => {
     try {
         const d = (await getUserInfo(getItemLocal(LOCALKEYS.USER_ID)))?.data?.data || {};
+        profile.value.fullName = d.fullName || '';
         for (const f of fields) profile.value[f.key] = d[f.key] || '';
         visible.value = {
             nickname: d.nicknamePublic !== false,
@@ -115,8 +121,13 @@ const loadProfile = async () => {
 }
 
 const saveProfile = async () => {
+    if (!profile.value.fullName || !profile.value.fullName.trim()) {
+        showDialog("Thông báo", "Tên hiển thị không được để trống");
+        return;
+    }
     try {
         await updateProfile({
+            fullName: profile.value.fullName,
             nickname: profile.value.nickname,
             phone: profile.value.phone,
             address: profile.value.address,
@@ -129,6 +140,7 @@ const saveProfile = async () => {
             sloganPublic: visible.value.slogan ? 1 : 0,
         });
         await loadProfile();   // nạp lại từ server để chắc chắn đã lưu
+        setItemLocal(LOCALKEYS.USER_NAME, profile.value.fullName);  // cập nhật tên hiển thị ở header
         toast?.('Đã lưu thông tin cá nhân');
     } catch (e) {
         showDialog("Thông báo", e?.description || "Lưu thông tin thất bại");
