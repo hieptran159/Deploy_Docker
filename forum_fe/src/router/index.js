@@ -112,6 +112,15 @@ const routers = [
 	},
 
 	{
+		path: '/saved',
+		component: () =>
+			import(
+				"@/pages/Saved.vue"
+			),
+		beforeEnter: handleBeforeEnter
+	},
+
+	{
 		path: '/admin',
 		component: () =>
 			import(

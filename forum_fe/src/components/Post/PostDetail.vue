@@ -49,6 +49,13 @@
                             @click="toggleLike"
                         />
                         <span class="muted text-sm self-center">{{ post?.likesQuantity ?? 0 }} lượt thích</span>
+                        <DxButton
+                            icon="bookmark"
+                            :type="bookmarked ? 'success' : 'normal'"
+                            :styling-mode="bookmarked ? 'contained' : 'outlined'"
+                            :text="bookmarked ? 'Đã lưu' : 'Lưu'"
+                            @click="toggleBookmarkBtn"
+                        />
                     </div>
                 </div>
             </div>
@@ -131,6 +138,7 @@ import { onMounted, onBeforeUnmount, ref, computed, inject, watch } from 'vue';
 import { getPostById } from '@/apis/post';
 import { createComment } from '@/apis/comment';
 import { likePostApi, unLikePostApi, deletePost } from '@/apis/post';
+import { checkBookmark, toggleBookmark } from '@/apis/bookmark';
 import { getUserInfo, getAllUsers } from '@/apis/user';
 import { markReadByTarget } from '@/apis/notification';
 import { useRouter } from 'vue-router';
@@ -162,6 +170,7 @@ const ishowEditPost = ref(false);
 const commentImg = ref(null);
 const commentImgPreview = ref('');
 const commentFileEl = ref(null);
+const bookmarked = ref(false);
 
 /* ---------- @nhắc tên (hiển thị @Tên, gửi kèm id ẩn) ---------- */
 const allUsers = ref([]);
@@ -306,6 +315,21 @@ const goAuthor = () => {
     if (post.value?.userCreatedPost) route.push(`/user/${post.value.userCreatedPost}`);
 }
 
+const loadBookmark = async () => {
+    try {
+        bookmarked.value = !!(await checkBookmark(id.value))?.data?.data?.bookmarked;
+    } catch (e) { bookmarked.value = false; }
+}
+const toggleBookmarkBtn = async () => {
+    try {
+        const res = await toggleBookmark(id.value);
+        bookmarked.value = !!res?.data?.data?.bookmarked;
+        toast?.(bookmarked.value ? 'Đã lưu bài viết' : 'Đã bỏ lưu');
+    } catch (e) {
+        showDialog?.('Thông báo', e?.description || 'Thao tác thất bại');
+    }
+}
+
 const markPostNotifsRead = async () => {
     try {
         await markReadByTarget(id.value);
@@ -338,6 +362,7 @@ onMounted(async() => {
     loadUsers();
     await getDataPostById();
     await getDataUser();
+    loadBookmark();
     // đang xem bài này -> đánh dấu đã đọc các thông báo bình luận / thích của bài
     markPostNotifsRead();
     connectPostSocket();

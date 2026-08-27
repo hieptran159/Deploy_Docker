@@ -142,12 +142,13 @@ const options = computed(() => {
         { id: 1, text: "Nhắn tin", icon: "textdocument" },
         { id: 2, text: "Bạn bè", icon: "group" },
         { id: 3, text: "Tìm người dùng", icon: "search" },
+        { id: 5, text: "Đã lưu", icon: "bookmark" },
     ];
     if (isAdmin.value) base.push({ id: 4, text: "Quản trị", icon: "preferences" });
     return base;
 })
 
-const routeById = { 0: '/', 1: '/chat', 2: '/follow', 3: '/users', 4: '/admin' };
+const routeById = { 0: '/', 1: '/chat', 2: '/follow', 3: '/users', 4: '/admin', 5: '/saved' };
 const selectChange = (e) => { route.push(routeById[e.itemData.id] || '/'); }
 const signUp = () => route.push('/signup');
 
