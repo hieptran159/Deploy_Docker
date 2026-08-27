@@ -97,7 +97,8 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
             logger.info("No posts are here");
             return Collections.emptyList();
         }
-        return posts.stream().map(post -> (PostDTO) convertToDTO(post)).collect(Collectors.toList());
+        String meId = currentUserOrNull();
+        return posts.stream().map(post -> toListDTO(post, meId)).collect(Collectors.toList());
     }
 
     @Override
@@ -108,7 +109,8 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
             logger.info("No posts are here");
             return Collections.emptyList();
         }
-        return posts.getContent().stream().map(post -> (PostDTO) convertToDTO(post)).collect(Collectors.toList());
+        String meId = currentUserOrNull();
+        return posts.getContent().stream().map(post -> toListDTO(post, meId)).collect(Collectors.toList());
     }
 
     @Override
@@ -140,7 +142,8 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
             logger.info("No posts are here");
             return Collections.emptyList();
         }
-        return posts.stream().map(post -> (PostDTO) convertToDTO(post)).collect(Collectors.toList());
+        String meId = currentUserOrNull();
+        return posts.stream().map(post -> toListDTO(post, meId)).collect(Collectors.toList());
     }
 
     @Transactional
@@ -270,38 +273,50 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         return REACTION_TYPES.contains(u) ? u : "LIKE";
     }
 
+    private String currentUserOrNull() {
+        try { return authorizePathService.getUserIdAuthoried(); } catch (Exception e) { return null; }
+    }
+
+    // Dựng phần chung của PostDTO (không bao gồm chi tiết bình luận).
+    // postLikes/userComments là quan hệ đã nạp sẵn -> chỉ duyệt trong bộ nhớ, không thêm truy vấn.
+    private PostDTO basePostDTO(Posts post, String meId) {
+        PostDTO dto = new PostDTO();
+        dto.setPostId(post.getPostId());
+        dto.setUserCreatedPost(post.getUserPost().getUserPostId().getUserId());
+        dto.setTitle(post.getTitle());
+        dto.setPostImg(post.getPostImg());
+        dto.setBody(post.getBody());
+        dto.setPostedAt(post.getPostedAt().toString());
+        Set<PostLikes> postLikes = post.getPostLikes();
+        dto.setUserLikedPost(postLikes.stream().map(pl -> pl.getUsers().getUserId()).collect(Collectors.toList()));
+        dto.setLikesQuantity(postLikes.size());
+        dto.setCommentsQuantity(post.getUserComments().size());
+        java.util.Map<String, Long> counts = new java.util.LinkedHashMap<>();
+        String mine = null;
+        for (PostLikes pl : postLikes) {
+            String t = normReaction(pl.getType());
+            counts.merge(t, 1L, Long::sum);
+            if (meId != null && pl.getUsers() != null && meId.equals(pl.getUsers().getUserId())) mine = t;
+        }
+        dto.setReactionCounts(counts);
+        dto.setMyReaction(mine);
+        return dto;
+    }
+
+    // Dùng cho feed / tìm kiếm: KHÔNG dựng danh sách bình luận (tránh N+1 trên comment likes)
+    private PostDTO toListDTO(Posts post, String meId) {
+        return basePostDTO(post, meId);
+    }
+
     @Override
     protected Object convertToDTO(Object object) {
         if (!(object instanceof Posts)){
             return null;
         }
         Posts post = (Posts) object;
-        PostDTO postDTO = new PostDTO();
-        UserPosts userPost = post.getUserPost();
-        postDTO.setPostId(post.getPostId());
-        postDTO.setUserCreatedPost(userPost.getUserPostId().getUserId());
-        postDTO.setTitle(post.getTitle());
-        postDTO.setPostImg(post.getPostImg());
-        postDTO.setBody(post.getBody());
-        postDTO.setPostedAt(post.getPostedAt().toString());
-        Set<PostLikes> postLikes = post.getPostLikes();
-        List<String> userLikedPosts = postLikes.stream().map(postLike -> postLike.getUsers().getUserId()).collect(Collectors.toList());
-        postDTO.setUserLikedPost(userLikedPosts);
-        postDTO.setLikesQuantity(postLikes.size());
-
-        String meId = null;
-        try { meId = authorizePathService.getUserIdAuthoried(); } catch (Exception ignore) { }
-        java.util.Map<String, Long> pReact = new java.util.LinkedHashMap<>();
-        String myPostReaction = null;
-        for (PostLikes pl : postLikes) {
-            String t = normReaction(pl.getType());
-            pReact.merge(t, 1L, Long::sum);
-            if (meId != null && pl.getUsers() != null && meId.equals(pl.getUsers().getUserId())) myPostReaction = t;
-        }
-        postDTO.setReactionCounts(pReact);
-        postDTO.setMyReaction(myPostReaction);
+        String meId = currentUserOrNull();
+        PostDTO postDTO = basePostDTO(post, meId);
         Set<UserComment> userComments = post.getUserComments();
-        postDTO.setCommentsQuantity(userComments.size());
         List<CommentDTO> commentDTOs = new ArrayList<>();
         for (UserComment userComment : userComments){
             Comments comment = userComment.getComments();
