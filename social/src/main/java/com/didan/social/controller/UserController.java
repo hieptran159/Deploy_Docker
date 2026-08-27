@@ -108,6 +108,23 @@ public class UserController {
         }
     }
 
+    @Operation(summary = "Đổi ảnh bìa hồ sơ", description = "Không cần mật khẩu",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @PatchMapping(value = "/cover", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
+    public ResponseEntity<?> patchCover(@RequestParam("cover") org.springframework.web.multipart.MultipartFile cover){
+        ResponseData payload = new ResponseData();
+        try {
+            userService.updateCover(cover);
+            payload.setDescription("Đã cập nhật ảnh bìa");
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e){
+            payload.setDescription(e.getMessage());
+            payload.setStatusCode(500);
+            payload.setSuccess(false);
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
     @Operation(summary = "Edit user info", description = "Require password",
             security = @SecurityRequirement(name = "bearerAuth"))
     @PatchMapping(value = "/edit", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})

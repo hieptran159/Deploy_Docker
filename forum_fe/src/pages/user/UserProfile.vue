@@ -1,13 +1,18 @@
 <template>
     <div class="page">
-        <div class="card flex items-center gap-5">
-            <img v-if="avatarOk && avatarUrl" :src="avatarUrl" @error="avatarOk = false" @load="avatarOk = true"
-                class="size-20 rounded-full object-cover flex-none bg-gray-100" />
-            <div v-else class="avatar-fallback size-20 text-3xl">
-                {{ (user?.fullName || '?')[0] }}
+        <div class="card card--flush overflow-hidden">
+            <div class="h-40 sm:h-52 w-full bg-[var(--brand-soft)]">
+                <img v-if="coverUrl" :src="coverUrl" class="w-full h-full object-cover"
+                    @error="(e) => e.target.style.display = 'none'" />
             </div>
+            <div class="p-5 flex items-center gap-5 -mt-12">
+                <img v-if="avatarOk && avatarUrl" :src="avatarUrl" @error="avatarOk = false" @load="avatarOk = true"
+                    class="size-24 rounded-full object-cover flex-none bg-white ring-4 ring-[var(--surface)]" />
+                <div v-else class="avatar-fallback size-24 text-3xl ring-4 ring-[var(--surface)]">
+                    {{ (user?.fullName || '?')[0] }}
+                </div>
 
-            <div class="min-w-0 flex-1">
+                <div class="min-w-0 flex-1 pt-10">
                 <div class="text-2xl font-bold truncate">
                     {{ user?.fullName || '…' }}
                     <span v-if="user?.nickname" class="text-base muted font-normal">({{ user.nickname }})</span>
@@ -32,6 +37,7 @@
                 <DxButton v-else-if="fStatus === 'friends'" type="normal" stylingMode="outlined" icon="check" text="Bạn bè" @click="doUnfriend" />
 
                 <DxButton type="danger" stylingMode="text" icon="warning" text="Báo cáo" @click="report" />
+            </div>
             </div>
         </div>
 
@@ -94,6 +100,7 @@ const friendCount = ref(0);
 
 const isMe = computed(() => userId.value === myId);
 const avatarUrl = computed(() => (user.value?.avtUrl ? IMAGE_BASE + user.value.avtUrl : ""));
+const coverUrl = computed(() => (user.value?.coverUrl ? IMAGE_BASE + user.value.coverUrl : ""));
 const hasInfo = computed(() => !!(user.value?.phone || user.value?.address || user.value?.hobbies));
 
 const refreshStatus = async () => {

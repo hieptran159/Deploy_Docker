@@ -26,4 +26,7 @@ public interface UserService {
     // Người dùng tự xoá tài khoản (cần mật khẩu hiện tại)
     boolean deleteMyAccount(String password) throws Exception;
 
+    // Đổi ảnh bìa hồ sơ (không cần mật khẩu)
+    boolean updateCover(org.springframework.web.multipart.MultipartFile cover) throws Exception;
+
 }

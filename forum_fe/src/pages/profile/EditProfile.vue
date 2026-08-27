@@ -63,6 +63,14 @@
             </div>
         </div>
 
+        <div class="card">
+            <div class="section-title">Đổi ảnh bìa</div>
+            <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+                <input type="file" accept="image/*" class="flex-1" @change="handleCoverChange" />
+                <DxButton type="default" text="Cập nhật ảnh bìa" @click="saveCover" />
+            </div>
+        </div>
+
         <div class="card border border-[var(--danger)]/40">
             <div class="section-title text-[var(--danger)]">Vùng nguy hiểm</div>
             <p class="muted text-sm mb-2">
@@ -78,7 +86,7 @@
 import { DxButton, DxTextBox, DxTextArea } from 'devextreme-vue';
 import { useRouter } from 'vue-router';
 import { inject, onMounted, ref } from 'vue';
-import { editUser, updateProfile, getUserInfo, deleteAccount } from '@/apis/user';
+import { editUser, updateProfile, getUserInfo, deleteAccount, updateCover } from '@/apis/user';
 import { LOCALKEYS, getItemLocal, setItemLocal, delItemLocal } from '@/storages/localStorage';
 import { IMAGE_BASE } from '@/config';
 
@@ -208,6 +216,19 @@ const updateAvatar = async () => {
         showDialog("Thông báo", e?.description || "Cập nhật ảnh thất bại");
     }
 }
+
+const coverFile = ref(null);
+const handleCoverChange = (e) => { coverFile.value = e.target.files[0] || null; };
+const saveCover = async () => {
+    if (!coverFile.value) { showDialog('Thông báo', 'Chọn ảnh bìa'); return; }
+    try {
+        await updateCover(coverFile.value);
+        toast?.('Đã cập nhật ảnh bìa');
+        coverFile.value = null;
+    } catch (e) {
+        showDialog('Thông báo', e?.description || 'Cập nhật ảnh bìa thất bại');
+    }
+};
 
 const deleteMe = () => {
     if (!requirePassword()) return;

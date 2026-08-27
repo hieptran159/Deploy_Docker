@@ -208,6 +208,25 @@ public class UserServiceImpl extends ConvertDTO implements UserService {
         return true;
     }
 
+    @Override
+    public boolean updateCover(org.springframework.web.multipart.MultipartFile cover) throws Exception {
+        if (cover == null || cover.isEmpty()) {
+            throw new Exception("Chưa chọn ảnh bìa");
+        }
+        String userId = authorizePathService.getUserIdAuthoried();
+        Users user = userRepository.findFirstByUserId(userId);
+        if (user == null) {
+            throw new Exception("User is not found");
+        }
+        if (org.springframework.util.StringUtils.hasText(user.getCoverUrl())) {
+            try { fileUploadsService.deleteFile(user.getCoverUrl()); } catch (Exception ignore) { }
+        }
+        String fileName = fileUploadsService.storeFile(cover, "cover", user.getUserId());
+        user.setCoverUrl("cover/" + fileName);
+        userRepository.save(user);
+        return true;
+    }
+
     @org.springframework.transaction.annotation.Transactional
     @Override
     public boolean deleteMyAccount(String password) throws Exception {
@@ -266,6 +285,7 @@ public class UserServiceImpl extends ConvertDTO implements UserService {
         userDTO.setFullName(user.getFullName());
         userDTO.setEmail(user.getEmail());
         userDTO.setAvtUrl(user.getAvtUrl());
+        userDTO.setCoverUrl(user.getCoverUrl());
         userDTO.setDob(user.getDob().toString());
         userDTO.setFollowers(user.getFolloweds().size());
         userDTO.setFollowings(user.getFollowers().size());

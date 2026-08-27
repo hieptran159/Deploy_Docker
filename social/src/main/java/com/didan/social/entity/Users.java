@@ -46,6 +46,9 @@ public class Users {
     @Column(name = "verify_code", length = 12)
     private String verifyCode;
 
+    @Column(name = "cover_url", length = 255)
+    private String coverUrl;
+
     // ---- Thông tin hồ sơ mở rộng (tự thêm qua ddl-auto=update) ----
     @Column(name = "nickname", length = 100)
     private String nickname;
@@ -237,6 +240,14 @@ public class Users {
 
     public void setVerifyCode(String verifyCode) {
         this.verifyCode = verifyCode;
+    }
+
+    public String getCoverUrl() {
+        return coverUrl;
+    }
+
+    public void setCoverUrl(String coverUrl) {
+        this.coverUrl = coverUrl;
     }
 
     public Set<Followers> getFollowers() {

@@ -8,6 +8,7 @@ public class UserDTO {
     private String fullName;
     private String email;
     private String avtUrl;
+    private String coverUrl;
     private String dateOfBirth;
     private int followers;
     private int followings;
@@ -94,6 +95,14 @@ public class UserDTO {
 
     public void setAvtUrl(String avtUrl) {
         this.avtUrl = avtUrl;
+    }
+
+    public String getCoverUrl() {
+        return coverUrl;
+    }
+
+    public void setCoverUrl(String coverUrl) {
+        this.coverUrl = coverUrl;
     }
 
     public String getDob() {
