@@ -7,11 +7,19 @@
             <span class="text-white mb-4">
                 Chào mừng bạn đến với diễn đàn, vui lòng đăng nhập để tiếp tục
             </span>
-            <div class="w-[40%] mb-4">
-                <DxForm
-                    :formData="formData"
-                >
-                </DxForm>
+            <div class="w-[40%] mb-4 form-login-fields">
+                <div>
+                    <span>Email:</span>
+                    <DxTextBox v-model="formData.email" @enter-key="loginHandler"/>
+                </div>
+                <div>
+                    <span>Mật khẩu:</span>
+                    <DxTextBox
+                        v-model="formData.password"
+                        mode="password"
+                        @enter-key="loginHandler"
+                    />
+                </div>
             </div>
             <DxButton
                 @click="loginHandler"
@@ -30,7 +38,7 @@
 </template>
 
 <script setup>
-import DxForm from 'devextreme-vue/form';
+import { DxTextBox } from 'devextreme-vue';
 import DxButton from 'devextreme-vue/button';
 import { login } from '../../apis/auth';
 import { getUserInfo } from '@/apis/user';
@@ -73,3 +81,9 @@ const getDataUser = async(id) => {
 }
 
 </script>
+
+<style scoped>
+.form-login-fields > div {
+    margin-bottom: 8px;
+}
+</style>

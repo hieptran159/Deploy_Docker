@@ -94,8 +94,9 @@ const router = useRouter();
 const myId = getItemLocal(LOCALKEYS.USER_ID);
 
 const displayName = (c) => {
-    if (c?.conversationName?.startsWith('dm_')) return '💬 Tin nhắn riêng';
-    return c?.conversationName;
+    const n = c?.conversationName || '';
+    if (n.startsWith('dm:') || n.startsWith('dm_')) return '💬 Tin nhắn riêng';
+    return n;
 }
 
 const conversations = ref([]);

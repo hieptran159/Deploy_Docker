@@ -16,6 +16,10 @@ export const createConversation = (name) => {
     return authApi.post(`/chat/create?conversationName=${encodeURIComponent(name)}`);
 }
 
+export const openDirectConversation = (userId) => {
+    return authApi.post(`/chat/direct/${userId}`);
+}
+
 export const joinConversation = (conversationId) => {
     return authApi.post(`/chat/join/${conversationId}`);
 }

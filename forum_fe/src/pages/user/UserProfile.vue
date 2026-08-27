@@ -41,14 +41,16 @@
 
 <script setup>
 import { DxButton } from 'devextreme-vue';
-import { onMounted, ref, computed, watch } from 'vue';
+import { onMounted, ref, computed, watch, inject } from 'vue';
 import { useRouter } from 'vue-router';
 import { getUserInfo } from '@/apis/user';
 import { getPostById } from '@/apis/post';
 import { followApi, unFollowApi } from '@/apis/follow';
-import { searchConversations, createConversation, joinConversation } from '@/apis/chat';
+import { openDirectConversation } from '@/apis/chat';
 import { LOCALKEYS, getItemLocal } from '@/storages/localStorage';
 import { IMAGE_BASE } from '@/config';
+
+const showDialog = inject('openDialogError');
 
 const route = useRouter();
 const userId = computed(() => route.currentRoute.value.params.id);
@@ -85,29 +87,21 @@ const unfollow = async () => {
     try { await unFollowApi(userId.value); await load(); } catch (e) { console.log(e); }
 }
 
-// Backend chỉ có nhóm chat -> tạo/tìm 1 nhóm tên tất định cho cặp người dùng
 const messageUser = async () => {
-    const me = getItemLocal(LOCALKEYS.USER_ID);
-    const key = 'dm_' + [me, userId.value].sort().join('_');
-    let convId = null;
     try {
-        const res = await searchConversations(key);
-        convId = (res?.data?.data || []).find((c) => c.conversationName === key)?.conversationId || null;
-    } catch (e) {
-        /* chưa có -> tạo mới */
-    }
-    if (!convId) {
-        try {
-            const res = await createConversation(key);
-            const d = res?.data?.data || {};
-            convId = d['conversationId: '] || d.conversationId || null;
-        } catch (e) {
-            console.log(e);
+        const res = await openDirectConversation(userId.value);
+        const conv = res?.data?.data;
+        if (conv?.conversationId) {
+            route.push({
+                path: '/chat',
+                query: { c: conv.conversationId, name: user.value?.fullName || 'Tin nhắn riêng' },
+            });
+        } else {
+            showDialog?.('Thông báo', 'Không mở được cuộc trò chuyện');
         }
+    } catch (e) {
+        showDialog?.('Thông báo', e?.description || 'Không mở được cuộc trò chuyện');
     }
-    if (!convId) return;
-    try { await joinConversation(convId); } catch (e) { /* đã tham gia */ }
-    route.push({ path: '/chat', query: { c: convId, name: user.value?.fullName || 'Tin nhắn riêng' } });
 }
 
 watch(userId, load);
