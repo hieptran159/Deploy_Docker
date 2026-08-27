@@ -71,7 +71,10 @@ public class SocketModule {
                 String userId = jwtUtils.getUserIdFromAccessToken(accessToken);
                 String conversationId = senderClient.getHandshakeData().getSingleUrlParam("conversationID"); // Lấy ra các tham số và giá trị của URL mà client gửi lên
                 logger.info(String.format("%s[%s] -> %s",userId, senderClient.getSessionId().toString(), data.toString())); // In ra màn hình console thông tin của session và tin nhắn được gửi đến
-                socketService.saveMessage(userId, conversationId, "get_message", senderClient, data); // Lưu tin nhắn vào database và gửi lại tin nhắn đó cho tất cả client khác trong phòng qua hàm saveMessage của service
+                com.didan.social.dto.MessageDTO saved = socketService.saveMessage(userId, conversationId, "get_message", senderClient, data); // Lưu tin nhắn vào database và gửi lại tin nhắn đó cho tất cả client khác trong phòng qua hàm saveMessage của service
+                if (ackServer != null && ackServer.isAckRequested()) {
+                    ackServer.sendAckData(saved); // trả tin đã lưu (kèm id thật) cho chính người gửi
+                }
             } catch (Exception e){
                 logger.error(e.getMessage());
             }

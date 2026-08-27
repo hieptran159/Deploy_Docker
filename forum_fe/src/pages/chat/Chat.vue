@@ -592,17 +592,35 @@ const onTyping = () => {
 const onInputFocus = () => { markConvRead(); }
 
 const appendLocal = (extra) => {
+    const localId = 'local-' + Date.now();
     messages.value.push({
-        messageId: 'local-' + Date.now(),
+        messageId: localId,
         senderId: myId,
         sentAt: new Date().toISOString(),
         conversationId: active.value.conversationId,
         content: '',
+        recalled: false,
         ...extra,
     });
     otherSeen.value = false;
     scrollToBottom();
     bumpConversation(active.value.conversationId, { content: extra.content || '', messageImg: extra.messageImg || null, senderId: myId });
+    return localId;
+}
+
+// thay tin tạm bằng tin server đã lưu (có id thật) -> hiện được nút Sửa/Thu hồi ngay
+const replaceLocal = (localId, saved) => {
+    if (!saved || !saved.messageId) return;
+    const i = messages.value.findIndex((x) => x.messageId === localId);
+    if (i === -1) return;
+    messages.value[i] = {
+        ...messages.value[i],
+        messageId: saved.messageId,
+        content: saved.content != null ? saved.content : messages.value[i].content,
+        messageImg: saved.messageImg != null ? saved.messageImg : messages.value[i].messageImg,
+        sentAt: saved.sentAt || messages.value[i].sentAt,
+        recalled: !!saved.recalled,
+    };
 }
 
 const sendMessage = async () => {
@@ -614,7 +632,9 @@ const sendMessage = async () => {
     if (img) {
         try {
             const res = await sendMessageRest(active.value.conversationId, { content: text || '', messageImg: img });
-            appendLocal({ content: text || '', messageImg: res?.data?.data?.messageImg || null });
+            const saved = res?.data?.data;
+            const localId = appendLocal({ content: text || '', messageImg: saved?.messageImg || null });
+            replaceLocal(localId, saved);
         } catch (e) {
             showDialog?.('Thông báo', e?.description || 'Gửi ảnh thất bại');
         }
@@ -624,9 +644,11 @@ const sendMessage = async () => {
         return;
     }
 
-    if (socket && connected.value) socket.emit('send_message', { content: text });
-    appendLocal({ content: text });
+    const localId = appendLocal({ content: text });
     draft.value = '';
+    if (socket && connected.value) {
+        socket.emit('send_message', { content: text }, (saved) => { replaceLocal(localId, saved); });
+    }
 }
 
 const addDraftEmoji = (e) => { draft.value = (draft.value || '') + e; };

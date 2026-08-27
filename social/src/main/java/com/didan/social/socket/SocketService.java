@@ -72,7 +72,7 @@ public class SocketService { // Khai báo một service để xử lý logic
         }
     }
 
-    public void saveMessage(String userId, String conversationId, String eventName, SocketIOClient senderClient, SendMessageRequest sendMessageRequest) throws Exception{ // Hàm lưu tin nhắn vào database và gửi lại tin nhắn đó cho tất cả client khác trong phòng
+    public MessageDTO saveMessage(String userId, String conversationId, String eventName, SocketIOClient senderClient, SendMessageRequest sendMessageRequest) throws Exception{ // Hàm lưu tin nhắn vào database và gửi lại tin nhắn đó cho tất cả client khác trong phòng
         Users user = userRepository.findFirstByUserId(userId);
         if (user == null) {
             logger.error("User is not found");
@@ -120,11 +120,13 @@ public class SocketService { // Khai báo một service để xử lý logic
         MessageDTO messageDTO =
                 new MessageDTO(messageId,
                 sendMessageRequest.getContent(),
-                "message/"+fileName,
+                fileName != null ? "message/"+fileName : null,
                 nowSql.toString(),
                 conversationId,
                 user.getUserId());
+        messageDTO.setRecalled(false);
         sendSocketMessage(conversationId, eventName, senderClient, messageDTO); // Gửi lại tin nhắn đó cho tất cả client khác trong phòng
+        return messageDTO;
     }
 
     public void saveInfoMessage(String roomId, String eventName, SocketIOClient senderClient, String message){ // Hàm lưu tin nhắn thông báo đã kết nối và gửi đó cho tất cả client khác trong phòng
