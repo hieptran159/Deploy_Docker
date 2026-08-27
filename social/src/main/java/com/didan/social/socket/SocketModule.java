@@ -75,8 +75,10 @@ public class SocketModule {
     }
 
     private void handleFriendPresenceOnDisconnect(String userId){
+        if (userId == null) return;
         try {
             Integer left = onlineCount.computeIfPresent(userId, (k, v) -> v > 1 ? v - 1 : null);
+            logger.info(String.format("presence off: userId[%s] remaining[%s]", userId, left));
             if (left == null) {
                 for (String fid : followService.friendIdsOf(userId)) {
                     server.getRoomOperations("user:" + fid).sendEvent("friend_presence", presencePayload(userId, false));
@@ -138,6 +140,7 @@ public class SocketModule {
                 }
                 if (!StringUtils.hasText(conversationId)) {
                     // socket chỉ để nhận thông báo cá nhân + theo dõi bạn bè online
+                    client.set("notifSocket", Boolean.TRUE);
                     handleFriendPresenceOnConnect(client, userId);
                     logger.info(String.format("Notification socket connected - userId[%s]", userId));
                     return;
@@ -163,6 +166,14 @@ public class SocketModule {
 
     private DisconnectListener onDisconnected(){ // Hàm xử lý khi có client ngắt kết nối
         return (client) -> { // Trả về một listener xử lý khi có client kết nối
+            // dùng dữ liệu đã lưu trên session -> không phụ thuộc việc parse lại handshake khi disconnect
+            String sessUserId = client.get("userId");
+            Boolean isNotif = client.get("notifSocket");
+            if (Boolean.TRUE.equals(isNotif)) {
+                handleFriendPresenceOnDisconnect(sessUserId);
+                logger.info(String.format("Notification socket disconnected - userId[%s]", sessUserId));
+                return;
+            }
             String accessToken = client.getHandshakeData().getSingleUrlParam("token");
             try {
                 jwtUtils.validateAccessToken(accessToken);
@@ -173,9 +184,8 @@ public class SocketModule {
                     return;
                 }
                 if (!StringUtils.hasText(conversationId)) {
-                    // socket thông báo cá nhân: cập nhật trạng thái online cho bạn bè
                     handleFriendPresenceOnDisconnect(userId);
-                    logger.info(String.format("Notification socket disconnected - userId[%s]", userId));
+                    logger.info(String.format("Notification socket disconnected (fallback) - userId[%s]", userId));
                     return;
                 }
                 socketService.broadcastExcept(conversationId, "presence", presencePayload(userId, false), client); // báo offline TRƯỚC khi rời phòng
