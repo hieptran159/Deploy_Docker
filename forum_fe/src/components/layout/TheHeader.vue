@@ -80,6 +80,11 @@ const options = ref([
         text: "Tìm người dùng",
         icon: "search"
     },
+    {
+        id: 4,
+        text: "Quản trị",
+        icon: "preferences"
+    },
 ])
 
 const isLogin = ref(
@@ -104,6 +109,7 @@ const routeById = {
     1: '/chat',
     2: '/follow',
     3: '/users',
+    4: '/admin',
 }
 
 const selectChange = (e)=> {

@@ -85,7 +85,10 @@ There is effectively no test suite — only `social/src/test/.../SocialApplicati
 - Entry `src/main.js` → `App.vue` → `src/router/index.js`. Routes (all under
   `beforeEnter` guard except auth pages): `/`, `/login`, `/signup`, `/forgot-password`,
   `/post/:id`, `/follow`, `/users` (user search), `/user/:id` (profile),
-  `/profile/edit`, `/chat`. Guard gates on `Token` + `UserId` in `localStorage`.
+  `/profile/edit`, `/chat`, `/admin`. Guard gates on `Token` + `UserId` in
+  `localStorage`. `/admin` is reachable by anyone logged in — the page self-gates by
+  calling `/admin/blacklist` and showing a denial if the backend replies "You are not
+  admin" (no admin flag is exposed to the client at login).
 - API layer: `src/storages/api.js` creates axios instances (`api`, `apiForm`, `authApi`,
   `authApiFormData`); `authApi*` inject `Authorization: Bearer <Token from localStorage>`.
   The response interceptor rejects with `error.response.data` (the `ResponseData` body),

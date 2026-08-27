@@ -100,6 +100,15 @@ const routers = [
 		beforeEnter: handleBeforeEnter
 	},
 
+	{
+		path: '/admin',
+		component: () =>
+			import(
+				"@/pages/admin/AdminPage.vue"
+			),
+		beforeEnter: handleBeforeEnter
+	},
+
 ]
 
 const vueRouter = createRouter({
