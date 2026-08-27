@@ -40,6 +40,51 @@ public class Users {
     @Column(name = "access_token", nullable = true, length = 255)
     private String accessToken;
 
+    // ---- Thông tin hồ sơ mở rộng (tự thêm qua ddl-auto=update) ----
+    @Column(name = "nickname", length = 100)
+    private String nickname;
+    @Column(name = "phone", length = 30)
+    private String phone;
+    @Column(name = "address", length = 255)
+    private String address;
+    @Column(name = "hobbies", length = 500)
+    private String hobbies;
+    @Column(name = "slogan", length = 255)
+    private String slogan;
+
+    // 1 = công khai, 0 = riêng tư (chỉ chủ hồ sơ thấy). NULL -> coi như công khai.
+    @Column(name = "nickname_public")
+    private Integer nicknamePublic;
+    @Column(name = "phone_public")
+    private Integer phonePublic;
+    @Column(name = "address_public")
+    private Integer addressPublic;
+    @Column(name = "hobbies_public")
+    private Integer hobbiesPublic;
+    @Column(name = "slogan_public")
+    private Integer sloganPublic;
+
+    public String getNickname() { return nickname; }
+    public void setNickname(String nickname) { this.nickname = nickname; }
+    public String getPhone() { return phone; }
+    public void setPhone(String phone) { this.phone = phone; }
+    public String getAddress() { return address; }
+    public void setAddress(String address) { this.address = address; }
+    public String getHobbies() { return hobbies; }
+    public void setHobbies(String hobbies) { this.hobbies = hobbies; }
+    public String getSlogan() { return slogan; }
+    public void setSlogan(String slogan) { this.slogan = slogan; }
+    public Integer getNicknamePublic() { return nicknamePublic; }
+    public void setNicknamePublic(Integer v) { this.nicknamePublic = v; }
+    public Integer getPhonePublic() { return phonePublic; }
+    public void setPhonePublic(Integer v) { this.phonePublic = v; }
+    public Integer getAddressPublic() { return addressPublic; }
+    public void setAddressPublic(Integer v) { this.addressPublic = v; }
+    public Integer getHobbiesPublic() { return hobbiesPublic; }
+    public void setHobbiesPublic(Integer v) { this.hobbiesPublic = v; }
+    public Integer getSloganPublic() { return sloganPublic; }
+    public void setSloganPublic(Integer v) { this.sloganPublic = v; }
+
     @OneToMany(mappedBy = "users1", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<Followers> followers;
 

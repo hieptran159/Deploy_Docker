@@ -28,7 +28,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 		),
 		servers = {
 				@Server(
-						url = "http://hp11.hipe.id.vn:8081/",
+						url = "http://forum.hipe.id.vn:8081/",
 						description = "Url for http"
 				),
 				@Server(

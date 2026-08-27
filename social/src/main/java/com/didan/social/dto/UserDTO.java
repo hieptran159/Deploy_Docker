@@ -14,6 +14,39 @@ public class UserDTO {
     private int posts;
     private List<String> postId;
     private int participantGroups;
+    // Hồ sơ mở rộng — trường nào riêng tư và không phải chủ hồ sơ thì để null
+    private String nickname;
+    private String phone;
+    private String address;
+    private String hobbies;
+    private String slogan;
+    // cờ công khai (chỉ có ý nghĩa khi xem hồ sơ của chính mình)
+    private Boolean nicknamePublic;
+    private Boolean phonePublic;
+    private Boolean addressPublic;
+    private Boolean hobbiesPublic;
+    private Boolean sloganPublic;
+
+    public String getNickname() { return nickname; }
+    public void setNickname(String v) { this.nickname = v; }
+    public String getPhone() { return phone; }
+    public void setPhone(String v) { this.phone = v; }
+    public String getAddress() { return address; }
+    public void setAddress(String v) { this.address = v; }
+    public String getHobbies() { return hobbies; }
+    public void setHobbies(String v) { this.hobbies = v; }
+    public String getSlogan() { return slogan; }
+    public void setSlogan(String v) { this.slogan = v; }
+    public Boolean getNicknamePublic() { return nicknamePublic; }
+    public void setNicknamePublic(Boolean v) { this.nicknamePublic = v; }
+    public Boolean getPhonePublic() { return phonePublic; }
+    public void setPhonePublic(Boolean v) { this.phonePublic = v; }
+    public Boolean getAddressPublic() { return addressPublic; }
+    public void setAddressPublic(Boolean v) { this.addressPublic = v; }
+    public Boolean getHobbiesPublic() { return hobbiesPublic; }
+    public void setHobbiesPublic(Boolean v) { this.hobbiesPublic = v; }
+    public Boolean getSloganPublic() { return sloganPublic; }
+    public void setSloganPublic(Boolean v) { this.sloganPublic = v; }
 
     public UserDTO() {
     }
@@ -68,7 +101,7 @@ public class UserDTO {
     }
 
     public void setDob(String dob) {
-        this.dateOfBirth = dateOfBirth;
+        this.dateOfBirth = dob;
     }
 
     public int getFollowers() {

@@ -5,6 +5,7 @@ import com.didan.social.entity.BlacklistUser;
 import com.didan.social.entity.UserPosts;
 import com.didan.social.entity.Users;
 import com.didan.social.payload.request.EditUserRequest;
+import com.didan.social.payload.request.UpdateProfileRequest;
 import com.didan.social.repository.BlacklistUserRepository;
 import com.didan.social.repository.UserRepository;
 import com.didan.social.service.AuthorizePathService;
@@ -66,9 +67,49 @@ public class UserServiceImpl extends ConvertDTO implements UserService {
             logger.info("No user to found");
             return null;
         }
-        else {
-            return (UserDTO) convertToDTO(user);
+        UserDTO dto = (UserDTO) convertToDTO(user);
+        boolean isOwner = false;
+        try {
+            isOwner = userId.equals(authorizePathService.getUserIdAuthoried());
+        } catch (Exception ignored) {}
+        if (!isOwner) {
+            hidePrivate(dto);
         }
+        return dto;
+    }
+
+    private static boolean pub(Integer v) { return v == null || v == 1; }
+
+    // Ẩn các trường riêng tư khi người xem không phải chủ hồ sơ
+    private void hidePrivate(UserDTO d) {
+        if (d == null) return;
+        if (!Boolean.TRUE.equals(d.getNicknamePublic())) d.setNickname(null);
+        if (!Boolean.TRUE.equals(d.getPhonePublic())) d.setPhone(null);
+        if (!Boolean.TRUE.equals(d.getAddressPublic())) d.setAddress(null);
+        if (!Boolean.TRUE.equals(d.getHobbiesPublic())) d.setHobbies(null);
+        if (!Boolean.TRUE.equals(d.getSloganPublic())) d.setSlogan(null);
+    }
+
+    @Override
+    public boolean updateProfile(UpdateProfileRequest req) throws Exception {
+        String userId = authorizePathService.getUserIdAuthoried();
+        Users user = userRepository.findFirstByUserId(userId);
+        if (user == null) {
+            logger.error("User is not found");
+            throw new Exception("User is not found");
+        }
+        if (req.getNickname() != null) user.setNickname(req.getNickname().trim());
+        if (req.getPhone() != null) user.setPhone(req.getPhone().trim());
+        if (req.getAddress() != null) user.setAddress(req.getAddress().trim());
+        if (req.getHobbies() != null) user.setHobbies(req.getHobbies().trim());
+        if (req.getSlogan() != null) user.setSlogan(req.getSlogan().trim());
+        if (req.getNicknamePublic() != null) user.setNicknamePublic(req.getNicknamePublic());
+        if (req.getPhonePublic() != null) user.setPhonePublic(req.getPhonePublic());
+        if (req.getAddressPublic() != null) user.setAddressPublic(req.getAddressPublic());
+        if (req.getHobbiesPublic() != null) user.setHobbiesPublic(req.getHobbiesPublic());
+        if (req.getSloganPublic() != null) user.setSloganPublic(req.getSloganPublic());
+        userRepository.save(user);
+        return true;
     }
 
     @Override
@@ -177,6 +218,16 @@ public class UserServiceImpl extends ConvertDTO implements UserService {
         }
         userDTO.setPostId(postId);
         userDTO.setParticipantGroups(user.getParticipants().size());
+        userDTO.setNickname(user.getNickname());
+        userDTO.setPhone(user.getPhone());
+        userDTO.setAddress(user.getAddress());
+        userDTO.setHobbies(user.getHobbies());
+        userDTO.setSlogan(user.getSlogan());
+        userDTO.setNicknamePublic(pub(user.getNicknamePublic()));
+        userDTO.setPhonePublic(pub(user.getPhonePublic()));
+        userDTO.setAddressPublic(pub(user.getAddressPublic()));
+        userDTO.setHobbiesPublic(pub(user.getHobbiesPublic()));
+        userDTO.setSloganPublic(pub(user.getSloganPublic()));
         return userDTO;
     }
 }

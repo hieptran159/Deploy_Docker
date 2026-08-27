@@ -3,6 +3,7 @@ package com.didan.social.controller;
 import com.didan.social.dto.UserDTO;
 import com.didan.social.payload.ResponseData;
 import com.didan.social.payload.request.EditUserRequest;
+import com.didan.social.payload.request.UpdateProfileRequest;
 import com.didan.social.service.impl.UserServiceImpl;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -98,6 +99,24 @@ public class UserController {
             if (userService.updateUser(editUserRequest)){
                 payload.setDescription("Edit user successful");
             }
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e){
+            payload.setDescription(e.getMessage());
+            payload.setStatusCode(500);
+            payload.setSuccess(false);
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
+    @Operation(summary = "Cập nhật hồ sơ mở rộng (nickname, phone, address, hobbies, slogan) + cờ công khai",
+            description = "Không cần mật khẩu; chỉ sửa hồ sơ của chính mình",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @PatchMapping("/profile")
+    public ResponseEntity<?> patchProfile(@RequestBody UpdateProfileRequest req){
+        ResponseData payload = new ResponseData();
+        try {
+            userService.updateProfile(req);
+            payload.setDescription("Cập nhật hồ sơ thành công");
             return new ResponseEntity<>(payload, HttpStatus.OK);
         } catch (Exception e){
             payload.setDescription(e.getMessage());

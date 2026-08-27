@@ -2,6 +2,7 @@ package com.didan.social.service;
 
 import com.didan.social.dto.UserDTO;
 import com.didan.social.payload.request.EditUserRequest;
+import com.didan.social.payload.request.UpdateProfileRequest;
 
 import java.util.List;
 
@@ -13,8 +14,11 @@ public interface UserService {
     //Tìm kiếm
     List<UserDTO> searchUser(String searchName) throws Exception;
 
-    // Sửa thông tin user
+    // Sửa thông tin user (email/mật khẩu/avatar — cần mật khẩu hiện tại)
     boolean updateUser(EditUserRequest editUserRequest) throws Exception;
+
+    // Cập nhật hồ sơ mở rộng (nickname/phone/address/hobbies/slogan + cờ công khai)
+    boolean updateProfile(UpdateProfileRequest req) throws Exception;
 
     // Report user
     boolean reportUser(String userId) throws Exception;
