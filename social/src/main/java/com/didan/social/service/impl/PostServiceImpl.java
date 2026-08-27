@@ -112,6 +112,18 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
     }
 
     @Override
+    public java.util.Map<String, Object> feedPageInfo() throws Exception {
+        int pageSize = 10;
+        long total = postRepository.count();
+        int totalPages = (int) Math.max(1, Math.ceil(total / (double) pageSize));
+        java.util.Map<String, Object> m = new java.util.HashMap<>();
+        m.put("total", total);
+        m.put("pageSize", pageSize);
+        m.put("totalPages", totalPages);
+        return m;
+    }
+
+    @Override
     public PostDTO getPostById(String postId) throws Exception {
         Posts post = postRepository.findFirstByPostId(postId);
         if (post == null) {
@@ -133,7 +145,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
 
     @Transactional
     @Override
-    public boolean likePost(String postId) throws Exception {
+    public boolean likePost(String postId, String type) throws Exception {
         String userId = authorizePathService.getUserIdAuthoried();
         Users user = userRepository.findFirstByUserId(userId);
         if (user == null) {
@@ -144,17 +156,22 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
             logger.info("No post is here");
             throw new Exception("No post is here");
         }
-        if (postLikeRepository.existsByPostLikeId_PostIdAndUsers_UserId(postId, user.getUserId())) {
-            logger.warn("User liked post and cannot do it twice");
-            throw new Exception("User liked post and cannot do it twice");
+        String reaction = normReaction(type);
+        PostLikes existing = postLikeRepository.findByPosts_PostIdAndUsers_UserId(postId, user.getUserId());
+        if (existing != null) {
+            // đã thả cảm xúc -> chỉ đổi loại
+            existing.setType(reaction);
+            postLikeRepository.save(existing);
+            return true;
         }
         PostLikes newPostLike = new PostLikes();
         newPostLike.setPostLikeId(new PostLikeId(postId, user.getUserId()));
+        newPostLike.setType(reaction);
         postLikeRepository.save(newPostLike);
         UserPosts up = userPostRepository.findFirstByPosts_PostId(postId);
         if (up != null && up.getUsers() != null) {
             notificationService.pushUniquePerActor(up.getUsers().getUserId(), user.getUserId(), "POST_LIKE", postId,
-                    user.getFullName() + " đã thích bài viết của bạn");
+                    user.getFullName() + " đã bày tỏ cảm xúc về bài viết của bạn");
         }
         return true;
     }
@@ -244,6 +261,15 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
             throw new Exception(e.getMessage());
         }
     }
+    private static final java.util.List<String> REACTION_TYPES =
+            java.util.Arrays.asList("LIKE", "LOVE", "HAHA", "WOW", "SAD", "ANGRY");
+
+    static String normReaction(String t) {
+        if (t == null) return "LIKE";
+        String u = t.trim().toUpperCase();
+        return REACTION_TYPES.contains(u) ? u : "LIKE";
+    }
+
     @Override
     protected Object convertToDTO(Object object) {
         if (!(object instanceof Posts)){
@@ -262,6 +288,18 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         List<String> userLikedPosts = postLikes.stream().map(postLike -> postLike.getUsers().getUserId()).collect(Collectors.toList());
         postDTO.setUserLikedPost(userLikedPosts);
         postDTO.setLikesQuantity(postLikes.size());
+
+        String meId = null;
+        try { meId = authorizePathService.getUserIdAuthoried(); } catch (Exception ignore) { }
+        java.util.Map<String, Long> pReact = new java.util.LinkedHashMap<>();
+        String myPostReaction = null;
+        for (PostLikes pl : postLikes) {
+            String t = normReaction(pl.getType());
+            pReact.merge(t, 1L, Long::sum);
+            if (meId != null && pl.getUsers() != null && meId.equals(pl.getUsers().getUserId())) myPostReaction = t;
+        }
+        postDTO.setReactionCounts(pReact);
+        postDTO.setMyReaction(myPostReaction);
         Set<UserComment> userComments = post.getUserComments();
         postDTO.setCommentsQuantity(userComments.size());
         List<CommentDTO> commentDTOs = new ArrayList<>();
@@ -278,6 +316,15 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
             commentDTO.setCommentLikes(commentLikes.size());
             List<String> userLikes = commentLikes.stream().map(commentLike -> commentLike.getUsers().getUserId()).collect(Collectors.toList());
             commentDTO.setUserLikes(userLikes);
+            java.util.Map<String, Long> cReact = new java.util.LinkedHashMap<>();
+            String myCommentReaction = null;
+            for (CommentLikes cl : commentLikes) {
+                String t = normReaction(cl.getType());
+                cReact.merge(t, 1L, Long::sum);
+                if (meId != null && cl.getUsers() != null && meId.equals(cl.getUsers().getUserId())) myCommentReaction = t;
+            }
+            commentDTO.setReactionCounts(cReact);
+            commentDTO.setMyReaction(myCommentReaction);
             commentDTOs.add(commentDTO);
         }
         commentDTOs.sort(Comparator.comparing(CommentDTO::getCommentAt).reversed());

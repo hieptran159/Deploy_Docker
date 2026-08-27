@@ -16,6 +16,9 @@ public interface PostService {
     // Lấy tất cả các bài viết theo trang
     List<PostDTO> getAllPostsByPage(int index) throws Exception;
 
+    // Tổng số trang của feed (kích thước trang 10)
+    java.util.Map<String, Object> feedPageInfo() throws Exception;
+
     // Lấy bài viết theo id
     PostDTO getPostById(String postId) throws Exception;
 
@@ -23,7 +26,7 @@ public interface PostService {
     List<PostDTO> getPostByTitle(String searchName) throws Exception;
 
     // Like bài viết
-    boolean likePost(String postId) throws Exception;
+    boolean likePost(String postId, String type) throws Exception;
 
     // Unlike bài viết
     boolean unlikePost(String postId) throws Exception;

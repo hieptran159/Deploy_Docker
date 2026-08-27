@@ -17,7 +17,6 @@
                 <span v-if="comment?.commentAt" class="text-xs muted" :title="formatDateTime(comment.commentAt)">
                     · {{ timeAgo(comment.commentAt) }}
                 </span>
-                <span class="text-xs muted">· {{ comment?.commentLikes ?? 0 }} thích</span>
             </div>
             <div v-if="comment.content" class="mt-0.5 whitespace-pre-wrap">
                 <template v-for="(p, i) in contentParts" :key="i"><span
@@ -32,16 +31,14 @@
                 @error="(e) => e.target.style.display = 'none'"
             />
 
-            <div class="row-actions mt-1.5 text-xs">
-                <button
-                    class="link"
-                    :class="{ 'font-bold text-[var(--danger)]': likedByMe }"
-                    @click="toggleLike"
-                >
-                    {{ likedByMe ? '♥ Đã thích' : '♡ Thích' }}
-                </button>
+            <div class="row-actions mt-1.5 text-xs items-center">
+                <ReactionBar
+                    :my-reaction="comment.myReaction"
+                    :counts="comment.reactionCounts || {}"
+                    @react="reactComment"
+                    @unreact="unreactComment"
+                />
                 <template v-if="!isReply">
-                    <span class="text-gray-300">|</span>
                     <button class="link" @click="showReply = !showReply">Trả lời</button>
                 </template>
                 <template v-if="isOwner">
@@ -99,6 +96,7 @@ import { LOCALKEYS, getItemLocal } from '@/storages/localStorage';
 import { IMAGE_BASE } from '@/config';
 import BaseAvatar from '../BaseAvatar.vue';
 import EditComments from './EditComments.vue';
+import ReactionBar from '@/components/ReactionBar.vue';
 
 const props = defineProps({
     commentProps: { type: Object },
@@ -123,7 +121,6 @@ const openLightbox = inject("openLightbox", () => {});
 
 const myId = getItemLocal(LOCALKEYS.USER_ID);
 const isOwner = computed(() => comment.value?.userComments == myId);
-const likedByMe = computed(() => (comment.value?.userLikes || []).includes(myId));
 const commentImgUrl = computed(() => {
     const p = comment.value?.commentImg;
     return p && !String(p).includes('null') ? IMAGE_BASE + p : '';
@@ -158,12 +155,21 @@ const goAuthor = () => {
     if (comment.value?.userComments) route.push(`/user/${comment.value.userComments}`);
 }
 
-const toggleLike = async () => {
+const reactComment = async (type) => {
     try {
-        if (likedByMe.value) await unLikeCommentApi(comment.value.commentId);
-        else await likeCommentApi(comment.value.commentId);
+        await likeCommentApi(comment.value.commentId, type);
         emits('refresh');
-    } catch (e) { console.log(e); }
+    } catch (e) {
+        showDialog?.('Thông báo', e?.description || 'Thao tác thất bại');
+    }
+}
+const unreactComment = async () => {
+    try {
+        await unLikeCommentApi(comment.value.commentId);
+        emits('refresh');
+    } catch (e) {
+        showDialog?.('Thông báo', e?.description || 'Thao tác thất bại');
+    }
 }
 const sendReply = async () => {
     const text = (replyText.value || '').trim();

@@ -174,7 +174,7 @@ public class CommentServiceImpl extends ConvertDTO implements CommentService {
 
     @Transactional
     @Override
-    public boolean likeComment(String commentId) throws Exception {
+    public boolean likeComment(String commentId, String type) throws Exception {
         String userId = authorizePathService.getUserIdAuthoried();
         Users user = userRepository.findFirstByUserId(userId);
         if (user == null) {
@@ -186,22 +186,27 @@ public class CommentServiceImpl extends ConvertDTO implements CommentService {
             logger.error("No comment is here");
             throw new Exception("No comment is here");
         }
-        CommentLikes commentLike = comment.getCommentLikes().stream().filter(cmtLike -> cmtLike.getUsers().getUserId().equals(user.getUserId())).findFirst().orElse(null);
-//        CommentLikes commentLike = commentLikeRepository.findFirstByUsers_UserIdAndComments_CommentId(user.getUserId(), commentId);
+        String reaction = com.didan.social.service.impl.PostServiceImpl.normReaction(type);
+        UserComment uc = userCommentRepository.findFirstByComments_CommentId(commentId);
+        String likedPostId = (uc != null && uc.getPosts() != null) ? uc.getPosts().getPostId() : null;
+
+        CommentLikes commentLike = commentLikeRepository.findFirstByUsers_UserIdAndComments_CommentId(user.getUserId(), commentId);
         if (commentLike != null) {
-            logger.error("User liked comment and cannot do it twice");
-            throw new Exception("User liked comment and cannot do it twice");
+            // đã thả cảm xúc -> chỉ đổi loại
+            commentLike.setType(reaction);
+            commentLikeRepository.save(commentLike);
+            broadcastCommentsChanged(likedPostId);
+            return true;
         }
         CommentLikes newCommentLike = new CommentLikes();
         newCommentLike.setCommentLikeId(new CommentLikeId(commentId, user.getUserId()));
         newCommentLike.setUsers(user);
         newCommentLike.setComments(comment);
+        newCommentLike.setType(reaction);
         commentLikeRepository.save(newCommentLike);
-        UserComment uc = userCommentRepository.findFirstByComments_CommentId(commentId);
-        String likedPostId = (uc != null && uc.getPosts() != null) ? uc.getPosts().getPostId() : null;
         if (uc != null && uc.getUsers() != null) {
             notificationService.pushUniquePerActor(uc.getUsers().getUserId(), user.getUserId(), "COMMENT_LIKE", likedPostId,
-                    user.getFullName() + " đã thích bình luận của bạn");
+                    user.getFullName() + " đã bày tỏ cảm xúc về bình luận của bạn");
         }
         broadcastCommentsChanged(likedPostId);
         return true;
@@ -323,6 +328,17 @@ public class CommentServiceImpl extends ConvertDTO implements CommentService {
         commentDTO.setCommentLikes(commentLikes.size());
         List<String> userLikes = commentLikes.stream().map(commentLike -> commentLike.getUsers().getUserId()).collect(Collectors.toList());
         commentDTO.setUserLikes(userLikes);
+        String meId = null;
+        try { meId = authorizePathService.getUserIdAuthoried(); } catch (Exception ignore) { }
+        java.util.Map<String, Long> rc = new java.util.LinkedHashMap<>();
+        String mine = null;
+        for (CommentLikes cl : commentLikes) {
+            String t = com.didan.social.service.impl.PostServiceImpl.normReaction(cl.getType());
+            rc.merge(t, 1L, Long::sum);
+            if (meId != null && cl.getUsers() != null && meId.equals(cl.getUsers().getUserId())) mine = t;
+        }
+        commentDTO.setReactionCounts(rc);
+        commentDTO.setMyReaction(mine);
         return commentDTO;
     }
 }

@@ -1,6 +1,7 @@
 package com.didan.social.dto;
 
 import java.util.List;
+import java.util.Map;
 
 public class PostDTO {
     private String postId;
@@ -13,6 +14,8 @@ public class PostDTO {
     private List<String> userLikedPost;
     private int commentsQuantity;
     private List<CommentDTO> comments;
+    private Map<String, Long> reactionCounts;
+    private String myReaction;
 
     public PostDTO() {
     }
@@ -108,5 +111,21 @@ public class PostDTO {
 
     public void setComments(List<CommentDTO> comments) {
         this.comments = comments;
+    }
+
+    public Map<String, Long> getReactionCounts() {
+        return reactionCounts;
+    }
+
+    public void setReactionCounts(Map<String, Long> reactionCounts) {
+        this.reactionCounts = reactionCounts;
+    }
+
+    public String getMyReaction() {
+        return myReaction;
+    }
+
+    public void setMyReaction(String myReaction) {
+        this.myReaction = myReaction;
     }
 }

@@ -101,15 +101,16 @@ public class CommentController {
         }
     }
     // React Comment
-    @Operation(summary = "Like comment",
-            description = "Enter the id comment you want to like",
+    @Operation(summary = "React to a comment",
+            description = "type: LIKE | LOVE | HAHA | WOW | SAD | ANGRY (mặc định LIKE)",
             security = @SecurityRequirement(name = "bearerAuth"))
     @PostMapping("/{comment_id}")
-    public ResponseEntity<?> reactComment(@PathVariable("comment_id") String commentId){
+    public ResponseEntity<?> reactComment(@PathVariable("comment_id") String commentId,
+                                          @RequestParam(name = "type", required = false) String type){
         ResponseData payload = new ResponseData();
         try {
-            if (commentService.likeComment(commentId)){
-                payload.setDescription("Like comment successful");
+            if (commentService.likeComment(commentId, type)){
+                payload.setDescription("React comment successful");
             } else {
                 payload.setDescription("No comment in here");
             }

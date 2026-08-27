@@ -53,6 +53,22 @@ public class PostController {
         }
     }
 
+    @Operation(summary = "Feed pagination info", security = @SecurityRequirement(name = "bearerAuth"))
+    @GetMapping("/pages")
+    public ResponseEntity<?> feedPages(){
+        ResponseData payload = new ResponseData();
+        try {
+            payload.setData(postService.feedPageInfo());
+            payload.setDescription("OK");
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e){
+            payload.setSuccess(false);
+            payload.setStatusCode(500);
+            payload.setDescription(e.getMessage());
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
     @Operation(summary = "Get posts by page",
             description = "Enter the page number you want to get posts",
             security = @SecurityRequirement(name = "bearerAuth"))
@@ -154,15 +170,16 @@ public class PostController {
     }
 
     // React Post
-    @Operation(summary = "Like post",
-            description = "Enter the id post you want to like",
+    @Operation(summary = "React to a post",
+            description = "type: LIKE | LOVE | HAHA | WOW | SAD | ANGRY (mặc định LIKE)",
             security = @SecurityRequirement(name = "bearerAuth"))
     @PostMapping("/{post_id}")
-    public ResponseEntity<?> reactPost(@PathVariable("post_id") String postId) {
+    public ResponseEntity<?> reactPost(@PathVariable("post_id") String postId,
+                                       @RequestParam(name = "type", required = false) String type) {
         ResponseData payload = new ResponseData();
         try {
-            if (postService.likePost(postId)){
-                payload.setDescription("Like post successful");
+            if (postService.likePost(postId, type)){
+                payload.setDescription("React post successful");
             } else {
                 payload.setDescription("No post in here");
             }

@@ -16,7 +16,19 @@ public class PostLikes {
     @JoinColumn(name = "user_id", updatable = false, insertable = false)
     private Users users;
 
+    // loại cảm xúc: LIKE | LOVE | HAHA | WOW | SAD | ANGRY (null = LIKE cho dữ liệu cũ)
+    @Column(name = "type", length = 20)
+    private String type;
+
     public PostLikes() {
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public void setType(String type) {
+        this.type = type;
     }
 
     public PostLikes(PostLikeId postLikeId, Posts posts, Users users) {

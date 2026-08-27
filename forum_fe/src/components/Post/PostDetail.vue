@@ -40,15 +40,13 @@
 
                     <img :src="linkPostImg" v-if="post?.postImg" class="max-w-md rounded-xl border cursor-zoom-in" @click="openLightbox(linkPostImg)" />
 
-                    <div class="row-actions mt-3">
-                        <DxButton
-                            :icon="likedByMe ? 'like' : 'like'"
-                            :type="likedByMe ? 'danger' : 'normal'"
-                            :styling-mode="likedByMe ? 'contained' : 'outlined'"
-                            :text="likedByMe ? 'Đã thích' : 'Thích'"
-                            @click="toggleLike"
+                    <div class="row-actions mt-3 items-center">
+                        <ReactionBar
+                            :my-reaction="post?.myReaction"
+                            :counts="post?.reactionCounts || {}"
+                            @react="reactPost"
+                            @unreact="unreactPost"
                         />
-                        <span class="muted text-sm self-center">{{ post?.likesQuantity ?? 0 }} lượt thích</span>
                         <DxButton
                             icon="bookmark"
                             :type="bookmarked ? 'success' : 'normal'"
@@ -147,6 +145,7 @@ import Comment from '../comment/Comment.vue';
 import { DxTextBox, DxButton, DxPopup } from 'devextreme-vue';
 import BaseAvatar from '../BaseAvatar.vue';
 import EmojiPicker from '@/components/EmojiPicker.vue';
+import ReactionBar from '@/components/ReactionBar.vue';
 import { LOCALKEYS, getItemLocal } from '@/storages/localStorage';
 import { activePostId, bumpNotifRefresh } from '@/storages/appState';
 import EditPost from '@/components/Post/EditPost.vue';
@@ -286,13 +285,17 @@ const commentPost = async()=> {
     }
 }
 
-const myId = getItemLocal(LOCALKEYS.USER_ID);
-const likedByMe = computed(() => (post.value?.userLikedPost || []).includes(myId));
-
-const toggleLike = async() => {
+const reactPost = async (type) => {
     try {
-        if (likedByMe.value) await unLikePostApi(id.value);
-        else await likePostApi(id.value);
+        await likePostApi(id.value, type);
+        await getDataPostById();
+    } catch (error) {
+        showDialog?.('Thông báo', error?.description || 'Thao tác thất bại');
+    }
+}
+const unreactPost = async () => {
+    try {
+        await unLikePostApi(id.value);
         await getDataPostById();
     } catch (error) {
         showDialog?.('Thông báo', error?.description || 'Thao tác thất bại');

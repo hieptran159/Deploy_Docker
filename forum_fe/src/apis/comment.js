@@ -12,8 +12,8 @@ export const deleteComment = (id) => {
     return authApi.delete(`/comment/delete/${id}`);
 }
 
-export const likeCommentApi = (id) => {
-    return authApi.post(`/comment/${id}`);
+export const likeCommentApi = (id, type = 'LIKE') => {
+    return authApi.post(`/comment/${id}?type=${encodeURIComponent(type)}`);
 }
 
 export const unLikeCommentApi = (id) => {

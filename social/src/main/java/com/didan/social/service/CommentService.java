@@ -14,7 +14,7 @@ public interface CommentService {
     // Lấy ra 1 comment theo id
     CommentDTO getCommentById(String commentId) throws Exception;
     // Like comment
-    boolean likeComment(String commentId) throws Exception;
+    boolean likeComment(String commentId, String type) throws Exception;
     // Unlike comment
     boolean unlikeComment(String commentId) throws Exception;
     // Chỉnh sửa comment
