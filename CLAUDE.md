@@ -5,23 +5,19 @@ Guidance for working in this repository.
 ## What this repo is
 
 A **deployment/orchestration repo** that bundles a full forum ("social") application so it
-can be run with Docker Compose. It vendors point-in-time snapshots of three upstream
+can be run with Docker Compose. It vendors point-in-time snapshots of two upstream
 projects (each has its own GitHub repo per `README.md`):
 
-| Path         | Role     | Stack                                               |
-|--------------|----------|-----------------------------------------------------|
-| `HIP_Forum/` | Frontend | Vue 3 + Vite 5, Pinia, vue-router, Tailwind, DevExtreme |
-| `forum_fe/`  | Frontend | Near-identical second copy of the frontend (see note below) |
-| `social/`    | Backend  | Spring Boot 3.1.7, Java 17, JPA/Hibernate, MySQL 8, netty-socketio, SendGrid |
+| Path        | Role     | Stack                                               |
+|-------------|----------|-----------------------------------------------------|
+| `forum_fe/` | Frontend | Vue 3 + Vite 5, Pinia, vue-router, Tailwind, DevExtreme |
+| `social/`   | Backend  | Spring Boot 3.1.7, Java 17, JPA/Hibernate, MySQL 8, netty-socketio, SendGrid |
 
 `socialdata.sql` (root), `social/db.sql`, `social/db1.sql` are database dumps/seeds.
 
-### Two frontend copies
-
-`HIP_Forum/` and `forum_fe/` differ (`nginx.conf`, `package.json`, several components).
-**`forum_fe/` is the one that's actively developed and the one the root
-`docker-compose.yml` builds** — `HIP_Forum/` is a stale earlier copy; ignore it unless
-told otherwise.
+`forum_fe/` is the actively developed frontend and the one the root `docker-compose.yml`
+builds. (A stale earlier copy, `HIP_Forum/`, was removed in Aug 2026 — ignore any
+lingering references to it.)
 
 ## Running
 
@@ -55,7 +51,7 @@ cd social
 
 **Frontend alone:**
 ```
-cd HIP_Forum
+cd forum_fe
 npm install
 npm run dev       # Vite dev server
 npm run build     # → dist/, served by nginx in the Docker image
