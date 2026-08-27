@@ -72,14 +72,25 @@ There is effectively no test suite — only `social/src/test/.../SocialApplicati
   → `repository/` (Spring Data JPA) → `entity/` (composite keys in `entity/keys/`).
   DTOs in `dto/`, request bodies in `payload/request/`, responses wrapped in
   `payload/ResponseData`.
-- Route prefixes: `/auth`, `/user`, `/post`, `/comment`, `/follow`, `/chat`, `/admin`,
+- Route prefixes: `/auth`, `/user`, `/post`, `/comment`, `/friend`, `/chat`, `/admin`,
   `/notification`.
+- Friends: `Followers` (table `followers`) now carries a `status` column —
+  `"pending"` (request sent, `users1`→`users2`) or `"accepted"` (friends); legacy NULL =
+  accepted. `FollowService` / `FollowController` were reworked into a friend-request flow
+  under `/friend` (`request`/`accept`/`decline`/`cancel`/`{id}` delete = unfriend,
+  `list/{id}`, `requests/incoming|outgoing`, `status/{id}`). `ChatService.addMember` only
+  admits users who are already friends of the caller.
 - Notifications: `entity/Notifications` (plain columns, no JPA relations; table
   auto-created by `ddl-auto=update`). `NotificationService.push(...)` is fire-and-forget
-  and swallows its own errors so it never breaks the caller. Created from
-  `FollowServiceImpl.followUser` (type `FOLLOW`) and `CommentServiceImpl.postCommentInPost`
-  (type `COMMENT`, `targetId` = postId). `/auth/signin` returns `isAdmin` ("0"/"1") so the
-  client no longer probes `/admin/blacklist` at login.
+  and swallows its own errors so it never breaks the caller. `pushUnique` dedups on
+  `(recipient,type,targetId)`, `pushUniquePerActor` on `(recipient,actor,type,targetId)`.
+  Types: `FRIEND_REQUEST`, `FRIEND_ACCEPT`, `COMMENT` (targetId=postId), `COMMENT_LIKE`,
+  `POST_LIKE`, `MESSAGE` (targetId=conversationId). `/auth/signin` returns `isAdmin`
+  ("0"/"1") so the client no longer probes `/admin/blacklist` at login.
+- Chat socket (`SocketModule`, netty-socketio :8082): events `send_message`→`get_message`,
+  `typing`, `seen`, `presence {userId,online}` (broadcast on join/leave; on join the new
+  client is also told who is already present). `SocketService.broadcastExcept` relays to
+  the room minus the sender.
 - **Auth is a custom JWT filter**, not DB-backed `UserDetails`. `JwtAuthenticationFilter`
   validates the bearer token and sets the Spring `Authentication` principal to the
   **userId string**. Retrieve the current user with
@@ -102,7 +113,8 @@ There is effectively no test suite — only `social/src/test/.../SocialApplicati
 
 - Entry `src/main.js` → `App.vue` → `src/router/index.js`. Routes (all under
   `beforeEnter` guard except auth pages): `/`, `/login`, `/signup`, `/forgot-password`,
-  `/post/:id`, `/follow`, `/users` (user search), `/user/:id` (profile),
+  `/post/:id`, `/follow` (Friends page: friends / incoming / outgoing tabs),
+  `/users` (user search), `/user/:id` (profile),
   `/profile/edit`, `/chat`, `/admin`. Guard gates on `Token` + `UserId` in
   `localStorage`. No admin flag is exposed at login, so admin status is probed by
   calling `/admin/blacklist` (a GET only admins can run) after login and on header
