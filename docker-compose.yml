@@ -1,53 +1,83 @@
-version: '3.3'
+# Đóng gói toàn bộ diễn đàn: 1 lệnh là chạy được ở bất kỳ máy nào có Docker
+#   docker compose up -d --build
+#
+# Cổng mặc định (đổi trong file .env nếu cần):
+#   Frontend  -> http://localhost         (FRONTEND_PORT=80)
+#   Backend   -> http://localhost:8081    (BACKEND_PORT=8081)
+#   Socket.IO -> http://localhost:8082    (SOCKET_PORT=8082)
+#   MySQL     -> localhost:3307           (DB_PORT=3307, trong container là 3306)
+#
+# Khi deploy lên máy khác có tên miền/công IP riêng, đặt trong .env:
+#   PUBLIC_API_URL=http://<host>:8081
+#   PUBLIC_SOCKET_URL=http://<host>:8082
+# rồi build lại frontend:  docker compose up -d --build frontend
 
 services:
-  frontend:
-    build:
-      context: ./HIP_Forum
-      dockerfile: Dockerfile
-    ports:
-      - "80:80"
-    networks:
-      - app-network
-    depends_on:
-      - backend
-
-  backend:
-    build: 
-      context: ./social
-    ports:
-      - "${SERVER_PORT:-8081}:8081"
-      - "${SOCKET_SERVER_PORT:-8082}:8082"
-    environment:
-      - MYSQL_HOST=db
-      - MYSQL_PORT=3306
-      - MYSQL_DATABASE=socialapp
-      - MYSQL_USER=root
-      - MYSQL_PASSWORD=tranhiep12345
-      - SERVER_PORT=8081
-      - JWT_SECRET=wyD7j04/rzm+8EABKgQTPO9cFojZI2Q2xRPycfhHtZc=
-      - SENDGRID_API_KEY=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
-      - SENDGRID_FROM_EMAIL=social-service@didan.id.vn
-      - SENDGRID_FROM_NAME=Social Service
-      - SOCKET_SERVER_PORT=8082
-      - SOCKET_SERVER_HOST=0.0.0.0
-    volumes:
-      - ./social/uploads:/workspace/app/uploads
-    depends_on:
-      - db
-    networks:
-      - app-network
-
   db:
     image: mysql:8.0
+    container_name: forum-db
+    restart: unless-stopped
     environment:
-      - MYSQL_ROOT_PASSWORD=tranhiep12345
-      - MYSQL_DATABASE=socialapp
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-tranhiep12345}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-socialapp}
     ports:
-      - "3307:3306"
+      - "${DB_PORT:-3307}:3306"
     volumes:
-      - ./social/db.sql:/docker-entrypoint-initdb.d/init.sql
       - mysql-data:/var/lib/mysql
+      # Chạy 1 lần khi volume còn trống -> import schema + dữ liệu mẫu.
+      # Thay bằng bản dump của bạn để chuyển hạ tầng (xem scripts/db-import.sh).
+      - ./social/db.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+    networks:
+      - app-network
+
+  backend:
+    build:
+      context: ./social
+    container_name: forum-backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      MYSQL_HOST: db
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-socialapp}
+      MYSQL_USER: root
+      MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD:-tranhiep12345}
+      SERVER_PORT: 8081
+      SOCKET_SERVER_PORT: 8082
+      SOCKET_SERVER_HOST: 0.0.0.0
+      JWT_SECRET: ${JWT_SECRET:-wyD7j04/rzm+8EABKgQTPO9cFojZI2Q2xRPycfhHtZc=}
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
+      SENDGRID_FROM_EMAIL: ${SENDGRID_FROM_EMAIL:-social-service@didan.id.vn}
+      SENDGRID_FROM_NAME: ${SENDGRID_FROM_NAME:-Social Service}
+    ports:
+      - "${BACKEND_PORT:-8081}:8081"
+      - "${SOCKET_PORT:-8082}:8082"
+    volumes:
+      # Ảnh người dùng upload -> giữ lại qua các lần build/redeploy
+      - uploads:/app/uploads
+    networks:
+      - app-network
+
+  frontend:
+    build:
+      context: ./forum_fe
+      args:
+        VITE_API_URL: ${PUBLIC_API_URL:-http://localhost:8081}
+        VITE_SOCKET_URL: ${PUBLIC_SOCKET_URL:-http://localhost:8082}
+    container_name: forum-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
     networks:
       - app-network
 
@@ -57,3 +87,4 @@ networks:
 
 volumes:
   mysql-data:
+  uploads:

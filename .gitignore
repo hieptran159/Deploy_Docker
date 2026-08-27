@@ -1,0 +1,9 @@
+# Cấu hình môi trường thật (chứa secrets) — không commit
+.env
+
+# Bản sao lưu database / uploads
+/backup/
+
+# Rác hệ điều hành / editor
+.DS_Store
+*.log

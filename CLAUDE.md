@@ -18,23 +18,30 @@ projects (each has its own GitHub repo per `README.md`):
 
 ### Two frontend copies
 
-`HIP_Forum/` and `forum_fe/` differ only slightly (`nginx.conf`, `package.json`,
-`Comment.vue`, `FollowVue.vue`, plus `forum_fe` has `EditComments.vue`). The root
-`docker-compose.yml` builds **`HIP_Forum/`**; `social/compose.yml` builds `forum_fe/`.
-When editing frontend code, confirm which copy the compose file you care about uses.
+`HIP_Forum/` and `forum_fe/` differ (`nginx.conf`, `package.json`, several components).
+**`forum_fe/` is the one that's actively developed and the one the root
+`docker-compose.yml` builds** — `HIP_Forum/` is a stale earlier copy; ignore it unless
+told otherwise.
 
 ## Running
 
-**Full stack (from repo root):**
+**Full stack (from repo root)** — see `DEPLOY.md` for the full guide:
 ```
-docker compose up --build
+cp .env.example .env      # optional; all vars have defaults
+docker compose up -d --build
 ```
-- frontend → http://localhost:80
+- frontend → http://localhost  (`forum_fe/` built to nginx; `FRONTEND_PORT`)
 - backend REST → http://localhost:8081  (Swagger UI: `/api-docs.html`, spec: `/api-docs`)
 - backend Socket.IO server → port 8082
-- MySQL → host port 3307 (container 3306), db `socialapp`, root password in the compose file
+- MySQL → host port 3307 (container 3306), db `socialapp`, root pw from `.env`
 
-`social/db.sql` is mounted as the MySQL init script; data persists in the `mysql-data` volume.
+The compose file: `db` has a TCP healthcheck and `backend` waits on
+`condition: service_healthy`; `social/db.sql` is the one-time MySQL init (fresh volume
+only); data persists in the `mysql-data` volume and uploaded images in the `uploads`
+volume (`/app/uploads` in the backend container). Overridable env vars live in `.env`
+(`*_PORT`, `MYSQL_*`, `JWT_SECRET`, `SENDGRID_*`, and `PUBLIC_API_URL`/`PUBLIC_SOCKET_URL`
+which are **baked into the frontend build** as `VITE_API_URL`/`VITE_SOCKET_URL`).
+DB export/import for infra migration: `scripts/db-export.sh` / `scripts/db-import.sh`.
 
 **Backend alone:**
 ```
@@ -138,6 +145,5 @@ There is effectively no test suite — only `social/src/test/.../SocialApplicati
   `hipe.id.vn`, `didan.id.vn`). Changing target environment means editing the hardcoded
   frontend `BASE_URL`/`.env`, `nginx.conf` `server_name`/`proxy_pass`, and the compose
   environment blocks together.
-- `social/compose.yml`, `social/docker-compose.yml`, and root `docker-compose.yml` are
-  three overlapping definitions with different passwords/ports. The root one is the
-  intended entrypoint.
+- `social/compose.yml`, `social/docker-compose.yml` are stale earlier drafts. The root
+  `docker-compose.yml` is the only supported entrypoint (see `DEPLOY.md`).
