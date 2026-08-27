@@ -86,6 +86,7 @@ import {
     getMyConversations, searchConversations, getMessages,
     createConversation, joinConversation, leaveConversation,
 } from '@/apis/chat';
+import { getUserInfo } from '@/apis/user';
 import { LOCALKEYS, getItemLocal } from '@/storages/localStorage';
 import { SOCKET_URL, IMAGE_BASE } from '@/config';
 
@@ -93,10 +94,38 @@ const showDialog = inject('openDialogError');
 const router = useRouter();
 const myId = getItemLocal(LOCALKEYS.USER_ID);
 
+// Tên đối phương của các hội thoại 1-1, theo conversationId
+const dmNames = ref({});
+
+const isDm = (name) => typeof name === 'string' && (name.startsWith('dm:') || name.startsWith('dm_'));
+
+const otherIdFromDm = (name) => {
+    const raw = name.startsWith('dm:') ? name.slice(3) : name.slice(3);
+    const parts = raw.split(name.startsWith('dm:') ? ':' : '_');
+    return parts.find((p) => p && p !== myId) || null;
+}
+
+const resolveDmNames = async () => {
+    for (const c of conversations.value) {
+        if (!isDm(c.conversationName) || dmNames.value[c.conversationId]) continue;
+        const otherId = otherIdFromDm(c.conversationName);
+        if (!otherId) continue;
+        try {
+            const res = await getUserInfo(otherId);
+            dmNames.value = {
+                ...dmNames.value,
+                [c.conversationId]: res?.data?.data?.fullName || 'Tin nhắn riêng',
+            };
+        } catch (e) {
+            /* bỏ qua, giữ tên mặc định */
+        }
+    }
+}
+
 const displayName = (c) => {
-    const n = c?.conversationName || '';
-    if (n.startsWith('dm:') || n.startsWith('dm_')) return '💬 Tin nhắn riêng';
-    return n;
+    if (!c) return '';
+    if (isDm(c.conversationName)) return dmNames.value[c.conversationId] || 'Tin nhắn riêng';
+    return c.conversationName || '';
 }
 
 const conversations = ref([]);
@@ -120,6 +149,7 @@ const loadConversations = async () => {
         // backend ném lỗi khi chưa tham gia nhóm nào
         conversations.value = [];
     }
+    resolveDmNames();
 }
 
 const handleCreate = async () => {
@@ -237,8 +267,14 @@ const sendMessage = () => {
 const openFromQuery = () => {
     const q = router.currentRoute.value.query;
     if (q.c) {
-        openConversation({
-            conversationId: String(q.c),
+        const id = String(q.c);
+        if (q.name) {
+            // hiển thị ngay tên đối phương truyền từ trang hồ sơ
+            dmNames.value = { ...dmNames.value, [id]: String(q.name) };
+        }
+        const inList = conversations.value.find((c) => c.conversationId === id);
+        openConversation(inList || {
+            conversationId: id,
             conversationName: q.name ? String(q.name) : 'Tin nhắn riêng',
         });
     }
