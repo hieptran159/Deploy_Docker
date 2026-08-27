@@ -10,6 +10,7 @@ public class CommentDTO {
     private String commentAt;
     private int commentLikes;
     private List<String> userLikes;
+    private String parentId;
 
     public CommentDTO() {
     }
@@ -78,5 +79,13 @@ public class CommentDTO {
 
     public void setUserLikes(List<String> userLikes) {
         this.userLikes = userLikes;
+    }
+
+    public String getParentId() {
+        return parentId;
+    }
+
+    public void setParentId(String parentId) {
+        this.parentId = parentId;
     }
 }

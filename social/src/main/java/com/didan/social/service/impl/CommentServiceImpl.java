@@ -103,10 +103,26 @@ public class CommentServiceImpl extends ConvertDTO implements CommentService {
             logger.error("No post is here");
             throw new Exception("No post is here");
         }
+        // trả lời bình luận: chuẩn hoá về tối đa 1 cấp
+        String parentId = null;
+        String parentAuthorId = null;
+        if (StringUtils.hasText(createCommentRequest.getParentId())) {
+            Comments parent = commentRepository.findByCommentId(createCommentRequest.getParentId().trim());
+            UserComment parentUc = parent == null ? null
+                    : userCommentRepository.findFirstByComments_CommentId(parent.getCommentId());
+            if (parent != null && parentUc != null && parentUc.getPosts() != null
+                    && postId.equals(parentUc.getPosts().getPostId())) {
+                // nếu cha cũng là 1 câu trả lời -> gắn vào bình luận gốc của nó
+                parentId = StringUtils.hasText(parent.getParentId()) ? parent.getParentId() : parent.getCommentId();
+                parentAuthorId = parentUc.getUsers() != null ? parentUc.getUsers().getUserId() : null;
+            }
+        }
+
         Comments comment = new Comments();
         UserComment userComment = new UserComment();
         UUID commentId = UUID.randomUUID();
         comment.setCommentId(commentId.toString());
+        comment.setParentId(parentId);
         comment.setContent(StringUtils.hasText(createCommentRequest.getContent()) ? createCommentRequest.getContent() : "");
         if (createCommentRequest.getCommentImg() != null && !createCommentRequest.getCommentImg().isEmpty()){
             String fileName = fileUploadsService.storeFile(createCommentRequest.getCommentImg(), "comment", commentId.toString());
@@ -122,6 +138,11 @@ public class CommentServiceImpl extends ConvertDTO implements CommentService {
         if (owner != null && owner.getUsers() != null) {
             notificationService.push(owner.getUsers().getUserId(), user.getUserId(), "COMMENT", postId,
                     user.getFullName() + " đã bình luận bài viết của bạn");
+        }
+        // báo cho chủ bình luận được trả lời
+        if (parentAuthorId != null) {
+            notificationService.pushUniquePerActor(parentAuthorId, user.getUserId(), "COMMENT", postId,
+                    user.getFullName() + " đã trả lời bình luận của bạn");
         }
         // @nhắc tên: tách các token dạng @[Tên](userId) trong nội dung
         try {
@@ -242,6 +263,7 @@ public class CommentServiceImpl extends ConvertDTO implements CommentService {
         commentDTO.setContent(comment.getContent());
         commentDTO.setCommentImg(comment.getCommentImg());
         commentDTO.setCommentAt(comment.getCommentAt().toString());
+        commentDTO.setParentId(comment.getParentId());
         List<CommentLikes> commentLikes = commentLikeRepository.findAllByComments_CommentId(comment.getCommentId());
         commentDTO.setCommentLikes(commentLikes.size());
         List<String> userLikes = commentLikes.stream().map(commentLike -> commentLike.getUsers().getUserId()).collect(Collectors.toList());
@@ -296,6 +318,7 @@ public class CommentServiceImpl extends ConvertDTO implements CommentService {
         commentDTO.setContent(userComment.getComments().getContent());
         commentDTO.setCommentImg(userComment.getComments().getCommentImg());
         commentDTO.setCommentAt(userComment.getComments().getCommentAt().toString());
+        commentDTO.setParentId(userComment.getComments().getParentId());
         List<CommentLikes> commentLikes = commentLikeRepository.findAllByComments_CommentId(userComment.getComments().getCommentId());
         commentDTO.setCommentLikes(commentLikes.size());
         List<String> userLikes = commentLikes.stream().map(commentLike -> commentLike.getUsers().getUserId()).collect(Collectors.toList());

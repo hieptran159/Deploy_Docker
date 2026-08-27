@@ -8,6 +8,8 @@ public class CreateCommentRequest {
     private String content;
     @JsonProperty(required = false)
     private MultipartFile commentImg = null;
+    @JsonProperty(required = false)
+    private String parentId = null;
 
     public CreateCommentRequest() {
     }
@@ -15,6 +17,14 @@ public class CreateCommentRequest {
     public CreateCommentRequest(String content, MultipartFile commentImg) {
         this.content = content;
         this.commentImg = commentImg;
+    }
+
+    public String getParentId() {
+        return parentId;
+    }
+
+    public void setParentId(String parentId) {
+        this.parentId = parentId;
     }
 
     public String getContent() {

@@ -101,10 +101,10 @@
             <div v-if="!post?.comments?.length" class="state">Chưa có bình luận</div>
             <div
                 class="py-3 border-b last:border-b-0"
-                v-for="comment in post?.comments"
-                :key="comment?.commentId"
+                v-for="c in threadedComments"
+                :key="c.commentId"
             >
-                <Comment :commentProps="comment" @refresh="getDataPostById" />
+                <Comment :commentProps="c" :replies="c.replies" :post-id="id" @refresh="getDataPostById" />
             </div>
         </div>
 
@@ -220,6 +220,20 @@ const getDataPostById = async() => {
     post.value = data?.data?.data;
     linkPostImg.value = post.value?.postImg ? IMAGE_BASE + post.value.postImg : '';
 }
+
+// gom bình luận thành cây 1 cấp: gốc (mới -> cũ), trả lời (cũ -> mới)
+const threadedComments = computed(() => {
+    const all = post.value?.comments || [];
+    const ids = new Set(all.map((c) => c.commentId));
+    const children = {};
+    const roots = [];
+    for (const c of all) {
+        if (c.parentId && ids.has(c.parentId)) (children[c.parentId] ||= []).push(c);
+        else roots.push(c);
+    }
+    const asc = (a, b) => new Date(a.commentAt) - new Date(b.commentAt);
+    return roots.map((r) => ({ ...r, replies: (children[r.commentId] || []).slice().sort(asc) }));
+});
 
 const getDataUser = async() => {
     try {

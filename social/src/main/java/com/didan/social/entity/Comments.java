@@ -21,6 +21,10 @@ public class Comments {
     @Temporal(TemporalType.TIMESTAMP)
     private Date commentAt;
 
+    // id bình luận cha (null = bình luận gốc); lồng tối đa 1 cấp
+    @Column(name = "parent_id", length = 36)
+    private String parentId;
+
     @OneToMany(mappedBy = "comments", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<UserComment> userComments;
 
@@ -85,5 +89,13 @@ public class Comments {
 
     public void setCommentLikes(Set<CommentLikes> commentLikes) {
         this.commentLikes = commentLikes;
+    }
+
+    public String getParentId() {
+        return parentId;
+    }
+
+    public void setParentId(String parentId) {
+        this.parentId = parentId;
     }
 }

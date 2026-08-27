@@ -40,11 +40,34 @@
                 >
                     {{ likedByMe ? '♥ Đã thích' : '♡ Thích' }}
                 </button>
+                <template v-if="!isReply">
+                    <span class="text-gray-300">|</span>
+                    <button class="link" @click="showReply = !showReply">Trả lời</button>
+                </template>
                 <template v-if="isOwner">
                     <span class="text-gray-300">|</span>
                     <button class="link" @click="isShowEditComment = true">Sửa</button>
                     <button class="link text-[var(--danger)]" @click="confirmDelete">Xoá</button>
                 </template>
+            </div>
+
+            <!-- ô trả lời -->
+            <div v-if="showReply" class="flex items-center gap-2 mt-2">
+                <DxTextBox v-model="replyText" class="flex-1" placeholder="Viết trả lời…" @enter-key="sendReply" />
+                <DxButton type="default" text="Gửi" @click="sendReply" />
+                <DxButton stylingMode="text" text="Huỷ" @click="() => { showReply = false; replyText = '' }" />
+            </div>
+
+            <!-- danh sách trả lời -->
+            <div v-if="replies.length" class="mt-2 pl-3 border-l-2 border-[var(--border)] flex flex-col gap-3">
+                <Comment
+                    v-for="r in replies"
+                    :key="r.commentId"
+                    :commentProps="r"
+                    :is-reply="true"
+                    :post-id="postId"
+                    @refresh="() => emits('refresh')"
+                />
             </div>
         </div>
 
@@ -70,15 +93,18 @@ import { onMounted, ref, computed, inject } from 'vue';
 import { useRouter } from 'vue-router';
 import { timeAgo, formatDateTime } from '@/js/helper';
 import { getUserInfo } from '../../apis/user';
-import { DxPopup } from 'devextreme-vue';
-import { likeCommentApi, unLikeCommentApi, deleteComment } from '@/apis/comment';
+import { DxPopup, DxTextBox, DxButton } from 'devextreme-vue';
+import { likeCommentApi, unLikeCommentApi, deleteComment, createComment } from '@/apis/comment';
 import { LOCALKEYS, getItemLocal } from '@/storages/localStorage';
 import { IMAGE_BASE } from '@/config';
 import BaseAvatar from '../BaseAvatar.vue';
 import EditComments from './EditComments.vue';
 
 const props = defineProps({
-    commentProps: { type: Object }
+    commentProps: { type: Object },
+    replies: { type: Array, default: () => [] },
+    isReply: { type: Boolean, default: false },
+    postId: { type: String, default: '' },
 })
 
 const emits = defineEmits(['refresh']);
@@ -88,6 +114,8 @@ const comment = computed(() => props.commentProps || {});
 const userComments = ref();
 const linkAvt = ref();
 const isShowEditComment = ref(false);
+const showReply = ref(false);
+const replyText = ref('');
 const showDialog = inject("openDialogError");
 const openConfirm = inject("openConfirm");
 const toast = inject("toast");
@@ -137,6 +165,19 @@ const toggleLike = async () => {
         emits('refresh');
     } catch (e) { console.log(e); }
 }
+const sendReply = async () => {
+    const text = (replyText.value || '').trim();
+    if (!text) return;
+    try {
+        await createComment(props.postId, { content: text, parentId: comment.value.commentId });
+        replyText.value = '';
+        showReply.value = false;
+        emits('refresh');
+    } catch (e) {
+        showDialog?.('Thông báo', e?.description || 'Gửi trả lời thất bại');
+    }
+}
+
 const confirmDelete = () => {
     openConfirm?.('Xoá bình luận', 'Xoá bình luận này?', async () => {
         try {
