@@ -7,12 +7,15 @@
             :is-show="false"
         />
         <div class="min-w-0 flex-1">
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 flex-wrap">
                 <span
                     class="font-semibold text-[15px] cursor-pointer hover:underline"
                     @click="goAuthor"
                 >
                     {{ userComments || '—' }}
+                </span>
+                <span v-if="comment?.commentAt" class="text-xs muted" :title="formatDateTime(comment.commentAt)">
+                    · {{ timeAgo(comment.commentAt) }}
                 </span>
                 <span class="text-xs muted">· {{ comment?.commentLikes ?? 0 }} thích</span>
             </div>
@@ -60,6 +63,7 @@
 <script setup>
 import { onMounted, ref, computed, inject } from 'vue';
 import { useRouter } from 'vue-router';
+import { timeAgo, formatDateTime } from '@/js/helper';
 import { getUserInfo } from '../../apis/user';
 import { DxPopup } from 'devextreme-vue';
 import { likeCommentApi, unLikeCommentApi, deleteComment } from '@/apis/comment';
