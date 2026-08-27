@@ -46,6 +46,10 @@
                     <button class="link" @click="isShowEditComment = true">Sửa</button>
                     <button class="link text-[var(--danger)]" @click="confirmDelete">Xoá</button>
                 </template>
+                <template v-else>
+                    <span class="text-gray-300">|</span>
+                    <button class="link text-[var(--danger)]" @click="confirmReport">Báo cáo</button>
+                </template>
             </div>
 
             <!-- ô trả lời -->
@@ -92,6 +96,7 @@ import { timeAgo, formatDateTime } from '@/js/helper';
 import { getUserInfo } from '../../apis/user';
 import { DxPopup, DxTextBox, DxButton } from 'devextreme-vue';
 import { likeCommentApi, unLikeCommentApi, deleteComment, createComment } from '@/apis/comment';
+import { sendReport } from '@/apis/report';
 import { LOCALKEYS, getItemLocal } from '@/storages/localStorage';
 import { IMAGE_BASE } from '@/config';
 import BaseAvatar from '../BaseAvatar.vue';
@@ -182,6 +187,17 @@ const sendReply = async () => {
     } catch (e) {
         showDialog?.('Thông báo', e?.description || 'Gửi trả lời thất bại');
     }
+}
+
+const confirmReport = () => {
+    openConfirm?.('Báo cáo bình luận', 'Gửi báo cáo bình luận này tới quản trị viên?', async () => {
+        try {
+            await sendReport('COMMENT', comment.value.commentId);
+            toast?.('Đã gửi báo cáo');
+        } catch (e) {
+            showDialog?.('Thông báo', e?.description || 'Báo cáo thất bại');
+        }
+    }, { danger: true, confirmText: 'Báo cáo' });
 }
 
 const confirmDelete = () => {

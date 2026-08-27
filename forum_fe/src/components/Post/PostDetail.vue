@@ -30,6 +30,11 @@
                                 <DxButton icon="trash" type="danger" stylingMode="text" text="Xoá" @click="handleDeletePost" />
                             </div>
                         </div>
+                        <DxButton
+                            v-else-if="post?.userCreatedPost"
+                            icon="warning" type="danger" stylingMode="text" hint="Báo cáo bài viết"
+                            @click="reportPost"
+                        />
                     </div>
 
                     <div class="text-sm muted mt-0.5">
@@ -137,6 +142,7 @@ import { getPostById } from '@/apis/post';
 import { createComment } from '@/apis/comment';
 import { likePostApi, unLikePostApi, deletePost } from '@/apis/post';
 import { checkBookmark, toggleBookmark } from '@/apis/bookmark';
+import { sendReport } from '@/apis/report';
 import { getUserInfo, getAllUsers } from '@/apis/user';
 import { markReadByTarget } from '@/apis/notification';
 import { useRouter } from 'vue-router';
@@ -303,6 +309,17 @@ const unreactPost = async () => {
     } catch (error) {
         showDialog?.('Thông báo', error?.description || 'Thao tác thất bại');
     }
+}
+
+const reportPost = () => {
+    openConfirm?.('Báo cáo bài viết', 'Gửi báo cáo bài viết này tới quản trị viên?', async () => {
+        try {
+            await sendReport('POST', id.value);
+            toast?.('Đã gửi báo cáo');
+        } catch (e) {
+            showDialog?.('Thông báo', e?.description || 'Báo cáo thất bại');
+        }
+    }, { danger: true, confirmText: 'Báo cáo' });
 }
 
 const handleDeletePost = () => {

@@ -65,7 +65,8 @@
 import { DxButton } from 'devextreme-vue';
 import { onMounted, ref, computed, watch, inject } from 'vue';
 import { useRouter } from 'vue-router';
-import { getUserInfo, reportUser } from '@/apis/user';
+import { getUserInfo } from '@/apis/user';
+import { sendReport } from '@/apis/report';
 import { getPostById } from '@/apis/post';
 import {
     friendStatus, getFriends, sendFriendRequest, cancelFriendRequest,
@@ -158,7 +159,7 @@ const doUnfriend = () => {
 const report = () => {
     openConfirm?.('Báo cáo người dùng', `Báo cáo ${user.value?.fullName || 'người dùng này'}?`, async () => {
         try {
-            await reportUser(userId.value);
+            await sendReport('USER', userId.value);
             toast?.('Đã gửi báo cáo');
         } catch (e) {
             showDialog?.('Thông báo', e?.description || 'Báo cáo thất bại');
