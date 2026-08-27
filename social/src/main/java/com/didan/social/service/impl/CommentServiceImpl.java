@@ -84,6 +84,48 @@ public class CommentServiceImpl extends ConvertDTO implements CommentService {
         return commentDTOs;
     }
 
+    @Override
+    public java.util.Map<String, Object> getCommentsPage(String postId, int page, int size) throws Exception {
+        if (page < 1) page = 1;
+        if (size < 1 || size > 100) size = 20;
+        List<CommentDTO> all = getCommentsInPost(postId); // đã kèm reaction, sắp mới -> cũ
+
+        // gom cây 1 cấp
+        java.util.Set<String> ids = new java.util.HashSet<>();
+        for (CommentDTO c : all) ids.add(c.getCommentId());
+        List<CommentDTO> roots = new ArrayList<>();
+        java.util.Map<String, List<CommentDTO>> children = new java.util.HashMap<>();
+        for (CommentDTO c : all) {
+            String pid = c.getParentId();
+            if (pid != null && ids.contains(pid)) {
+                children.computeIfAbsent(pid, k -> new ArrayList<>()).add(c);
+            } else {
+                roots.add(c);
+            }
+        }
+        int total = roots.size();
+        int totalPages = Math.max(1, (int) Math.ceil(total / (double) size));
+        int from = Math.min((page - 1) * size, total);
+        int to = Math.min(from + size, total);
+
+        List<CommentDTO> items = new ArrayList<>();
+        for (CommentDTO root : roots.subList(from, to)) {
+            items.add(root);
+            List<CommentDTO> reps = children.get(root.getCommentId());
+            if (reps != null) {
+                reps.sort(Comparator.comparing(CommentDTO::getCommentAt)); // trả lời: cũ -> mới
+                items.addAll(reps);
+            }
+        }
+
+        java.util.Map<String, Object> out = new java.util.HashMap<>();
+        out.put("items", items);
+        out.put("total", total);          // số bình luận gốc
+        out.put("totalPages", totalPages);
+        out.put("page", page);
+        return out;
+    }
+
     @Transactional
     @Override
     public String postCommentInPost(String postId, CreateCommentRequest createCommentRequest) throws Exception {

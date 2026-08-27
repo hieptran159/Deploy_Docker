@@ -4,6 +4,10 @@ export const createComment = (postId, data)=> {
     return authApiFormData.post(`/comment/post/${postId}`, data);
 }
 
+export const getCommentsPage = (postId, page = 1, size = 20) => {
+    return authApi.get(`/comment/post/${postId}/page?page=${page}&size=${size}`);
+}
+
 export const updateComment = (id, data) => {
     return authApiFormData.patch(`/comment/update/${id}`, data);
 }

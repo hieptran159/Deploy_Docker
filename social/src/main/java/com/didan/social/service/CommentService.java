@@ -21,4 +21,6 @@ public interface CommentService {
     CommentDTO updateComment(String commentId, EditCommentRequest editCommentRequest) throws Exception;
     // Xóa comment
     boolean deleteComment(String commentId) throws Exception;
+    // Bình luận theo trang (gốc mới->cũ; mỗi trang kèm toàn bộ trả lời của các gốc trong trang)
+    java.util.Map<String, Object> getCommentsPage(String postId, int page, int size) throws Exception;
 }

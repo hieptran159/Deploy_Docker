@@ -28,6 +28,26 @@ public class CommentController {
     public CommentController(CommentService commentService){
         this.commentService = commentService;
     }
+    // Get Comments in Post (theo trang)
+    @GetMapping("/post/{post_id}/page")
+    @Operation(summary = "Bình luận theo trang", description = "page (1..), size (<=100). Trả items + total (gốc) + totalPages",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    public ResponseEntity<?> getCommentsPage(@PathVariable("post_id") String postId,
+                                             @RequestParam(defaultValue = "1") int page,
+                                             @RequestParam(defaultValue = "20") int size){
+        ResponseData payload = new ResponseData();
+        try {
+            payload.setData(commentService.getCommentsPage(postId, page, size));
+            payload.setDescription("OK");
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e){
+            payload.setSuccess(false);
+            payload.setStatusCode(500);
+            payload.setDescription(e.getMessage());
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
     // Get Comments in Post
     @GetMapping("/post/{post_id}")
     @Operation(summary = "Get all comments in a post",

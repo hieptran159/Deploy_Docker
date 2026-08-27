@@ -65,7 +65,7 @@
         </div>
 
         <div class="card">
-            <div class="section-title">Bình luận ({{ post?.comments?.length ?? 0 }})</div>
+            <div class="section-title">Bình luận ({{ post?.commentsQuantity ?? commentRootTotal }})</div>
 
             <div class="pb-3 border-b">
                 <div class="flex items-center gap-3 relative">
@@ -108,13 +108,18 @@
                 </div>
             </div>
 
-            <div v-if="!post?.comments?.length" class="state">Chưa có bình luận</div>
+            <div v-if="!threadedComments.length" class="state">Chưa có bình luận</div>
             <div
                 class="py-3 border-b last:border-b-0"
                 v-for="c in threadedComments"
                 :key="c.commentId"
             >
-                <Comment :commentProps="c" :replies="c.replies" :post-id="id" @refresh="getDataPostById" />
+                <Comment :commentProps="c" :replies="c.replies" :post-id="id" @refresh="() => loadComments(true)" />
+            </div>
+            <div v-if="commentPage < commentTotalPages" class="pt-3 text-center">
+                <button class="link text-sm" @click="() => loadComments(false)">
+                    Xem thêm bình luận cũ hơn ({{ commentRootTotal - loadedRootCount }})
+                </button>
             </div>
         </div>
 
@@ -139,7 +144,7 @@
 <script setup>
 import { onMounted, onBeforeUnmount, ref, computed, inject, watch, nextTick } from 'vue';
 import { getPostById } from '@/apis/post';
-import { createComment } from '@/apis/comment';
+import { createComment, getCommentsPage } from '@/apis/comment';
 import { likePostApi, unLikePostApi, deletePost } from '@/apis/post';
 import { checkBookmark, toggleBookmark } from '@/apis/bookmark';
 import { sendReport } from '@/apis/report';
@@ -238,9 +243,32 @@ const getDataPostById = async() => {
     linkPostImg.value = post.value?.postImg ? IMAGE_BASE + post.value.postImg : '';
 }
 
+/* ---------- bình luận theo trang ---------- */
+const COMMENT_PAGE_SIZE = 20;
+const commentItems = ref([]);           // danh sách phẳng đã tải (nhiều trang cộng dồn)
+const commentPage = ref(0);
+const commentTotalPages = ref(1);
+const commentRootTotal = ref(0);        // tổng số bình luận gốc
+const loadedRootCount = computed(() => commentItems.value.filter((c) => !c.parentId).length);
+
+const loadComments = async (reset) => {
+    const next = reset ? 1 : commentPage.value + 1;
+    try {
+        const res = await getCommentsPage(id.value, next, COMMENT_PAGE_SIZE);
+        const d = res?.data?.data || {};
+        const items = d.items || [];
+        commentItems.value = reset ? items : [...commentItems.value, ...items];
+        commentPage.value = d.page || next;
+        commentTotalPages.value = d.totalPages || 1;
+        commentRootTotal.value = d.total || 0;
+    } catch (e) {
+        if (reset) commentItems.value = [];
+    }
+}
+
 // gom bình luận thành cây 1 cấp: gốc (mới -> cũ), trả lời (cũ -> mới)
 const threadedComments = computed(() => {
-    const all = post.value?.comments || [];
+    const all = commentItems.value;
     const ids = new Set(all.map((c) => c.commentId));
     const children = {};
     const roots = [];
@@ -289,6 +317,7 @@ const commentPost = async()=> {
         mentionOpen.value = false;
         clearCommentImg();
         await getDataPostById();
+        await loadComments(true);
     } catch (error) {
         showDialog?.('Thông báo', error?.description || 'Gửi bình luận thất bại');
     }
@@ -364,6 +393,12 @@ const markPostNotifsRead = async () => {
 const scrollToComment = async () => {
     const cid = route.currentRoute.value.query.comment;
     if (!cid) return;
+    // nạp thêm trang cho tới khi có bình luận đó (hoặc hết trang)
+    let guard = 0;
+    while (!commentItems.value.some((c) => c.commentId === cid)
+        && commentPage.value < commentTotalPages.value && guard++ < 30) {
+        await loadComments(false);
+    }
     await nextTick();
     let tries = 0;
     const tick = () => {
@@ -390,7 +425,7 @@ const connectPostSocket = () => {
         postSocket.on('post_comments_changed', (p) => {
             if (!p || p.postId !== id.value) return;
             clearTimeout(refetchTimer);
-            refetchTimer = setTimeout(getDataPostById, 300);
+            refetchTimer = setTimeout(() => { getDataPostById(); loadComments(true); }, 300);
         });
     } catch (e) { /* ignore */ }
 }
@@ -403,6 +438,7 @@ onMounted(async() => {
     activePostId.value = id.value;
     loadUsers();
     await getDataPostById();
+    await loadComments(true);
     await getDataUser();
     loadBookmark();
     // đang xem bài này -> đánh dấu đã đọc các thông báo bình luận / thích của bài
