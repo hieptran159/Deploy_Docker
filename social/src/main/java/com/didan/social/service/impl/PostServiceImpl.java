@@ -273,6 +273,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
             commentDTO.setContent(comment.getContent());
             commentDTO.setCommentImg(comment.getCommentImg());
             commentDTO.setCommentAt(comment.getCommentAt().toString());
+            commentDTO.setParentId(comment.getParentId());
             Set<CommentLikes> commentLikes = comment.getCommentLikes();
             commentDTO.setCommentLikes(commentLikes.size());
             List<String> userLikes = commentLikes.stream().map(commentLike -> commentLike.getUsers().getUserId()).collect(Collectors.toList());
