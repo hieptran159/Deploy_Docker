@@ -140,7 +140,6 @@ public class SocketModule {
                 }
                 if (!StringUtils.hasText(conversationId)) {
                     // socket chỉ để nhận thông báo cá nhân + theo dõi bạn bè online
-                    client.set("notifSocket", Boolean.TRUE);
                     handleFriendPresenceOnConnect(client, userId);
                     logger.info(String.format("Notification socket connected - userId[%s]", userId));
                     return;
@@ -166,33 +165,35 @@ public class SocketModule {
 
     private DisconnectListener onDisconnected(){ // Hàm xử lý khi có client ngắt kết nối
         return (client) -> { // Trả về một listener xử lý khi có client kết nối
-            // dùng dữ liệu đã lưu trên session -> không phụ thuộc việc parse lại handshake khi disconnect
-            String sessUserId = client.get("userId");
-            Boolean isNotif = client.get("notifSocket");
-            if (Boolean.TRUE.equals(isNotif)) {
-                handleFriendPresenceOnDisconnect(sessUserId);
-                logger.info(String.format("Notification socket disconnected - userId[%s]", sessUserId));
+            // xác định userId & loại socket: ưu tiên session, dự phòng bằng token
+            String userId = client.get("userId");
+            String conversationId = null;
+            String postId = null;
+            try {
+                conversationId = client.getHandshakeData().getSingleUrlParam("conversationID");
+                postId = client.getHandshakeData().getSingleUrlParam("postID");
+                if (userId == null) {
+                    String accessToken = client.getHandshakeData().getSingleUrlParam("token");
+                    userId = jwtUtils.getUserIdFromAccessToken(accessToken);
+                }
+            } catch (Exception e) {
+                logger.error("onDisconnected parse failed: " + e.getMessage());
+            }
+            logger.info(String.format("onDisconnected - userId[%s] conv[%s] post[%s]", userId, conversationId, postId));
+
+            if (StringUtils.hasText(postId)) {
+                return; // socket theo dõi bài viết
+            }
+            if (!StringUtils.hasText(conversationId)) {
+                handleFriendPresenceOnDisconnect(userId); // socket thông báo cá nhân
                 return;
             }
-            String accessToken = client.getHandshakeData().getSingleUrlParam("token");
             try {
-                jwtUtils.validateAccessToken(accessToken);
-                String userId = jwtUtils.getUserIdFromAccessToken(accessToken);
-                String conversationId = client.getHandshakeData().getSingleUrlParam("conversationID"); // Lấy ra các tham số và giá trị của URL mà client gửi lên
-                if (StringUtils.hasText(client.getHandshakeData().getSingleUrlParam("postID"))) {
-                    // socket theo dõi bài viết: netty tự rời phòng khi ngắt kết nối
-                    return;
-                }
-                if (!StringUtils.hasText(conversationId)) {
-                    handleFriendPresenceOnDisconnect(userId);
-                    logger.info(String.format("Notification socket disconnected (fallback) - userId[%s]", userId));
-                    return;
-                }
-                socketService.broadcastExcept(conversationId, "presence", presencePayload(userId, false), client); // báo offline TRƯỚC khi rời phòng
+                socketService.broadcastExcept(conversationId, "presence", presencePayload(userId, false), client);
                 client.leaveRoom(conversationId);
-                socketService.saveInfoMessage(conversationId, "get_message", client, String.format("%s disconnected", userId)); // Lưu tin nhắn thông báo đã kết nối và gửi đó cho tất cả client khác trong phòng qua hàm saveInfoMessage của service
-                logger.info(String.format("Socket ID[%s] - conversation ID[%s] - userId[%s]  Disconnected to chat module through", client.getSessionId().toString(), conversationId, userId)); // In ra màn hình console thông tin của session, phòng và tên của client vừa kết nối
-            }catch (Exception e){
+                socketService.saveInfoMessage(conversationId, "get_message", client, String.format("%s disconnected", userId));
+                logger.info(String.format("Chat socket disconnected - conv[%s] userId[%s]", conversationId, userId));
+            } catch (Exception e){
                 logger.error(e.getMessage());
             }
         };
