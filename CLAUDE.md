@@ -76,6 +76,10 @@ There is effectively no test suite — only `social/src/test/.../SocialApplicati
   (`send_message` / `get_message` events, room per `conversationID`); token passed as a
   `token` URL param on the handshake. Runs on its own port (8082), separate from the
   Spring web port.
+- Uploaded files land on disk at `./uploads/images/<type>/` (`app.file.upload-dir`).
+  `ResourceWebConfig` serves them at `/images/**` from `file:./uploads/images/` (with a
+  `classpath:/static/uploads/images/` fallback for the seeded images). Signup avatar is
+  optional — `avtUrl` is set to `""` when omitted.
 - `hibernate.ddl-auto=update` — schema is auto-migrated from entities on startup.
 - Hibernate dialect is set inconsistently (`MySQL5Dialect` and `MySQL8Dialect` both
   appear in `application.properties`); leave as-is unless fixing that specifically.
