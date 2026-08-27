@@ -73,13 +73,26 @@
                 </div>
                 <template v-else>
                     <div class="p-3 border-b flex items-center gap-3">
-                        <div class="font-bold flex-1 truncate">{{ displayName(active) }}</div>
-                        <span class="text-xs flex-none" :class="connected ? 'text-green-600' : 'muted'">
-                            {{ connected ? '● trực tuyến' : '○ ngoại tuyến' }}
-                        </span>
+                        <div class="min-w-0 flex-1">
+                            <div class="font-bold truncate">{{ displayName(active) }}</div>
+                            <div class="text-xs" :class="statusClass">{{ statusText }}</div>
+                        </div>
+                        <DxButton v-if="!isDm(active.conversationName)"
+                            :icon="showMembers ? 'chevronup' : 'group'" stylingMode="text"
+                            :hint="showMembers ? 'Ẩn thành viên' : 'Xem thành viên'"
+                            @click="toggleMembers" />
                         <DxButton v-if="!isDm(active.conversationName)" icon="plus" stylingMode="text"
                             hint="Thêm thành viên" @click="openAddMember" />
                         <DxButton text="Rời" type="danger" stylingMode="text" @click="handleLeave" />
+                    </div>
+
+                    <div v-if="showMembers && !isDm(active.conversationName)" class="px-3 py-2 border-b bg-gray-50 flex flex-wrap gap-1">
+                        <span class="text-xs muted mr-1">Thành viên ({{ members.length }}):</span>
+                        <span v-for="mem in members" :key="mem.userId"
+                            class="text-xs bg-white border rounded-full px-2 py-0.5 cursor-pointer hover:underline"
+                            @click="() => router.push('/user/' + mem.userId)">
+                            {{ mem.fullName }}{{ mem.userId === myId ? ' (bạn)' : '' }}
+                        </span>
                     </div>
 
                     <div ref="listEl" class="flex-1 overflow-y-auto p-4 flex flex-col gap-1 bg-[var(--bg)]">
@@ -146,7 +159,7 @@ import { useRouter } from 'vue-router';
 import { io } from 'socket.io-client';
 import {
     getMyConversations, searchConversations, getMessages,
-    createConversation, joinConversation, leaveConversation, sendMessageRest, addMember,
+    createConversation, joinConversation, leaveConversation, sendMessageRest, addMember, getMembers,
 } from '@/apis/chat';
 import { getUserInfo, searchUserApi } from '@/apis/user';
 import { markReadByTarget } from '@/apis/notification';
@@ -187,11 +200,16 @@ const showAddMember = ref(false);
 const addQuery = ref('');
 const addResults = ref([]);
 
-// typing / seen
+// typing / seen / presence
 const otherTyping = ref(false);
 const otherSeen = ref(false);
+const otherOnline = ref(false);
 let typingHideTimer = null;
 let lastTypingEmit = 0;
+
+// thành viên nhóm
+const showMembers = ref(false);
+const members = ref([]);
 
 let socket = null;
 
@@ -204,6 +222,18 @@ const lastMineIndex = computed(() => {
 
 /* ---------- helpers tên hội thoại ---------- */
 const isDm = (name) => typeof name === 'string' && (name.startsWith('dm:') || name.startsWith('dm_'));
+
+const statusText = computed(() => {
+    if (!active.value) return '';
+    if (isDm(active.value.conversationName)) {
+        return otherOnline.value ? '● Đang hoạt động' : '○ Không hoạt động';
+    }
+    return connected.value ? '● Đã kết nối' : '○ Mất kết nối';
+});
+const statusClass = computed(() => {
+    const on = isDm(active.value?.conversationName) ? otherOnline.value : connected.value;
+    return on ? 'text-green-600' : 'muted';
+});
 
 const otherIdFromDm = (name) => {
     const raw = name.slice(3);
@@ -286,13 +316,28 @@ const doCreateGroup = async () => {
     }
 }
 
-/* ---------- thêm thành viên ---------- */
+/* ---------- thành viên nhóm ---------- */
+const loadMembers = async () => {
+    if (!active.value) return;
+    try {
+        const res = await getMembers(active.value.conversationId);
+        members.value = res?.data?.data || [];
+    } catch (e) {
+        members.value = [];
+    }
+}
+const toggleMembers = () => {
+    showMembers.value = !showMembers.value;
+    if (showMembers.value) loadMembers();
+}
+
 const openAddMember = () => { showAddMember.value = true; addQuery.value = ''; addResults.value = []; }
 const searchAdd = async () => {
     if (!addQuery.value.trim()) { addResults.value = []; return; }
     try {
         const res = await searchUserApi(addQuery.value.trim());
-        addResults.value = (res?.data?.data || []).filter((u) => u.userId !== myId);
+        const inGroup = new Set(members.value.map((m) => m.userId));
+        addResults.value = (res?.data?.data || []).filter((u) => u.userId !== myId && !inGroup.has(u.userId));
     } catch (e) {
         addResults.value = [];
     }
@@ -301,6 +346,8 @@ const doAddMember = async (u) => {
     try {
         await addMember(active.value.conversationId, u.userId);
         toast?.(`Đã thêm ${u.fullName}`);
+        addResults.value = addResults.value.filter((x) => x.userId !== u.userId);
+        if (showMembers.value) loadMembers();
     } catch (e) {
         showDialog?.('Thông báo', e?.description || 'Thêm thành viên thất bại');
     }
@@ -376,6 +423,9 @@ const openConversation = async (c) => {
     messages.value = [];
     otherTyping.value = false;
     otherSeen.value = false;
+    otherOnline.value = false;
+    showMembers.value = false;
+    members.value = [];
     try {
         const res = await getMessages(c.conversationId);
         messages.value = res?.data?.data || [];
@@ -409,11 +459,16 @@ const connectSocket = (conversationId) => {
     });
     socket.on('typing', () => {
         otherTyping.value = true;
+        otherOnline.value = true;
         scrollToBottom();
         clearTimeout(typingHideTimer);
         typingHideTimer = setTimeout(() => { otherTyping.value = false; }, 3000);
     });
-    socket.on('seen', () => { otherSeen.value = true; });
+    socket.on('seen', () => { otherSeen.value = true; otherOnline.value = true; });
+    socket.on('presence', (p) => {
+        otherOnline.value = !!(p && p.online);
+        if (p && !p.online) otherSeen.value = false;
+    });
 }
 
 const onTyping = () => {

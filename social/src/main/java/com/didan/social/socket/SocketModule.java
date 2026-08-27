@@ -14,7 +14,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
-import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 @Component
 public class SocketModule {
@@ -34,6 +35,18 @@ public class SocketModule {
         server.addEventListener("seen", Object.class, relayEvent("seen")); // "đã xem"
     }
 
+    private Map<String, Object> payload(String userId){
+        Map<String, Object> m = new HashMap<>();
+        m.put("userId", userId);
+        return m;
+    }
+
+    private Map<String, Object> presencePayload(String userId, boolean online){
+        Map<String, Object> m = payload(userId);
+        m.put("online", online);
+        return m;
+    }
+
     // Chuyển tiếp 1 sự kiện đơn giản (typing/seen) cho những người còn lại trong phòng, kèm userId
     private DataListener<Object> relayEvent(String eventName){
         return (senderClient, data, ackServer) -> {
@@ -42,7 +55,7 @@ public class SocketModule {
                 jwtUtils.validateAccessToken(accessToken);
                 String userId = jwtUtils.getUserIdFromAccessToken(accessToken);
                 String conversationId = senderClient.getHandshakeData().getSingleUrlParam("conversationID");
-                socketService.broadcastExcept(conversationId, eventName, Collections.singletonMap("userId", userId), senderClient);
+                socketService.broadcastExcept(conversationId, eventName, payload(userId), senderClient);
             } catch (Exception e){
                 logger.error(e.getMessage());
             }
@@ -72,6 +85,7 @@ public class SocketModule {
                 String userId = jwtUtils.getUserIdFromAccessToken(accessToken);
                 String conversationId = client.getHandshakeData().getSingleUrlParam("conversationID"); // Lấy ra các tham số và giá trị của URL mà client gửi lên
                 client.joinRoom(conversationId); // Thêm client vào phòng chat với id là roomId
+                socketService.broadcastExcept(conversationId, "presence", presencePayload(userId, true), client); // báo cho người khác biết mình online
                 socketService.saveInfoMessage(conversationId, "get_message", client, String.format("%s joined to chat", userId)); // Lưu tin nhắn thông báo đã kết nối và gửi đó cho tất cả client khác trong phòng qua hàm saveInfoMessage của service
                 logger.info(String.format("Socket ID[%s] - conversation ID[%s] - userId[%s]  Connected to chat module through", client.getSessionId().toString(), conversationId, userId)); // In ra màn hình console thông tin của session, phòng và tên của client vừa kết nối
             }catch (Exception e){
@@ -87,6 +101,7 @@ public class SocketModule {
                 jwtUtils.validateAccessToken(accessToken);
                 String userId = jwtUtils.getUserIdFromAccessToken(accessToken);
                 String conversationId = client.getHandshakeData().getSingleUrlParam("conversationID"); // Lấy ra các tham số và giá trị của URL mà client gửi lên
+                socketService.broadcastExcept(conversationId, "presence", presencePayload(userId, false), client); // báo offline TRƯỚC khi rời phòng
                 client.leaveRoom(conversationId);
                 socketService.saveInfoMessage(conversationId, "get_message", client, String.format("%s disconnected", userId)); // Lưu tin nhắn thông báo đã kết nối và gửi đó cho tất cả client khác trong phòng qua hàm saveInfoMessage của service
                 logger.info(String.format("Socket ID[%s] - conversation ID[%s] - userId[%s]  Disconnected to chat module through", client.getSessionId().toString(), conversationId, userId)); // In ra màn hình console thông tin của session, phòng và tên của client vừa kết nối

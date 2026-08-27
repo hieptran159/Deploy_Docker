@@ -79,6 +79,24 @@ public class ChatController {
         }
     }
 
+    // Members of a conversation
+    @Operation(summary = "List members of a conversation",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @GetMapping("/{conversation_id}/members")
+    public ResponseEntity<?> getMembers(@PathVariable("conversation_id") String conversationId){
+        ResponseData payload = new ResponseData();
+        try {
+            payload.setData(chatService.getMembers(conversationId));
+            payload.setDescription("Load members successful");
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e){
+            payload.setSuccess(false);
+            payload.setStatusCode(500);
+            payload.setDescription(e.getMessage());
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
     // Add a member to a group
     @Operation(summary = "Add another user to a group conversation",
             description = "Người gọi phải là thành viên của nhóm",

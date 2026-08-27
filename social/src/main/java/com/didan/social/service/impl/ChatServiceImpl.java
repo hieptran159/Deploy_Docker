@@ -151,6 +151,26 @@ public class ChatServiceImpl implements ChatService {
         return true;
     }
 
+    @Override
+    public List<Map<String, String>> getMembers(String conversationId) throws Exception {
+        String myId = authorizePathService.getUserIdAuthoried();
+        if (participantRepository.findFirstByConversations_ConversationIdAndUsers_UserId(conversationId, myId) == null) {
+            logger.error("You are not in this conversation");
+            throw new Exception("You are not in this conversation");
+        }
+        List<Map<String, String>> result = new ArrayList<>();
+        for (Participants p : participantRepository.findAllByConversations_ConversationId(conversationId)) {
+            Users u = p.getUsers();
+            if (u == null) continue;
+            Map<String, String> m = new HashMap<>();
+            m.put("userId", u.getUserId());
+            m.put("fullName", u.getFullName());
+            m.put("avtUrl", u.getAvtUrl());
+            result.add(m);
+        }
+        return result;
+    }
+
     private void addParticipantIfAbsent(Conversations conversation, Users user) {
         Participants existing = participantRepository.findFirstByConversations_ConversationIdAndUsers_UserId(
                 conversation.getConversationId(), user.getUserId());
