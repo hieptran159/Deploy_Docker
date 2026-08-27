@@ -60,18 +60,25 @@
 import Post from '../../components/Post/Post.vue';
 import { DxButton, DxPopup, DxTextBox } from 'devextreme-vue';
 import { getListPostApi, searchPost } from '@/apis/post';
-import { inject, onMounted, ref } from 'vue';
+import { inject, onMounted, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import BaseAvatar from '@/components/BaseAvatar.vue';
 import { getItemLocal, LOCALKEYS } from '../../storages/localStorage';
 import CreatePost from '../../components/Post/CreatePost.vue';
 
+const router = useRouter();
 const posts = ref([]);
-const currentPage = ref(1);
+const currentPage = ref(pageFromQuery());
 const ishowCreatePost = ref(false);
 const loading = ref(false);
 
 const showDialog = inject("openDialogError");
 const searchText = ref("");
+
+function pageFromQuery() {
+    const p = parseInt(router.currentRoute.value.query.page, 10);
+    return Number.isFinite(p) && p > 0 ? p : 1;
+}
 
 const getListPost = async () => {
     loading.value = true;
@@ -86,15 +93,23 @@ const getListPost = async () => {
 }
 
 const currentPageChange = (i) => {
-    currentPage.value = Math.max(currentPage.value + i, 1);
-    getListPost();
+    const next = Math.max(currentPage.value + i, 1);
+    if (next === currentPage.value) return;
+    // ghi số trang vào URL -> nút back của trình duyệt quay lại đúng trang trước đó
+    router.push({ query: { ...router.currentRoute.value.query, page: next } });
 }
 
-const onSearchChanged = (e) => {
-    if (!e?.value) {
-        currentPage.value = 1;
+// đồng bộ khi URL đổi (bấm next/prev, hoặc back/forward của trình duyệt)
+watch(() => router.currentRoute.value.query.page, () => {
+    const p = pageFromQuery();
+    if (p !== currentPage.value) {
+        currentPage.value = p;
         getListPost();
     }
+});
+
+const onSearchChanged = (e) => {
+    if (!e?.value) getListPost();
 }
 
 const handleSearch = async () => {

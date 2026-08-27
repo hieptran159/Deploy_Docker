@@ -1,7 +1,13 @@
 <template>
     <div class="flex gap-3 py-3 cursor-pointer group" @click="viewDetail">
-        <img v-if="imageLoaded" :src="linkAvt" @load="handleImageLoad" class="size-10 rounded-full object-cover flex-none" />
-        <div v-else class="avatar-fallback size-10 text-base">
+        <img
+            v-show="showAvatar"
+            :src="linkAvt"
+            class="size-10 rounded-full object-cover flex-none bg-gray-100"
+            @error="avatarErrored = true"
+            @load="avatarErrored = false"
+        />
+        <div v-if="!showAvatar" class="avatar-fallback size-10 text-base">
             {{ (userCreatedPost || '?')[0] }}
         </div>
 
@@ -40,16 +46,22 @@ const props = defineProps({
     post: { type: Object }
 });
 
-const linkAvt = ref();
+const linkAvt = ref("");
 const post = computed(() => props.post);
 const userCreatedPost = ref("");
-const imageLoaded = ref(false);
+const avatarErrored = ref(false);
+
+const showAvatar = computed(() => {
+    const u = linkAvt.value;
+    return !!u && !u.endsWith('/') && !u.endsWith('null') && !u.endsWith('undefined') && !avatarErrored.value;
+});
 
 const getDataUser = async () => {
     try {
         const data = await getUserInfo(post.value?.userCreatedPost);
         userCreatedPost.value = data?.data?.data?.fullName;
-        linkAvt.value = IMAGE_BASE + data?.data?.data?.avtUrl;
+        const avt = data?.data?.data?.avtUrl;
+        linkAvt.value = avt ? IMAGE_BASE + avt : "";
     } catch (error) {
         console.error(error);
     }
@@ -61,10 +73,6 @@ const viewDetail = () => {
 
 const goProfile = () => {
     if (post.value?.userCreatedPost) route.push(`/user/${post.value.userCreatedPost}`);
-}
-
-const handleImageLoad = () => {
-    imageLoaded.value = true;
 }
 
 onMounted(getDataUser);
