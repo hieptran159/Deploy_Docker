@@ -126,8 +126,12 @@ public class AuthServiceImpl implements AuthService {
             userRepository.save(userSave);
             logger.info("[verify] signup {} code={}", signupRequest.getEmail(), code); // tiện test khi email chưa gửi được
             try {
-                mailService.sendTextEmail(signupRequest.getEmail(), "Xác thực email",
-                        "<h2>Chào mừng bạn!</h2><p>Mã xác thực email của bạn là: <b style='font-size:20px'>" + code + "</b></p>");
+                mailService.sendTextEmail(signupRequest.getEmail(), "Xác thực email đăng ký",
+                        com.didan.social.utils.EmailTemplate.otp(
+                                "Chào mừng bạn đến với diễn đàn!",
+                                "Cảm ơn bạn đã đăng ký. Nhập mã dưới đây vào trang xác thực để kích hoạt tài khoản.",
+                                code,
+                                "Nếu bạn không tạo tài khoản này, hãy bỏ qua email."));
             } catch (Exception mailEx) {
                 logger.error("send verify email failed: " + mailEx.getMessage());
             }
@@ -177,8 +181,12 @@ public class AuthServiceImpl implements AuthService {
         userRepository.save(user);
 
         // send email
-        String html = "<h1>You requested reset passsword. The OTP is <b>" + token + "</b>";
-        mailService.sendTextEmail(email, "RESET PASSWORD", html);
+        String html = com.didan.social.utils.EmailTemplate.otp(
+                "Đặt lại mật khẩu",
+                "Bạn (hoặc ai đó) đã yêu cầu đặt lại mật khẩu. Nhập mã dưới đây để tiếp tục. Mã có hiệu lực trong 10 phút.",
+                token,
+                "Nếu bạn không yêu cầu, hãy bỏ qua email và mật khẩu của bạn vẫn an toàn.");
+        mailService.sendTextEmail(email, "Mã đặt lại mật khẩu", html);
         return token;
     }
 
@@ -270,7 +278,11 @@ public class AuthServiceImpl implements AuthService {
         user.setVerifyCode(code);
         userRepository.save(user);
         logger.info("[verify] resend {} code={}", email, code);
-        mailService.sendTextEmail(email, "Xác thực email",
-                "<h2>Mã xác thực mới</h2><p>Mã xác thực email của bạn là: <b style='font-size:20px'>" + code + "</b></p>");
+        mailService.sendTextEmail(email, "Mã xác thực email mới",
+                com.didan.social.utils.EmailTemplate.otp(
+                        "Mã xác thực mới",
+                        "Đây là mã xác thực email mới cho tài khoản của bạn.",
+                        code,
+                        "Nếu bạn không yêu cầu, hãy bỏ qua email này."));
     }
 }
