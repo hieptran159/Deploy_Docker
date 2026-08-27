@@ -10,6 +10,8 @@ import java.util.List;
 public interface ChatService {
     // Tạo 1 phòng chat
     String createConversation(String conversationName) throws Exception;
+    // Mở (hoặc tạo) cuộc trò chuyện 1-1 với một người dùng, cả hai đều là participant
+    ConversationDTO openDirectConversation(String otherUserId) throws Exception;
     // Tham gia vào phòng chat
     ConversationDTO joinConversation(String conversationId) throws Exception;
     // Rời khỏi phòng chat

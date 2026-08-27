@@ -9,5 +9,6 @@ import java.util.List;
 @Repository
 public interface ConversationRepository extends JpaRepository<Conversations, String> {
     Conversations findFirstByConversationId(String conversationId);
+    Conversations findFirstByConversationName(String conversationName);
     List<Conversations> findAllByConversationNameContainingOrderByCreatedAtDesc(String conversationName);
 }

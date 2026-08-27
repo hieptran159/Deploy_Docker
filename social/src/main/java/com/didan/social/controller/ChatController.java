@@ -54,6 +54,31 @@ public class ChatController {
             return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
         }
     }
+    // Open Direct Conversation (1-1)
+    @Operation(summary = "Open (or create) a 1-1 conversation with a user",
+            description = "Both users become participants immediately",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @PostMapping("/direct/{user_id}")
+    public ResponseEntity<?> openDirectConversation(@PathVariable(name = "user_id") String userId){
+        ResponseData payload = new ResponseData();
+        try {
+            ConversationDTO data = chatService.openDirectConversation(userId);
+            if (data != null){
+                payload.setDescription("Open direct conversation successful");
+                payload.setData(data);
+            } else {
+                payload.setDescription("Cannot open direct conversation");
+                payload.setStatusCode(422);
+            }
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e){
+            payload.setSuccess(false);
+            payload.setStatusCode(500);
+            payload.setDescription(e.getMessage());
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
     // Join Conversation
     @Operation(summary = "Join conversation to chat",
             description = "Enter the id conversation to join",

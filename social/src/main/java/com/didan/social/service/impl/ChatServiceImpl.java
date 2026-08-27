@@ -70,6 +70,55 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
+    public ConversationDTO openDirectConversation(String otherUserId) throws Exception {
+        String myId = authorizePathService.getUserIdAuthoried();
+        if (myId == null || myId.equals(otherUserId)) {
+            logger.error("Cannot open a direct conversation with yourself");
+            throw new Exception("Cannot open a direct conversation with yourself");
+        }
+        Users me = userRepository.findFirstByUserId(myId);
+        Users other = userRepository.findFirstByUserId(otherUserId);
+        if (me == null || other == null) {
+            logger.error("User is not found");
+            throw new Exception("User is not found");
+        }
+        // Tên tất định cho cặp người dùng -> cả hai phía luôn ra cùng một phòng
+        String first = myId.compareTo(otherUserId) <= 0 ? myId : otherUserId;
+        String second = myId.compareTo(otherUserId) <= 0 ? otherUserId : myId;
+        String directName = "dm:" + first + ":" + second;
+
+        Conversations conversation = conversationRepository.findFirstByConversationName(directName);
+        if (conversation == null) {
+            conversation = new Conversations();
+            conversation.setConversationId(UUID.randomUUID().toString());
+            conversation.setConversationName(directName);
+            LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
+            conversation.setCreatedAt(Timestamp.valueOf(now));
+            conversationRepository.save(conversation);
+        }
+        addParticipantIfAbsent(conversation, me);
+        addParticipantIfAbsent(conversation, other);
+
+        ConversationDTO conversationDTO = new ConversationDTO();
+        conversationDTO.setConversationId(conversation.getConversationId());
+        conversationDTO.setConversationName(conversation.getConversationName());
+        conversationDTO.setCreatedAt(conversation.getCreatedAt().toString());
+        return conversationDTO;
+    }
+
+    private void addParticipantIfAbsent(Conversations conversation, Users user) {
+        Participants existing = participantRepository.findFirstByConversations_ConversationIdAndUsers_UserId(
+                conversation.getConversationId(), user.getUserId());
+        if (existing == null) {
+            Participants participant = new Participants();
+            participant.setParticipantId(new ParticipantId(conversation.getConversationId(), user.getUserId()));
+            participant.setConversations(conversation);
+            participant.setUsers(user);
+            participantRepository.save(participant);
+        }
+    }
+
+    @Override
     public ConversationDTO joinConversation(String conversationId) throws Exception {
         String userId = authorizePathService.getUserIdAuthoried();
         Users user = userRepository.findFirstByUserId(userId);
