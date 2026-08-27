@@ -21,6 +21,14 @@
             </span>
             <div class="flex mt-1">
                     <DxButton
+                        v-if="comment?.userComments == getItemLocal(LOCALKEYS.USER_ID)"
+                        icon = "edit"
+                        type = "default"
+                        @click="() => {isShowEditComment = true}"
+                    >
+                        Chỉnh sửa
+                    </DxButton>
+                    <DxButton
                         class= "ml-auto"
                         icon = "like"
                         type = "danger"
@@ -39,15 +47,31 @@
                     </DxButton>
                 </div>
         </div>
+
+        <DxPopup
+            title="Chỉnh sửa bình luận"
+            v-model:visible="isShowEditComment"
+            width="700px"
+            height="300px"
+        >
+            <EditComments
+                :commentId="comment?.commentId"
+                :content="comment?.content"
+                @close="() => {isShowEditComment = false; emits('refresh')}"
+                @update-fail="() => {isShowEditComment = false}"
+            />
+        </DxPopup>
     </div>
 </template>
 
 <script setup>
-import { onMounted, ref, defineProps } from 'vue';
+import { onMounted, ref, inject, defineProps, defineEmits } from 'vue';
 import {getUserInfo} from '../../apis/user';
-import { DxButton } from 'devextreme-vue';
+import { DxButton, DxPopup } from 'devextreme-vue';
 import { likeCommentApi, unLikeCommentApi } from '@/apis/comment';
+import { LOCALKEYS, getItemLocal } from '@/storages/localStorage';
 import BaseAvatar from '../BaseAvatar.vue';
+import EditComments from './EditComments.vue';
 
 const props = defineProps({
     commentProps: {
@@ -55,21 +79,14 @@ const props = defineProps({
     }
 })
 
-// const comment = ref({
-//     "userComments": "b2bb132c-bc70-43c1-8c88-10756aafff4e",
-//     "commentId": "953f739d-c943-492f-b923-574dde7b8d0c",
-//     "content": "Wow, that exciting!",
-//     "commentImg": null,
-//     "commentAt": "2023-11-06 11:19:19.0",
-//     "commentLikes": 0,
-//     "userLikes": []
-// })
+const emits = defineEmits(['refresh']);
 
 const comment = ref(props.commentProps);
 
 const userComments = ref();
 const linkAvt = ref();
 const imageLoaded = ref(false);
+const isShowEditComment = ref(false);
 const showDialog = inject("openDialogError");
 
 const getDataUser = async() => {
@@ -85,6 +102,7 @@ const handleImageLoad = () => {
 const likePost = async() => {
     try {
         await likeCommentApi(comment.value.commentId);
+        emits('refresh');
     } catch (error) {
         console.log(error);
     }
@@ -93,7 +111,7 @@ const likePost = async() => {
 const unLikePost = async() => {
     try {
         await unLikeCommentApi(comment.value.commentId);
-        await get
+        emits('refresh');
     } catch (error) {
         console.log(error);
     }

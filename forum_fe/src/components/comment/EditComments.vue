@@ -2,12 +2,12 @@
     <div class="flex flex-col justify-center py-5">
         <div class="mb-4">
             <span><b>Nội dung bình luận:</b></span>
-            <DxTextArea v-model="data.body"></DxTextArea>
+            <DxTextArea v-model="data.content"></DxTextArea>
         </div>
         <div class="w-30% flex justify-center">
             <DxButton
                 type="default"
-                @click="updateComment"
+                @click="submitEdit"
             >
                 Cập nhật
             </DxButton>
@@ -22,16 +22,17 @@ import { ref, defineEmits, defineProps } from 'vue';
 
 const emits = defineEmits();
 const props = defineProps({
-    body: {}
+    commentId: {},
+    content: {}
 });
 
 const data = ref({
-    body: props.body
+    content: props.content
 });
 
-const updateComment = async () => {
+const submitEdit = async () => {
     try {
-        await updateComment(data.value);
+        await updateComment(props.commentId, data.value);
         emits("close");
     } catch {
         emits("update-fail");

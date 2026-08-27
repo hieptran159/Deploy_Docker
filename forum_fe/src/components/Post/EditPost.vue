@@ -15,9 +15,9 @@
         <div class="w-30% flex justify-center">
             <DxButton
             type = "default"
-            @click="postNew"
+            @click="submitEdit"
             >
-                Đăng bài
+                Cập nhật
             </DxButton>
         </div>
     </div>
@@ -25,11 +25,12 @@
 
 <script setup>
 import { DxTextBox, DxTextArea, DxButton } from 'devextreme-vue';
-import { createdPost } from '@/apis/post';
+import { updatePost } from '@/apis/post';
 import { ref, defineEmits, defineProps } from 'vue';
 
 const emits = defineEmits();
 const props = defineProps({
+    postId: {},
     title: {},
     body: {}
 })
@@ -39,15 +40,13 @@ const data = ref({
     body: props.body
 })
 
-console.log(props.title);
-
-const postNew = async() => {
+const submitEdit = async() => {
     try{
-        await createdPost(data.value);
+        await updatePost(props.postId, data.value);
         emits("close");
     }catch{
         emits("post-fail");
-    }   
+    }
 }
 
 </script>

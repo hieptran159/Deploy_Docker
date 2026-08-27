@@ -20,6 +20,10 @@ export const createdPost = (data) => {
     return authApiFormData.post("/post/new", data);
 }
 
+export const updatePost = (id, data) => {
+    return authApiFormData.patch(`/post/update/${id}`, data);
+}
+
 export const searchPost = (key) => {
     return authApi.get(`/post/search?name=${key}`);
 }

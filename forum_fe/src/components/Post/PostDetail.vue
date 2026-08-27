@@ -78,7 +78,7 @@
 
         </div>
         <div class="w-[80%] border py-5 rounded mt-3" v-for="comment in post?.comments" :key="comment?.commentId">
-            <Comment :commentProps="comment"/>
+            <Comment :commentProps="comment" @refresh="getDataPostById"/>
         </div>
         <div class="w-[80%] border p-5 rounded my-3 flex">
             <BaseAvatar
@@ -107,10 +107,11 @@
             height="400px"
             >
             <EditPost
+                :postId="id"
                 :body="post?.body"
                 :title="post?.title"
-                @close="() => {ishowEditPost = false; getListPost()}"
-                @post-fail="showDialog('Đăng bài thất bại')"
+                @close="() => {ishowEditPost = false; getDataPostById()}"
+                @post-fail="showDialog('Cập nhật bài viết thất bại')"
                 />
             </DxPopup>
     </div>
