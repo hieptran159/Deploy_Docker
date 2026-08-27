@@ -36,7 +36,10 @@
                     :userCreatedPost="user.fullName"
                     :userId="user.userId"
                 />
-                <div class="text-black font-bold text-[18px] ml-5 w-[30%]">
+                <div
+                    class="text-black font-bold text-[18px] ml-5 w-[30%] cursor-pointer hover:underline"
+                    @click="() => route.push('/user/' + user.userId)"
+                >
                     {{ user.fullName }}
                 </div>
                 <div class="text-gray-600 mr-5">{{ user.followers }} người theo dõi</div>
@@ -49,9 +52,11 @@
 <script setup>
 import { DxTextBox, DxButton } from 'devextreme-vue';
 import { onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { searchUserApi } from '@/apis/user';
 import BaseAvatar from '@/components/BaseAvatar.vue';
 
+const route = useRouter();
 const users = ref([]);
 const searchText = ref("");
 const loading = ref(false);

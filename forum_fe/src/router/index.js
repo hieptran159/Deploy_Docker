@@ -39,6 +39,14 @@ const routers = [
 	},
 
 	{
+		path: '/forgot-password',
+		component: () =>
+			import(
+				 '../pages/auth/ForgotPassword.vue'
+			),
+	},
+
+	{
 		path: '/post/:id',
 		component: () =>
 			import(
@@ -70,6 +78,15 @@ const routers = [
 		component: () =>
 			import(
 				"@/pages/profile/EditProfile.vue"
+			),
+		beforeEnter: handleBeforeEnter
+	},
+
+	{
+		path: '/user/:id',
+		component: () =>
+			import(
+				"@/pages/user/UserProfile.vue"
 			),
 		beforeEnter: handleBeforeEnter
 	},

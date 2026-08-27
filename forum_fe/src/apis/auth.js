@@ -11,3 +11,11 @@ export const signup = (data) => {
 export const logout = () => {
     return authApi.post("/auth/logout");
 }
+
+export const requestResetToken = (email) => {
+    return api.post(`/auth/token-reset?email=${encodeURIComponent(email)}`);
+}
+
+export const resetPassword = (token, newPassword) => {
+    return api.patch(`/auth/reset?token=${encodeURIComponent(token)}&newPassword=${encodeURIComponent(newPassword)}`);
+}

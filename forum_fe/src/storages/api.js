@@ -46,9 +46,21 @@ export const createApiInstance = (config, { auth = true, silent } = {}) => {
 			if (!silent) {
 				console.log(error);
 			}
-			const { data } = error.response;
 
-			return Promise.reject(data);
+			const status = error?.response?.status;
+			if (status === 401 && typeof window !== 'undefined') {
+				// Token hết hạn / không hợp lệ: xoá phiên và quay về đăng nhập
+				try {
+					Object.values(LOCALKEYS).forEach((k) => localStorage.removeItem(k));
+				} catch (e) {
+					/* ignore */
+				}
+				if (window.location.pathname !== '/login') {
+					window.location.assign('/login');
+				}
+			}
+
+			return Promise.reject(error?.response?.data ?? error);
 		},
 	);
 

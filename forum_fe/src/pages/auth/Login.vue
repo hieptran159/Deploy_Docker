@@ -22,6 +22,9 @@
             <i class="mt-4">
                 Nếu chưa có tài khoản vui lòng đăng kí
             </i>
+            <i class="mt-2 cursor-pointer underline" @click="() => route.push('/forgot-password')">
+                Quên mật khẩu?
+            </i>
         </div>
     </div>
 </template>
