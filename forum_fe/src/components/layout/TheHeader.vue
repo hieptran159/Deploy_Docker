@@ -73,6 +73,10 @@
                             <div class="text-xs muted">{{ timeAgo(n.createdAt) }}</div>
                         </div>
                     </button>
+                    <button
+                        class="w-full text-center px-3 py-2.5 text-sm font-semibold text-[var(--brand)] hover:bg-gray-50 sticky bottom-0 bg-white border-t"
+                        @click="openAllNotifs"
+                    >Xem tất cả</button>
                 </div>
             </div>
 
@@ -110,6 +114,7 @@ import { useRouter } from 'vue-router';
 import { logout as logoutApi } from '@/apis/auth';
 import { checkIsAdmin } from '@/apis/admin';
 import { getNotifications, markAllRead, markRead } from '@/apis/notification';
+import { notifRoute, POST_TYPES } from '@/js/notifTarget';
 import { timeAgo } from '@/js/helper';
 import { activeConversationId, activePostId, notifRefreshTick, setPeerOnline, onlinePeers } from '@/storages/appState';
 import { SOCKET_URL, IMAGE_BASE } from '@/config';
@@ -185,17 +190,9 @@ let pollTimer = null;
 let seenIds = new Set();
 let firstPoll = true;
 
-const POST_TYPES = ['COMMENT', 'COMMENT_LIKE', 'POST_LIKE', 'MENTION', 'REPLY'];
-const COMMENT_ANCHOR_TYPES = ['COMMENT', 'COMMENT_LIKE', 'MENTION', 'REPLY'];
 const targetOf = (n) => {
-    if (COMMENT_ANCHOR_TYPES.includes(n.type) && n.targetId && n.refId) {
-        return () => route.push({ path: `/post/${n.targetId}`, query: { comment: n.refId } });
-    }
-    if (POST_TYPES.includes(n.type) && n.targetId) return () => route.push(`/post/${n.targetId}`);
-    if (n.type === 'MESSAGE' && n.targetId) return () => route.push({ path: '/chat', query: { c: n.targetId, name: n.actorName || '' } });
-    if (n.type === 'FRIEND_REQUEST') return () => route.push({ path: '/follow', query: { tab: 'incoming' } });
-    if (n.actorId) return () => route.push(`/user/${n.actorId}`);
-    return null;
+    const loc = notifRoute(n);
+    return loc ? () => route.push(loc) : null;
 }
 
 const markReadLocal = async (n) => {
@@ -283,6 +280,11 @@ const onNotifClick = (n) => {
     markReadLocal(n);
     const go = targetOf(n);
     if (go) go();
+}
+
+const openAllNotifs = () => {
+    showNotif.value = false;
+    route.push('/notifications');
 }
 
 const readAll = async () => {

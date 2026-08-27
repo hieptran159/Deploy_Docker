@@ -16,6 +16,8 @@ public interface NotificationService {
     void pushUniquePerActor(String recipientId, String actorId, String type, String targetId, String refId, String message);
     // Danh sách thông báo của người dùng hiện tại (mới nhất trước)
     List<NotificationDTO> listMine() throws Exception;
+    // Như trên nhưng phân trang (trang thông báo đầy đủ). page bắt đầu từ 0, size 1..50.
+    List<NotificationDTO> listMinePaged(int page, int size) throws Exception;
     // Số thông báo chưa đọc của người dùng hiện tại
     long unreadCountMine() throws Exception;
     // Đánh dấu tất cả đã đọc

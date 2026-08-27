@@ -4,6 +4,10 @@ export const getNotifications = () => {
     return authApi.get('/notification');
 }
 
+export const getNotificationsPaged = (page = 0, size = 20) => {
+    return authApi.get(`/notification/all?page=${page}&size=${size}`);
+}
+
 export const getUnreadCount = () => {
     return authApi.get('/notification/unread-count');
 }

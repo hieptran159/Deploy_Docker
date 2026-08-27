@@ -121,6 +121,15 @@ const routers = [
 	},
 
 	{
+		path: '/notifications',
+		component: () =>
+			import(
+				"@/pages/Notifications.vue"
+			),
+		beforeEnter: handleBeforeEnter
+	},
+
+	{
 		path: '/admin',
 		component: () =>
 			import(

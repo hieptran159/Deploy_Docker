@@ -11,6 +11,7 @@ import com.didan.social.socket.RealtimeGateway;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -19,7 +20,11 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -100,8 +105,29 @@ public class NotificationServiceImpl implements NotificationService {
     @Override
     public List<NotificationDTO> listMine() throws Exception {
         String myId = authorizePathService.getUserIdAuthoried();
-        List<Notifications> items = notificationRepository.findTop50ByRecipientIdOrderByCreatedAtDesc(myId);
-        List<NotificationDTO> result = new ArrayList<>();
+        return toDTOs(notificationRepository.findTop50ByRecipientIdOrderByCreatedAtDesc(myId));
+    }
+
+    @Override
+    public List<NotificationDTO> listMinePaged(int page, int size) throws Exception {
+        String myId = authorizePathService.getUserIdAuthoried();
+        if (page < 0) page = 0;
+        if (size < 1) size = 20;
+        if (size > 50) size = 50;
+        return toDTOs(notificationRepository.findByRecipientIdOrderByCreatedAtDesc(myId, PageRequest.of(page, size)));
+    }
+
+    // Chuyển list entity -> DTO, nạp actor theo lô (1 truy vấn) thay vì từng cái một.
+    private List<NotificationDTO> toDTOs(List<Notifications> items) {
+        Set<String> actorIds = new HashSet<>();
+        for (Notifications n : items) {
+            if (StringUtils.hasText(n.getActorId())) actorIds.add(n.getActorId());
+        }
+        Map<String, Users> actors = new HashMap<>();
+        if (!actorIds.isEmpty()) {
+            for (Users u : userRepository.findAllById(actorIds)) actors.put(u.getUserId(), u);
+        }
+        List<NotificationDTO> result = new ArrayList<>(items.size());
         for (Notifications n : items) {
             NotificationDTO dto = new NotificationDTO();
             dto.setNotificationId(n.getNotificationId());
@@ -112,12 +138,10 @@ public class NotificationServiceImpl implements NotificationService {
             dto.setMessage(n.getMessage());
             dto.setRead(n.getIsRead() == 1);
             dto.setCreatedAt(n.getCreatedAt() == null ? null : n.getCreatedAt().toString());
-            if (StringUtils.hasText(n.getActorId())) {
-                Users actor = userRepository.findFirstByUserId(n.getActorId());
-                if (actor != null) {
-                    dto.setActorName(actor.getFullName());
-                    dto.setActorAvatar(actor.getAvtUrl());
-                }
+            Users actor = actors.get(n.getActorId());
+            if (actor != null) {
+                dto.setActorName(actor.getFullName());
+                dto.setActorAvatar(actor.getAvtUrl());
             }
             result.add(dto);
         }

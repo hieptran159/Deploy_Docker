@@ -41,6 +41,25 @@ public class NotificationController {
         }
     }
 
+    @Operation(summary = "Get my notifications paged (newest first)",
+            description = "page bắt đầu từ 0, size 1..50 (mặc định 20). Trả ít hơn size = hết trang.",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @GetMapping("/all")
+    public ResponseEntity<?> getAll(@RequestParam(defaultValue = "0") int page,
+                                    @RequestParam(defaultValue = "20") int size) {
+        ResponseData payload = new ResponseData();
+        try {
+            payload.setData(notificationService.listMinePaged(page, size));
+            payload.setDescription("Load notifications successful");
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e) {
+            payload.setSuccess(false);
+            payload.setStatusCode(500);
+            payload.setDescription(e.getMessage());
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
     @Operation(summary = "Count my unread notifications",
             security = @SecurityRequirement(name = "bearerAuth"))
     @GetMapping("/unread-count")
