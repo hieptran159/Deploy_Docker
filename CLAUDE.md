@@ -104,7 +104,11 @@ uses `./mvnw install -DskipTests`. No frontend tests.
   **userId string**. Retrieve the current user with
   `AuthorizePathService.getUserIdAuthoried()`.
 - `CustomFilterSecurity` permits `/auth/**`, `/images/**`, `/api-docs**/**`,
-  `swagger-ui/**`; every other request needs a valid JWT. Session is STATELESS, CSRF off.
+  `swagger-ui/**`, and **GET** `/post/get`, `/post/pages`, `/post/search` (guest can
+  browse the home feed without an account — the SPA's `/` route has no guard; every
+  other route/endpoint still needs a valid JWT, incl. `/post/{id}` and `/user/**`).
+  Session is STATELESS, CSRF off. The feed `PostDTO` carries `authorName`/`authorAvatar`
+  so `Post.vue` cards don't call `/user/{id}` per row.
 - `security/RateLimitFilter` (plain servlet filter, order `HIGHEST_PRECEDENCE+5`, runs
   before the JWT filter) throttles POST/PATCH on `/auth/**` per client IP with in-memory
   fixed-window counters (single-instance deploy). Buckets: `signin` 20/5min, `signup`

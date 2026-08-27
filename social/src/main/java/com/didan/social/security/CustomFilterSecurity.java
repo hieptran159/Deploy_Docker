@@ -47,9 +47,11 @@ public class CustomFilterSecurity {
         http.authorizeHttpRequests(authorize -> authorize
                 .requestMatchers("/auth/**", "/images/**", "/api-docs**/**", "swagger-ui/**")
                 .permitAll()
-                // Trang chủ xem không cần đăng nhập: chỉ mở các GET của feed (không mở chi tiết bài / user)
+                // Khách xem được: feed + chi tiết bài + bình luận (chỉ GET). Mọi thao tác
+                // (react/comment/report/bookmark) và /user/** vẫn cần đăng nhập.
                 .requestMatchers(org.springframework.http.HttpMethod.GET,
-                        "/post/get", "/post/pages", "/post/search")
+                        "/post/get", "/post/pages", "/post/search", "/post/*",
+                        "/comment/post/*", "/comment/post/*/page")
                 .permitAll()
                 .anyRequest()
                 .authenticated()

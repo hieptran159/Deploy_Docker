@@ -58,12 +58,12 @@ const routers = [
 	},
 
 	{
+		// Khách xem được chi tiết bài (đọc bài + bình luận), chỉ không thao tác được
 		path: '/post/:id',
 		component: () =>
 			import(
 				"@/components/Post/PostDetail.vue"
 			),
-		beforeEnter: handleBeforeEnter
 	},
 
 	{

@@ -38,7 +38,7 @@
                     @react="reactComment"
                     @unreact="unreactComment"
                 />
-                <template v-if="!isReply">
+                <template v-if="!isReply && isLogin">
                     <button class="link" @click="showReply = !showReply">Trả lời</button>
                 </template>
                 <template v-if="isOwner">
@@ -46,7 +46,7 @@
                     <button class="link" @click="isShowEditComment = true">Sửa</button>
                     <button class="link text-[var(--danger)]" @click="confirmDelete">Xoá</button>
                 </template>
-                <template v-else>
+                <template v-else-if="isLogin">
                     <span class="text-gray-300">|</span>
                     <button class="link text-[var(--danger)]" @click="confirmReport">Báo cáo</button>
                 </template>
@@ -90,10 +90,9 @@
 </template>
 
 <script setup>
-import { onMounted, ref, computed, inject } from 'vue';
+import { ref, computed, inject } from 'vue';
 import { useRouter } from 'vue-router';
 import { timeAgo, formatDateTime } from '@/js/helper';
-import { getUserInfo } from '../../apis/user';
 import { DxPopup, DxTextBox, DxButton } from 'devextreme-vue';
 import { likeCommentApi, unLikeCommentApi, deleteComment, createComment } from '@/apis/comment';
 import { sendReport } from '@/apis/report';
@@ -114,8 +113,10 @@ const emits = defineEmits(['refresh']);
 const route = useRouter();
 
 const comment = computed(() => props.commentProps || {});
-const userComments = ref();
-const linkAvt = ref();
+// Tên + avatar tác giả đi kèm trong DTO -> không gọi /user/{id} cho từng bình luận
+const userComments = computed(() => comment.value?.authorName || '');
+const linkAvt = computed(() => (comment.value?.authorAvatar ? IMAGE_BASE + comment.value.authorAvatar : ''));
+const isLogin = computed(() => getItemLocal(LOCALKEYS.ACCESS_TOKEN) != null);
 const isShowEditComment = ref(false);
 const showReply = ref(false);
 const replyText = ref('');
@@ -146,21 +147,18 @@ const contentParts = computed(() => {
     return out;
 });
 
-const getDataUser = async () => {
-    try {
-        const data = await getUserInfo(comment.value?.userComments);
-        userComments.value = data?.data?.data?.fullName;
-        linkAvt.value = IMAGE_BASE + data?.data?.data?.avtUrl;
-    } catch (e) {
-        console.log(e);
-    }
-}
-
 const goAuthor = () => {
     if (comment.value?.userComments) route.push(`/user/${comment.value.userComments}`);
 }
 
+const needLogin = () => {
+    if (isLogin.value) return false;
+    route.push('/login');
+    return true;
+}
+
 const reactComment = async (type) => {
+    if (needLogin()) return;
     try {
         await likeCommentApi(comment.value.commentId, type);
         emits('refresh');
@@ -169,6 +167,7 @@ const reactComment = async (type) => {
     }
 }
 const unreactComment = async () => {
+    if (needLogin()) return;
     try {
         await unLikeCommentApi(comment.value.commentId);
         emits('refresh');
@@ -211,6 +210,4 @@ const confirmDelete = () => {
         }
     }, { danger: true, confirmText: 'Xoá' });
 }
-
-onMounted(getDataUser);
 </script>

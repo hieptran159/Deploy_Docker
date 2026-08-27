@@ -31,7 +31,7 @@
                             </div>
                         </div>
                         <DxButton
-                            v-else-if="post?.userCreatedPost"
+                            v-else-if="post?.userCreatedPost && isLogin"
                             icon="warning" type="danger" stylingMode="text" hint="Báo cáo bài viết"
                             @click="reportPost"
                         />
@@ -53,6 +53,7 @@
                             @unreact="unreactPost"
                         />
                         <DxButton
+                            v-if="isLogin"
                             icon="bookmark"
                             :type="bookmarked ? 'success' : 'normal'"
                             :styling-mode="bookmarked ? 'contained' : 'outlined'"
@@ -67,7 +68,11 @@
         <div class="card">
             <div class="section-title">Bình luận ({{ post?.commentsQuantity ?? commentRootTotal }})</div>
 
-            <div class="pb-3 border-b">
+            <div v-if="!isLogin" class="pb-3 border-b text-sm muted">
+                <span class="link" @click="route.push('/login')">Đăng nhập</span> để bình luận và tương tác.
+            </div>
+
+            <div v-else class="pb-3 border-b">
                 <div class="flex items-center gap-3 relative">
                     <BaseAvatar
                         :linkAvt="getItemLocal(LOCALKEYS.LINK_AVT)"
@@ -148,7 +153,7 @@ import { createComment, getCommentsPage } from '@/apis/comment';
 import { likePostApi, unLikePostApi, deletePost } from '@/apis/post';
 import { checkBookmark, toggleBookmark } from '@/apis/bookmark';
 import { sendReport } from '@/apis/report';
-import { getUserInfo, getAllUsers } from '@/apis/user';
+import { getAllUsers } from '@/apis/user';
 import { markReadByTarget } from '@/apis/notification';
 import { useRouter } from 'vue-router';
 import { calculateTimeDifference } from '@/js/helper';
@@ -169,8 +174,15 @@ const id = ref(route.currentRoute._value.params.id);
 const post = ref();
 const linkPostImg = ref();
 const contentPost = ref();
-const userCreatedPost = ref();
-const linkAvt = ref();
+const isLogin = computed(() => getItemLocal(LOCALKEYS.ACCESS_TOKEN) != null);
+// Tên + avatar tác giả lấy thẳng từ DTO (không gọi /user/{id})
+const userCreatedPost = computed(() => post.value?.authorName || '');
+const linkAvt = computed(() => (post.value?.authorAvatar ? IMAGE_BASE + post.value.authorAvatar : ''));
+const needLogin = () => {
+    if (isLogin.value) return false;
+    route.push('/login');
+    return true;
+};
 const showDialog = inject("openDialogError");
 const openConfirm = inject("openConfirm");
 const toast = inject("toast");
@@ -190,6 +202,7 @@ const pickedMentions = ref([]);           // [{ name, id }] đã chọn
 const MENTION_TAIL = /@([^\s@[\]]{0,30})$/;
 
 const loadUsers = async () => {
+    if (!isLogin.value) return;
     try {
         const res = await getAllUsers();
         allUsers.value = (res?.data?.data || []).filter((u) => u.userId !== getItemLocal(LOCALKEYS.USER_ID));
@@ -280,16 +293,6 @@ const threadedComments = computed(() => {
     return roots.map((r) => ({ ...r, replies: (children[r.commentId] || []).slice().sort(asc) }));
 });
 
-const getDataUser = async() => {
-    try {
-        const data = await getUserInfo(post.value?.userCreatedPost);
-        userCreatedPost.value = data?.data?.data?.fullName;
-        linkAvt.value = IMAGE_BASE + data?.data?.data?.avtUrl;
-    } catch (error) {
-        console.error(error);
-    }
-}
-
 const addCommentEmoji = (e) => { contentPost.value = (contentPost.value || '') + e; };
 
 const pickCommentImg = () => commentFileEl.value?.click();
@@ -307,6 +310,7 @@ const clearCommentImg = () => {
 };
 
 const commentPost = async()=> {
+    if (needLogin()) return;
     if (!contentPost.value && !commentImg.value) return;
     try {
         const payload = { content: resolveMentions(contentPost.value) };
@@ -324,6 +328,7 @@ const commentPost = async()=> {
 }
 
 const reactPost = async (type) => {
+    if (needLogin()) return;
     try {
         await likePostApi(id.value, type);
         await getDataPostById();
@@ -332,6 +337,7 @@ const reactPost = async (type) => {
     }
 }
 const unreactPost = async () => {
+    if (needLogin()) return;
     try {
         await unLikePostApi(id.value);
         await getDataPostById();
@@ -368,11 +374,13 @@ const goAuthor = () => {
 }
 
 const loadBookmark = async () => {
+    if (!isLogin.value) return;
     try {
         bookmarked.value = !!(await checkBookmark(id.value))?.data?.data?.bookmarked;
     } catch (e) { bookmarked.value = false; }
 }
 const toggleBookmarkBtn = async () => {
+    if (needLogin()) return;
     try {
         const res = await toggleBookmark(id.value);
         bookmarked.value = !!res?.data?.data?.bookmarked;
@@ -383,6 +391,7 @@ const toggleBookmarkBtn = async () => {
 }
 
 const markPostNotifsRead = async () => {
+    if (!isLogin.value) return;
     try {
         await markReadByTarget(id.value);
         bumpNotifRefresh();
@@ -439,7 +448,6 @@ onMounted(async() => {
     loadUsers();
     await getDataPostById();
     await loadComments(true);
-    await getDataUser();
     loadBookmark();
     // đang xem bài này -> đánh dấu đã đọc các thông báo bình luận / thích của bài
     markPostNotifsRead();

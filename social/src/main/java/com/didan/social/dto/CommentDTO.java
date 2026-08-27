@@ -5,6 +5,8 @@ import java.util.Map;
 
 public class CommentDTO {
     private String userComments;
+    private String authorName;
+    private String authorAvatar;
     private String commentId;
     private String content;
     private String commentImg;
@@ -26,6 +28,22 @@ public class CommentDTO {
         this.userComments = userComments;
         this.commentLikes = commentLikes;
         this.userLikes = userLikes;
+    }
+
+    public String getAuthorName() {
+        return authorName;
+    }
+
+    public void setAuthorName(String authorName) {
+        this.authorName = authorName;
+    }
+
+    public String getAuthorAvatar() {
+        return authorAvatar;
+    }
+
+    public void setAuthorAvatar(String authorAvatar) {
+        this.authorAvatar = authorAvatar;
     }
 
     public String getCommentId() {

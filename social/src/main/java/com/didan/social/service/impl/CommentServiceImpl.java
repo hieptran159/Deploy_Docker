@@ -363,6 +363,11 @@ public class CommentServiceImpl extends ConvertDTO implements CommentService {
         CommentDTO commentDTO = new CommentDTO();
         commentDTO.setCommentId(userComment.getComments().getCommentId());
         commentDTO.setUserComments(userComment.getUsers().getUserId());
+        Users cAuthor = userComment.getUsers();
+        if (cAuthor != null) {
+            commentDTO.setAuthorName(cAuthor.getFullName());
+            commentDTO.setAuthorAvatar(cAuthor.getAvtUrl());
+        }
         commentDTO.setContent(userComment.getComments().getContent());
         commentDTO.setCommentImg(userComment.getComments().getCommentImg());
         commentDTO.setCommentAt(userComment.getComments().getCommentAt().toString());

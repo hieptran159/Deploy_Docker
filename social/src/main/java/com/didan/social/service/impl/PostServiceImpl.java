@@ -334,6 +334,11 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
             CommentDTO commentDTO = new CommentDTO();
             commentDTO.setCommentId(comment.getCommentId());
             commentDTO.setUserComments(userComment.getUsers().getUserId());
+            Users cAuthor = userComment.getUsers();
+            if (cAuthor != null) {
+                commentDTO.setAuthorName(cAuthor.getFullName());
+                commentDTO.setAuthorAvatar(cAuthor.getAvtUrl());
+            }
             commentDTO.setContent(comment.getContent());
             commentDTO.setCommentImg(comment.getCommentImg());
             commentDTO.setCommentAt(comment.getCommentAt().toString());
