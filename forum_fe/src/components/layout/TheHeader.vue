@@ -51,41 +51,29 @@
 <script setup>
 import DxTabs from 'devextreme-vue/tabs';
 import DxButton from 'devextreme-vue/button';
-import { ref, watch } from 'vue';
-import { LOCALKEYS, getItemLocal, delItemLocal } from '@/storages/localStorage';
+import { ref, computed, watch, onMounted } from 'vue';
+import { LOCALKEYS, getItemLocal, delItemLocal, setItemLocal } from '@/storages/localStorage';
 import { useRouter } from 'vue-router';
 import { logout as logoutApi } from '@/apis/auth';
+import { checkIsAdmin } from '@/apis/admin';
 import BaseAvatar from '../BaseAvatar.vue';
 
 const  route = useRouter();
 
-const options = ref([
-    {
-        id: 0,
-        text: "Trang chủ",
-        icon: "home"
-    },
-    {
-        id: 1,
-        text: "Nhắn tin",
-        icon: "textdocument"
-    },
-    {
-        id: 2,
-        text: "Bạn bè",
-        icon: "group"
-    },
-    {
-        id: 3,
-        text: "Tìm người dùng",
-        icon: "search"
-    },
-    {
-        id: 4,
-        text: "Quản trị",
-        icon: "preferences"
-    },
-])
+const isAdmin = ref(getItemLocal(LOCALKEYS.IS_ADMIN) === true);
+
+const options = computed(() => {
+    const base = [
+        { id: 0, text: "Trang chủ", icon: "home" },
+        { id: 1, text: "Nhắn tin", icon: "textdocument" },
+        { id: 2, text: "Bạn bè", icon: "group" },
+        { id: 3, text: "Tìm người dùng", icon: "search" },
+    ];
+    if (isAdmin.value) {
+        base.push({ id: 4, text: "Quản trị", icon: "preferences" });
+    }
+    return base;
+})
 
 const isLogin = ref(
     getItemLocal(LOCALKEYS.ACCESS_TOKEN) != null
@@ -101,8 +89,27 @@ const logout = async () => {
     delItemLocal(LOCALKEYS.USER_ID);
     delItemLocal(LOCALKEYS.LINK_AVT);
     delItemLocal(LOCALKEYS.USER_NAME);
+    delItemLocal(LOCALKEYS.IS_ADMIN);
+    isAdmin.value = false;
     route.push('/login');
 }
+
+const refreshAdminFlag = async () => {
+    if (!getItemLocal(LOCALKEYS.ACCESS_TOKEN)) {
+        isAdmin.value = false;
+        return;
+    }
+    const stored = getItemLocal(LOCALKEYS.IS_ADMIN);
+    if (stored === true || stored === false) {
+        isAdmin.value = stored;
+        return;
+    }
+    const ok = await checkIsAdmin();
+    setItemLocal(LOCALKEYS.IS_ADMIN, ok);
+    isAdmin.value = ok;
+}
+
+onMounted(refreshAdminFlag);
 
 const routeById = {
     0: '/',
@@ -122,6 +129,7 @@ const signUp = () => {
 
 watch(route.currentRoute, ()=>{
     isLogin.value = getItemLocal(LOCALKEYS.ACCESS_TOKEN) != null;
+    isAdmin.value = getItemLocal(LOCALKEYS.IS_ADMIN) === true;
 })
 
 </script>

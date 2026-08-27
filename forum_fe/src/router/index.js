@@ -12,6 +12,17 @@ const handleBeforeEnter = (to, form, next) => {
 
 };
 
+// Chỉ chặn khi đã biết chắc không phải admin; nếu chưa rõ thì để trang tự kiểm tra
+const handleAdminEnter = (to, form, next) => {
+	if (getItemLocal(LOCALKEYS.ACCESS_TOKEN) == null || getItemLocal(LOCALKEYS.USER_ID) == null) {
+		next('/login');
+	} else if (getItemLocal(LOCALKEYS.IS_ADMIN) === false) {
+		next('/');
+	} else {
+		next();
+	}
+};
+
 const routers = [
 	{
 		path: '/',
@@ -106,7 +117,7 @@ const routers = [
 			import(
 				"@/pages/admin/AdminPage.vue"
 			),
-		beforeEnter: handleBeforeEnter
+		beforeEnter: handleAdminEnter
 	},
 
 ]

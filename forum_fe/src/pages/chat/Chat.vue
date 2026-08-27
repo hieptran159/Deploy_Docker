@@ -34,7 +34,7 @@
                         class="p-3 cursor-pointer border-b hover:bg-orange-50"
                         :class="{ 'bg-orange-100': active?.conversationId === c.conversationId }"
                         @click="() => openConversation(c)">
-                        <div class="font-bold">{{ c.conversationName }}</div>
+                        <div class="font-bold">{{ displayName(c) }}</div>
                         <div class="text-xs text-gray-500">{{ c.createdAt }}</div>
                     </div>
                 </div>
@@ -47,7 +47,7 @@
                 </div>
                 <template v-else>
                     <div class="p-3 border-b flex items-center">
-                        <div class="font-bold flex-1">{{ active.conversationName }}</div>
+                        <div class="font-bold flex-1">{{ displayName(active) }}</div>
                         <span class="text-xs mr-3" :class="connected ? 'text-green-600' : 'text-gray-400'">
                             {{ connected ? '● trực tuyến' : '○ ngoại tuyến' }}
                         </span>
@@ -79,7 +79,8 @@
 
 <script setup>
 import { DxTextBox, DxButton } from 'devextreme-vue';
-import { onMounted, onBeforeUnmount, nextTick, ref, inject } from 'vue';
+import { onMounted, onBeforeUnmount, nextTick, ref, inject, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import { io } from 'socket.io-client';
 import {
     getMyConversations, searchConversations, getMessages,
@@ -89,7 +90,13 @@ import { LOCALKEYS, getItemLocal } from '@/storages/localStorage';
 import { SOCKET_URL, IMAGE_BASE } from '@/config';
 
 const showDialog = inject('openDialogError');
+const router = useRouter();
 const myId = getItemLocal(LOCALKEYS.USER_ID);
+
+const displayName = (c) => {
+    if (c?.conversationName?.startsWith('dm_')) return '💬 Tin nhắn riêng';
+    return c?.conversationName;
+}
 
 const conversations = ref([]);
 const searchResults = ref([]);
@@ -226,6 +233,25 @@ const sendMessage = () => {
     scrollToBottom();
 }
 
-onMounted(loadConversations);
+const openFromQuery = () => {
+    const q = router.currentRoute.value.query;
+    if (q.c) {
+        openConversation({
+            conversationId: String(q.c),
+            conversationName: q.name ? String(q.name) : 'Tin nhắn riêng',
+        });
+    }
+}
+
+onMounted(async () => {
+    await loadConversations();
+    openFromQuery();
+});
+
+// mở hội thoại khi điều hướng /chat?c=... từ trang hồ sơ trong lúc đang ở trang chat
+watch(() => router.currentRoute.value.query.c, (c) => {
+    if (c && c !== active.value?.conversationId) openFromQuery();
+});
+
 onBeforeUnmount(teardownSocket);
 </script>

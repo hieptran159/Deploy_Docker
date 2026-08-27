@@ -86,9 +86,14 @@ There is effectively no test suite — only `social/src/test/.../SocialApplicati
   `beforeEnter` guard except auth pages): `/`, `/login`, `/signup`, `/forgot-password`,
   `/post/:id`, `/follow`, `/users` (user search), `/user/:id` (profile),
   `/profile/edit`, `/chat`, `/admin`. Guard gates on `Token` + `UserId` in
-  `localStorage`. `/admin` is reachable by anyone logged in — the page self-gates by
-  calling `/admin/blacklist` and showing a denial if the backend replies "You are not
-  admin" (no admin flag is exposed to the client at login).
+  `localStorage`. No admin flag is exposed at login, so admin status is probed by
+  calling `/admin/blacklist` (a GET only admins can run) after login and on header
+  mount; the result is cached in `localStorage.isAdmin` and drives both the "Quản trị"
+  header tab visibility and the `/admin` route guard (`AdminPage.vue` still self-gates).
+- Direct messages: the backend chat is group-only, so `UserProfile.vue`'s "Nhắn tin"
+  creates/finds a deterministic conversation named `dm_<sorted userIds>`, joins it, and
+  navigates to `/chat?c=<id>&name=<other name>`; `Chat.vue` opens the conversation from
+  that query and shows `dm_*` groups as "💬 Tin nhắn riêng".
 - API layer: `src/storages/api.js` creates axios instances (`api`, `apiForm`, `authApi`,
   `authApiFormData`); `authApi*` inject `Authorization: Bearer <Token from localStorage>`.
   The response interceptor rejects with `error.response.data` (the `ResponseData` body),

@@ -34,6 +34,7 @@ import DxForm from 'devextreme-vue/form';
 import DxButton from 'devextreme-vue/button';
 import { login } from '../../apis/auth';
 import { getUserInfo } from '@/apis/user';
+import { checkIsAdmin } from '@/apis/admin';
 import { inject, ref } from 'vue';
 import { LOCALKEYS, setItemLocal } from '../../storages/localStorage';
 import { IMAGE_BASE } from '@/config';
@@ -53,6 +54,7 @@ const loginHandler = async() => {
         setItemLocal(LOCALKEYS.ACCESS_TOKEN, data.data.data.accessToken);
         setItemLocal(LOCALKEYS.USER_ID, data.data.data.userId);
         await getDataUser(data.data.data.userId);
+        setItemLocal(LOCALKEYS.IS_ADMIN, await checkIsAdmin());
         route.push('/');
     }   
     catch{

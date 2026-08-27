@@ -2,7 +2,8 @@ export const LOCALKEYS = {
     ACCESS_TOKEN: "Token",
     USER_ID: "UserId",
 	USER_NAME: "UserName",
-	LINK_AVT: "linkAvt"
+	LINK_AVT: "linkAvt",
+	IS_ADMIN: "isAdmin"
 }
 
 /**
