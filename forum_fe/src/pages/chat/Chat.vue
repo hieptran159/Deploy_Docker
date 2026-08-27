@@ -122,8 +122,13 @@
 
                     <div ref="listEl" class="flex-1 overflow-y-auto p-4 flex flex-col gap-1 bg-[var(--bg)]">
                         <div v-for="(m, idx) in messages" :key="m.messageId"
-                            class="group flex flex-col max-w-[72%]"
+                            class="group flex flex-col max-w-[78%]"
                             :class="m.senderId === myId ? 'self-end items-end' : 'self-start items-start'">
+
+                            <!-- tên người gửi (chỉ nhóm, tin của người khác, đầu mỗi cụm) -->
+                            <span v-if="showSenderTag(m, idx)" class="text-[11px] font-semibold muted mb-0.5 px-1">
+                                {{ senderName(m.senderId) }}
+                            </span>
 
                             <!-- chế độ sửa -->
                             <div v-if="editingId === m.messageId" class="flex items-center gap-1 w-[280px]">
@@ -273,6 +278,7 @@ let lastTypingEmit = 0;
 // thành viên nhóm
 const showMembers = ref(false);
 const members = ref([]);
+const senderMap = ref({}); // userId -> { fullName, avtUrl } để hiện tên người gửi trong nhóm
 
 let socket = null;
 
@@ -443,6 +449,9 @@ const loadMembers = async () => {
     try {
         const res = await getMembers(active.value.conversationId);
         members.value = res?.data?.data || [];
+        const map = { ...senderMap.value };
+        for (const m of members.value) map[m.userId] = { fullName: m.fullName, avtUrl: m.avtUrl };
+        senderMap.value = map;
     } catch (e) {
         members.value = [];
     }
@@ -450,6 +459,26 @@ const loadMembers = async () => {
 const toggleMembers = () => {
     showMembers.value = !showMembers.value;
     if (showMembers.value) loadMembers();
+}
+
+// tên người gửi (dùng cho nhóm); tự nạp nếu người đó không còn trong danh sách thành viên
+const ensureSender = async (uid) => {
+    if (!uid || uid === myId || senderMap.value[uid]) return;
+    senderMap.value = { ...senderMap.value, [uid]: { fullName: 'Thành viên', avtUrl: '' } };
+    try {
+        const u = await getUserInfo(uid);
+        senderMap.value = { ...senderMap.value, [uid]: { fullName: u?.data?.data?.fullName || 'Thành viên', avtUrl: u?.data?.data?.avtUrl || '' } };
+    } catch (e) { /* giữ nhãn mặc định */ }
+}
+const senderName = (uid) => senderMap.value[uid]?.fullName || 'Thành viên';
+const showSenderTag = (m, idx) => {
+    if (!active.value || isDm(active.value.conversationName)) return false;
+    if (m.senderId === myId || !m.senderId) return false;
+    return idx === 0 || messages.value[idx - 1]?.senderId !== m.senderId;
+}
+const hydrateSenders = () => {
+    const seen = new Set(messages.value.map((m) => m.senderId));
+    for (const uid of seen) ensureSender(uid);
 }
 
 /* ---------- đổi tên nhóm / xoá thành viên ---------- */
@@ -583,6 +612,7 @@ const openConversation = async (c) => {
     otherOnline.value = false;
     showMembers.value = false;
     members.value = [];
+    senderMap.value = {};
     renaming.value = false;
     editingId.value = null;
     try {
@@ -590,6 +620,10 @@ const openConversation = async (c) => {
         messages.value = res?.data?.data || [];
     } catch (e) {
         messages.value = [];
+    }
+    if (!isDm(c.conversationName)) {
+        await loadMembers();
+        hydrateSenders();
     }
     scrollToBottom();
     connectSocket(c.conversationId);
@@ -614,6 +648,7 @@ const connectSocket = (conversationId) => {
     socket.on('get_message', (msg) => {
         if (msg && (msg.content || msg.messageImg)) {
             otherTyping.value = false;
+            if (msg.senderId) ensureSender(msg.senderId);
             messages.value.push(msg);
             scrollToBottom();
             bumpConversation(conversationId, { content: msg.content || '', messageImg: msg.messageImg || null, senderId: msg.senderId || null });
