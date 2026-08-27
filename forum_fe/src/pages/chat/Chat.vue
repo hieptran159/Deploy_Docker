@@ -35,7 +35,7 @@
                         :class="{ 'bg-[var(--brand-soft)]': active?.conversationId === c.conversationId }"
                         @click="() => openConversation(c)">
                         <div class="font-semibold text-sm truncate">{{ displayName(c) }}</div>
-                        <div class="text-xs muted truncate">{{ c.createdAt }}</div>
+                        <div class="text-xs muted truncate">{{ formatDateTime(c.createdAt) }}</div>
                     </div>
                 </div>
             </div>
@@ -54,19 +54,32 @@
                         <DxButton text="Rời nhóm" type="danger" stylingMode="text" @click="handleLeave"/>
                     </div>
 
-                    <div ref="listEl" class="flex-1 overflow-y-auto p-4 flex flex-col gap-2 bg-[var(--bg)]">
+                    <div ref="listEl" class="flex-1 overflow-y-auto p-4 flex flex-col gap-1 bg-[var(--bg)]">
                         <div v-for="m in messages" :key="m.messageId"
-                            class="max-w-[72%] px-3 py-2 rounded-2xl text-sm shadow-sm"
-                            :class="m.senderId === myId
-                                ? 'self-end bg-[var(--accent)] text-white rounded-br-md'
-                                : 'self-start bg-white text-[var(--text)] rounded-bl-md'">
-                            {{ m.content }}
-                            <img v-if="m.messageImg && !m.messageImg.includes('null')"
-                                :src="IMAGE_BASE + m.messageImg" class="mt-1 max-w-[200px] rounded-lg"/>
+                            class="flex flex-col max-w-[72%]"
+                            :class="m.senderId === myId ? 'self-end items-end' : 'self-start items-start'">
+                            <div
+                                class="px-3 py-2 rounded-2xl text-sm shadow-sm"
+                                :class="m.senderId === myId
+                                    ? 'bg-[var(--accent)] text-white rounded-br-md'
+                                    : 'bg-white text-[var(--text)] rounded-bl-md'">
+                                <span v-if="m.content">{{ m.content }}</span>
+                                <img v-if="m.messageImg && !String(m.messageImg).includes('null')"
+                                    :src="IMAGE_BASE + m.messageImg" class="mt-1 max-w-[220px] rounded-lg"/>
+                            </div>
+                            <span class="text-[11px] muted mt-0.5">{{ formatTime(m.sentAt) }}</span>
                         </div>
                     </div>
 
-                    <div class="p-3 border-t flex gap-2">
+                    <div class="p-3 border-t flex items-center gap-2">
+                        <DxButton
+                            :icon="pendingImg ? 'photo' : 'image'"
+                            :type="pendingImg ? 'success' : 'normal'"
+                            stylingMode="text"
+                            hint="Đính kèm ảnh"
+                            @click="pickImg"
+                        />
+                        <input ref="fileEl" type="file" accept="image/*" class="hidden" @change="onPickImg" />
                         <DxTextBox v-model="draft" placeholder="Nhập tin nhắn…" class="flex-1"
                             @enter-key="sendMessage"/>
                         <DxButton text="Gửi" type="default" @click="sendMessage"/>
@@ -84,13 +97,16 @@ import { useRouter } from 'vue-router';
 import { io } from 'socket.io-client';
 import {
     getMyConversations, searchConversations, getMessages,
-    createConversation, joinConversation, leaveConversation,
+    createConversation, joinConversation, leaveConversation, sendMessageRest,
 } from '@/apis/chat';
 import { getUserInfo } from '@/apis/user';
 import { LOCALKEYS, getItemLocal } from '@/storages/localStorage';
 import { SOCKET_URL, IMAGE_BASE } from '@/config';
+import { formatDateTime, formatTime } from '@/js/helper';
 
 const showDialog = inject('openDialogError');
+const openConfirm = inject('openConfirm');
+const toast = inject('toast');
 const router = useRouter();
 const myId = getItemLocal(LOCALKEYS.USER_ID);
 
@@ -138,8 +154,13 @@ const newName = ref('');
 const searchName = ref('');
 const draft = ref('');
 const listEl = ref(null);
+const fileEl = ref(null);
+const pendingImg = ref(null);
 
 let socket = null;
+
+const pickImg = () => fileEl.value?.click();
+const onPickImg = (e) => { pendingImg.value = e.target.files[0] || null; };
 
 const loadConversations = async () => {
     try {
@@ -185,17 +206,21 @@ const handleJoin = async (c) => {
     }
 }
 
-const handleLeave = async () => {
+const handleLeave = () => {
     if (!active.value) return;
-    try {
-        await leaveConversation(active.value.conversationId);
-        teardownSocket();
-        active.value = null;
-        messages.value = [];
-        await loadConversations();
-    } catch (e) {
-        showDialog('Thông báo', e?.description || 'Rời nhóm thất bại');
-    }
+    const conv = active.value;
+    openConfirm?.('Rời nhóm', `Rời "${displayName(conv)}"? Bạn sẽ không nhắn được trong nhóm này nữa.`, async () => {
+        try {
+            await leaveConversation(conv.conversationId);
+            teardownSocket();
+            active.value = null;
+            messages.value = [];
+            toast?.('Đã rời nhóm');
+            await loadConversations();
+        } catch (e) {
+            showDialog('Thông báo', e?.description || 'Rời nhóm thất bại');
+        }
+    }, { danger: true, confirmText: 'Rời nhóm' });
 }
 
 const scrollToBottom = () => {
@@ -239,29 +264,52 @@ const connectSocket = (conversationId) => {
     socket.on('disconnect', () => { connected.value = false; });
     socket.on('connect_error', () => { connected.value = false; });
     socket.on('get_message', (msg) => {
-        if (msg && msg.content) {
+        if (msg && (msg.content || msg.messageImg)) {
             messages.value.push(msg);
             scrollToBottom();
         }
     });
 }
 
-const sendMessage = () => {
-    const text = draft.value.trim();
-    if (!text || !active.value) return;
-    if (socket && connected.value) {
-        socket.emit('send_message', { content: text });
-    }
-    // server không gửi lại tin cho chính người gửi -> tự thêm vào danh sách
+const appendLocal = (extra) => {
     messages.value.push({
         messageId: 'local-' + Date.now(),
-        content: text,
         senderId: myId,
         sentAt: new Date().toISOString(),
         conversationId: active.value.conversationId,
+        content: '',
+        ...extra,
     });
-    draft.value = '';
     scrollToBottom();
+}
+
+const sendMessage = async () => {
+    if (!active.value) return;
+    const text = draft.value.trim();
+    const img = pendingImg.value;
+    if (!text && !img) return;
+
+    if (img) {
+        // ảnh phải đi qua REST (socket không nhận file); phía kia thấy khi tải lại
+        try {
+            const form = { content: text || '' };
+            form.messageImg = img;
+            const res = await sendMessageRest(active.value.conversationId, form);
+            appendLocal({ content: text || '', messageImg: res?.data?.data?.messageImg || null });
+        } catch (e) {
+            showDialog?.('Thông báo', e?.description || 'Gửi ảnh thất bại');
+        }
+        pendingImg.value = null;
+        if (fileEl.value) fileEl.value.value = '';
+        draft.value = '';
+        return;
+    }
+
+    if (socket && connected.value) {
+        socket.emit('send_message', { content: text });
+    }
+    appendLocal({ content: text });
+    draft.value = '';
 }
 
 const openFromQuery = () => {

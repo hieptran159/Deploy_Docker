@@ -72,6 +72,8 @@ import { onMounted, ref, inject } from 'vue';
 import { getBlacklist, grantAdmin, banUser, unbanUser } from '@/apis/admin';
 
 const showDialog = inject('openDialogError');
+const openConfirm = inject('openConfirm');
+const toast = inject('toast');
 
 const authorized = ref(true);
 const deniedMsg = ref('Đang kiểm tra quyền...');
@@ -90,37 +92,45 @@ const loadBlacklist = async () => {
     }
 }
 
-const doGrant = async () => {
-    if (!grantId.value.trim()) return;
-    try {
-        await grantAdmin(grantId.value.trim());
-        showDialog('Thông báo', 'Đã cấp quyền admin');
-        grantId.value = '';
-    } catch (e) {
-        showDialog('Thông báo', e?.description || 'Cấp quyền thất bại');
-    }
+const doGrant = () => {
+    const uid = grantId.value.trim();
+    if (!uid) return;
+    openConfirm?.('Cấp quyền admin', `Cấp quyền admin cho user ${uid}?`, async () => {
+        try {
+            await grantAdmin(uid);
+            toast?.('Đã cấp quyền admin');
+            grantId.value = '';
+        } catch (e) {
+            showDialog('Thông báo', e?.description || 'Cấp quyền thất bại');
+        }
+    });
 }
 
-const doBan = async (userId) => {
-    if (!userId || !userId.trim()) return;
-    try {
-        await banUser(userId.trim());
-        showDialog('Thông báo', 'Đã chặn người dùng');
-        banId.value = '';
-        await loadBlacklist();
-    } catch (e) {
-        showDialog('Thông báo', e?.description || 'Chặn thất bại');
-    }
+const doBan = (userId) => {
+    const uid = (userId || '').trim();
+    if (!uid) return;
+    openConfirm?.('Chặn người dùng', `Chặn user ${uid}?`, async () => {
+        try {
+            await banUser(uid);
+            toast?.('Đã chặn người dùng');
+            banId.value = '';
+            await loadBlacklist();
+        } catch (e) {
+            showDialog('Thông báo', e?.description || 'Chặn thất bại');
+        }
+    }, { danger: true, confirmText: 'Chặn' });
 }
 
-const doUnban = async (userId) => {
-    try {
-        await unbanUser(userId);
-        showDialog('Thông báo', 'Đã bỏ chặn');
-        await loadBlacklist();
-    } catch (e) {
-        showDialog('Thông báo', e?.description || 'Bỏ chặn thất bại');
-    }
+const doUnban = (userId) => {
+    openConfirm?.('Bỏ chặn', `Bỏ chặn user ${userId}?`, async () => {
+        try {
+            await unbanUser(userId);
+            toast?.('Đã bỏ chặn');
+            await loadBlacklist();
+        } catch (e) {
+            showDialog('Thông báo', e?.description || 'Bỏ chặn thất bại');
+        }
+    });
 }
 
 onMounted(loadBlacklist);

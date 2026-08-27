@@ -1,19 +1,51 @@
-export function calculateTimeDifference(dateInput) {
-    const date = new Date(dateInput);
-    const currentTime = new Date(); // Thời gian hiện tại
-    const timeDifference = currentTime - date; // Tính khoảng cách thời gian
+// Backend trả timestamp kiểu "2026-08-27 18:19:27.0" -> chuẩn hoá cho new Date()
+function parseDate(input) {
+    if (!input) return null;
+    if (input instanceof Date) return input;
+    const d = new Date(String(input).replace(' ', 'T'));
+    return Number.isNaN(d.getTime()) ? null : d;
+}
 
-    // Chuyển đổi khoảng cách thời gian về đơn vị giờ
-    const hoursDifference = timeDifference / (1000 * 60 * 60);
-    
+export function calculateTimeDifference(dateInput) {
+    const date = parseDate(dateInput);
+    if (!date) return '';
+    const hoursDifference = (Date.now() - date.getTime()) / (1000 * 60 * 60);
     if (hoursDifference >= 24) {
-        // Nếu khoảng cách thời gian lớn hơn hoặc bằng 24 giờ, chuyển đổi về đơn vị ngày
-        const daysDifference = Math.floor(hoursDifference / 24);
-        return `${daysDifference} ngày`;
-    } else {
-        // Nếu khoảng cách thời gian nhỏ hơn 24 giờ, trả về đơn vị giờ
-        return `${hoursDifference} giờ`;
+        return `${Math.floor(hoursDifference / 24)} ngày`;
     }
+    if (hoursDifference >= 1) {
+        return `${Math.floor(hoursDifference)} giờ`;
+    }
+    const mins = Math.floor(hoursDifference * 60);
+    return mins <= 0 ? 'vừa xong' : `${mins} phút`;
+}
+
+export function timeAgo(input) {
+    const d = parseDate(input);
+    if (!d) return '';
+    const s = Math.floor((Date.now() - d.getTime()) / 1000);
+    if (s < 60) return 'vừa xong';
+    const m = Math.floor(s / 60);
+    if (m < 60) return `${m} phút trước`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h} giờ trước`;
+    const dd = Math.floor(h / 24);
+    if (dd < 30) return `${dd} ngày trước`;
+    return formatDateTime(input);
+}
+
+export function formatDateTime(input) {
+    const d = parseDate(input);
+    if (!d) return String(input ?? '');
+    const p = (n) => String(n).padStart(2, '0');
+    return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+export function formatTime(input) {
+    const d = parseDate(input);
+    if (!d) return '';
+    const p = (n) => String(n).padStart(2, '0');
+    return `${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
 export function convertName(name){

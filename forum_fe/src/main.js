@@ -6,6 +6,13 @@ import { locale, loadMessages } from 'devextreme/localization';
 import viMessage from 'devextreme/localization/messages/vi.json';
 import router from './router/index';
 
+// khôi phục theme trước khi mount để tránh nhấp nháy
+try {
+    if (localStorage.getItem('theme') === 'dark') {
+        document.documentElement.dataset.theme = 'dark';
+    }
+} catch (e) { /* ignore */ }
+
 const app = createApp(App);
 
 loadMessages(viMessage);

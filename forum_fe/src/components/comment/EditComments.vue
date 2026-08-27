@@ -1,16 +1,15 @@
 <template>
-    <div class="flex flex-col justify-center py-5">
-        <div class="mb-4">
-            <span><b>Nội dung bình luận:</b></span>
-            <DxTextArea v-model="data.content"></DxTextArea>
+    <div class="flex flex-col gap-3 py-3">
+        <div>
+            <label class="text-sm muted">Nội dung bình luận</label>
+            <DxTextArea v-model="data.content" :height="100" />
         </div>
-        <div class="w-30% flex justify-center">
-            <DxButton
-                type="default"
-                @click="submitEdit"
-            >
-                Cập nhật
-            </DxButton>
+        <div>
+            <label class="text-sm muted">Thay ảnh đính kèm (để trống nếu giữ nguyên)</label>
+            <input type="file" accept="image/*" @change="onFile" />
+        </div>
+        <div class="flex justify-end">
+            <DxButton type="default" text="Cập nhật" @click="submitEdit" />
         </div>
     </div>
 </template>
@@ -18,21 +17,26 @@
 <script setup>
 import { DxTextArea, DxButton } from 'devextreme-vue';
 import { updateComment } from '@/apis/comment';
-import { ref, defineEmits, defineProps } from 'vue';
+import { ref } from 'vue';
 
-const emits = defineEmits();
+const emits = defineEmits(['close', 'update-fail']);
 const props = defineProps({
     commentId: {},
     content: {}
 });
 
 const data = ref({
-    content: props.content
+    content: props.content,
+    commentImg: null,
 });
+
+const onFile = (e) => { data.value.commentImg = e.target.files[0] || null; };
 
 const submitEdit = async () => {
     try {
-        await updateComment(props.commentId, data.value);
+        const payload = { content: data.value.content || '' };
+        if (data.value.commentImg) payload.commentImg = data.value.commentImg;
+        await updateComment(props.commentId, payload);
         emits("close");
     } catch {
         emits("update-fail");

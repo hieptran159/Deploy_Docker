@@ -16,12 +16,35 @@
     --shadow: 0 1px 2px rgba(16, 24, 40, .04), 0 4px 16px rgba(16, 24, 40, .06);
 }
 
+:root[data-theme="dark"] {
+    --bg: #14161a;
+    --surface: #1c1f26;
+    --border: #2b2f38;
+    --text: #e6e8eb;
+    --text-muted: #98a1ac;
+    --brand-soft: #33251a;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 6px 18px rgba(0, 0, 0, .4);
+}
+
 html, body {
     background: var(--bg);
     color: var(--text);
     font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
 }
+
+/* làm các tiện ích tailwind sáng dịu lại trong dark mode */
+:root[data-theme="dark"] .bg-white { background: var(--surface) !important; }
+:root[data-theme="dark"] .bg-gray-50,
+:root[data-theme="dark"] .bg-gray-100,
+:root[data-theme="dark"] .hover\:bg-gray-50:hover,
+:root[data-theme="dark"] .hover\:bg-gray-100:hover,
+:root[data-theme="dark"] .hover\:bg-gray-200:hover { background: #262a33 !important; }
+:root[data-theme="dark"] .text-black { color: var(--text) !important; }
+:root[data-theme="dark"] .border,
+:root[data-theme="dark"] .border-b,
+:root[data-theme="dark"] .border-t,
+:root[data-theme="dark"] .border-r { border-color: var(--border) !important; }
 
 #app {
     min-height: 100vh;
@@ -132,3 +155,31 @@ html, body {
 *::-webkit-scrollbar { width: 10px; height: 10px; }
 *::-webkit-scrollbar-thumb { background: #d3d6da; border-radius: 999px; }
 *::-webkit-scrollbar-thumb:hover { background: #b9bdc2; }
+:root[data-theme="dark"] *::-webkit-scrollbar-thumb { background: #3a3f4a; }
+
+/* toast */
+.toast-wrap {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 340px;
+}
+.toast {
+    background: #1f2430;
+    color: #fff;
+    padding: 10px 14px;
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    font-size: 14px;
+    animation: toast-in .18s ease;
+}
+.toast--success { background: #15803d; }
+.toast--error { background: #b91c1c; }
+@keyframes toast-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: none; }
+}

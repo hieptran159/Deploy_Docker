@@ -11,3 +11,11 @@ export const unFollowApi = (id) => {
 export const getAllFollow = (id) => {
     return authApi.get(`/follow/followings/${id}`);
 }
+
+export const getFollowings = (id) => {
+    return authApi.get(`/follow/followings/${id}`);
+}
+
+export const getFollowers = (id) => {
+    return authApi.get(`/follow/followers/${id}`);
+}

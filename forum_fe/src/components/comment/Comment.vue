@@ -17,6 +17,12 @@
                 <span class="text-xs muted">· ♥ {{ comment?.commentLikes ?? 0 }}</span>
             </div>
             <div class="mt-0.5 whitespace-pre-wrap">{{ comment.content }}</div>
+            <img
+                v-if="commentImgUrl"
+                :src="commentImgUrl"
+                class="mt-1.5 max-w-xs rounded-lg border"
+                @error="(e) => e.target.style.display = 'none'"
+            />
 
             <div class="row-actions mt-1.5 text-xs">
                 <button class="link" @click="likePost">Yêu thích</button>
@@ -24,7 +30,7 @@
                 <template v-if="isOwner">
                     <span class="text-gray-300">|</span>
                     <button class="link" @click="isShowEditComment = true">Sửa</button>
-                    <button class="link text-[var(--danger)]" @click="handleDeleteComment">Xoá</button>
+                    <button class="link text-[var(--danger)]" @click="confirmDelete">Xoá</button>
                 </template>
             </div>
         </div>
@@ -69,8 +75,14 @@ const userComments = ref();
 const linkAvt = ref();
 const isShowEditComment = ref(false);
 const showDialog = inject("openDialogError");
+const openConfirm = inject("openConfirm");
+const toast = inject("toast");
 
 const isOwner = computed(() => comment.value?.userComments == getItemLocal(LOCALKEYS.USER_ID));
+const commentImgUrl = computed(() => {
+    const p = comment.value?.commentImg;
+    return p && !String(p).includes('null') ? IMAGE_BASE + p : '';
+});
 
 const getDataUser = async () => {
     try {
@@ -92,8 +104,16 @@ const likePost = async () => {
 const unLikePost = async () => {
     try { await unLikeCommentApi(comment.value.commentId); emits('refresh'); } catch (e) { console.log(e); }
 }
-const handleDeleteComment = async () => {
-    try { await deleteComment(comment.value.commentId); emits('refresh'); } catch (e) { console.log(e); }
+const confirmDelete = () => {
+    openConfirm?.('Xoá bình luận', 'Xoá bình luận này?', async () => {
+        try {
+            await deleteComment(comment.value.commentId);
+            toast?.('Đã xoá bình luận');
+            emits('refresh');
+        } catch (e) {
+            showDialog?.('Thông báo', e?.description || 'Xoá thất bại');
+        }
+    }, { danger: true, confirmText: 'Xoá' });
 }
 
 onMounted(getDataUser);

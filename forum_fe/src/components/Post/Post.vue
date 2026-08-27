@@ -20,6 +20,7 @@
                 <span class="link" @click.stop="goProfile">{{ userCreatedPost || '—' }}</span>
                 · {{ calculateTimeDifference(post?.postedAt) }} trước
             </div>
+            <div v-if="excerpt" class="text-sm text-[var(--text)] mt-1 line-clamp-2">{{ excerpt }}</div>
         </div>
 
         <div class="flex items-center gap-2 flex-none self-center text-xs">
@@ -54,6 +55,11 @@ const avatarErrored = ref(false);
 const showAvatar = computed(() => {
     const u = linkAvt.value;
     return !!u && !u.endsWith('/') && !u.endsWith('null') && !u.endsWith('undefined') && !avatarErrored.value;
+});
+
+const excerpt = computed(() => {
+    const b = (post.value?.body || '').trim();
+    return b.length > 140 ? b.slice(0, 140) + '…' : b;
 });
 
 const getDataUser = async () => {

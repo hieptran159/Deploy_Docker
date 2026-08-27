@@ -13,6 +13,13 @@
             </div>
             <div v-else class="flex-1"></div>
 
+            <DxButton
+                :icon="isDark ? 'sun' : 'moon'"
+                hint="Đổi giao diện sáng/tối"
+                stylingMode="text"
+                @click="toggleTheme"
+            />
+
             <div v-if="isLogin" class="row-actions">
                 <div
                     class="flex items-center gap-2 cursor-pointer px-2 py-1 rounded-lg hover:bg-gray-100"
@@ -49,6 +56,18 @@ import { checkIsAdmin } from '@/apis/admin';
 import BaseAvatar from '../BaseAvatar.vue';
 
 const  route = useRouter();
+
+const isDark = ref(document.documentElement.dataset.theme === 'dark');
+const toggleTheme = () => {
+    isDark.value = !isDark.value;
+    if (isDark.value) {
+        document.documentElement.dataset.theme = 'dark';
+        try { localStorage.setItem('theme', 'dark'); } catch (e) { /* ignore */ }
+    } else {
+        delete document.documentElement.dataset.theme;
+        try { localStorage.setItem('theme', 'light'); } catch (e) { /* ignore */ }
+    }
+}
 
 const isAdmin = ref(getItemLocal(LOCALKEYS.IS_ADMIN) === true);
 

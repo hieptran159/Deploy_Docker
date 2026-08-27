@@ -58,6 +58,14 @@
                     :is-show="false"
                 />
                 <DxTextBox class="flex-1" placeholder="Viết bình luận…" v-model="contentPost" @enter-key="commentPost" />
+                <DxButton
+                    :icon="commentImg ? 'photo' : 'image'"
+                    :type="commentImg ? 'success' : 'normal'"
+                    stylingMode="text"
+                    hint="Đính kèm ảnh"
+                    @click="pickCommentImg"
+                />
+                <input ref="commentFileEl" type="file" accept="image/*" class="hidden" @change="onCommentImg" />
                 <DxButton type="default" text="Gửi" @click="commentPost" />
             </div>
 
@@ -113,13 +121,17 @@ const contentPost = ref();
 const userCreatedPost = ref();
 const linkAvt = ref();
 const showDialog = inject("openDialogError");
+const openConfirm = inject("openConfirm");
+const toast = inject("toast");
 const isShowSetting = ref(false);
 const ishowEditPost = ref(false);
+const commentImg = ref(null);
+const commentFileEl = ref(null);
 
 const getDataPostById = async() => {
     const data =  await getPostById(id.value);
     post.value = data?.data?.data;
-    linkPostImg.value = IMAGE_BASE + post.value.postImg;
+    linkPostImg.value = post.value?.postImg ? IMAGE_BASE + post.value.postImg : '';
 }
 
 const getDataUser = async() => {
@@ -132,27 +144,31 @@ const getDataUser = async() => {
     }
 }
 
+const pickCommentImg = () => commentFileEl.value?.click();
+const onCommentImg = (e) => { commentImg.value = e.target.files[0] || null; };
+
 const commentPost = async()=> {
+    if (!contentPost.value && !commentImg.value) return;
     try {
-        await createComment(id.value, {
-        content: contentPost.value,
-        commentImg: null
-        })
+        const payload = { content: contentPost.value || '' };
+        if (commentImg.value) payload.commentImg = commentImg.value;
+        await createComment(id.value, payload);
+        contentPost.value = '';
+        commentImg.value = null;
+        if (commentFileEl.value) commentFileEl.value.value = '';
         await getDataPostById();
     } catch (error) {
-        console.log(error);
+        showDialog?.('Thông báo', error?.description || 'Gửi bình luận thất bại');
     }
-    
 }
 
 const likePost = async() => {
     try {
         await likePostApi(id.value);
         await getDataPostById();
-        showDialog("Thông báo", "Like bài viết thành công");
+        toast?.('Đã yêu thích');
     } catch (error) {
-        console.log(error);
-        showDialog("Thông báo", "Bạn đã yêu thích bài viết này!");
+        toast?.('Bạn đã yêu thích bài viết này', 'error');
     }
 }
 
@@ -165,13 +181,16 @@ const unLikePost = async() => {
     }
 }
 
-const handleDeletePost = async() => {
-    try {
-        await deletePost(id.value);
-        route.push('/');
-    } catch (error) {
-        console.log(error);
-    }
+const handleDeletePost = () => {
+    openConfirm?.('Xoá bài viết', 'Bạn chắc chắn muốn xoá bài viết này?', async () => {
+        try {
+            await deletePost(id.value);
+            toast?.('Đã xoá bài viết');
+            route.push('/');
+        } catch (error) {
+            showDialog?.('Thông báo', error?.description || 'Xoá bài viết thất bại');
+        }
+    }, { danger: true, confirmText: 'Xoá' });
 }
 
 const goAuthor = () => {
