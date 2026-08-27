@@ -65,7 +65,14 @@ There is effectively no test suite — only `social/src/test/.../SocialApplicati
   → `repository/` (Spring Data JPA) → `entity/` (composite keys in `entity/keys/`).
   DTOs in `dto/`, request bodies in `payload/request/`, responses wrapped in
   `payload/ResponseData`.
-- Route prefixes: `/auth`, `/user`, `/post`, `/comment`, `/follow`, `/chat`, `/admin`.
+- Route prefixes: `/auth`, `/user`, `/post`, `/comment`, `/follow`, `/chat`, `/admin`,
+  `/notification`.
+- Notifications: `entity/Notifications` (plain columns, no JPA relations; table
+  auto-created by `ddl-auto=update`). `NotificationService.push(...)` is fire-and-forget
+  and swallows its own errors so it never breaks the caller. Created from
+  `FollowServiceImpl.followUser` (type `FOLLOW`) and `CommentServiceImpl.postCommentInPost`
+  (type `COMMENT`, `targetId` = postId). `/auth/signin` returns `isAdmin` ("0"/"1") so the
+  client no longer probes `/admin/blacklist` at login.
 - **Auth is a custom JWT filter**, not DB-backed `UserDetails`. `JwtAuthenticationFilter`
   validates the bearer token and sets the Spring `Authentication` principal to the
   **userId string**. Retrieve the current user with
