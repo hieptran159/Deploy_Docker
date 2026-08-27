@@ -66,12 +66,15 @@
                     />
                     <div class="flex-1 relative">
                         <DxTextBox class="w-full" placeholder="Viết bình luận… (gõ @ để nhắc tên)" v-model="contentPost"
-                            :value-change-event="'input'" @enter-key="commentPost" />
+                            @input="onCommentType" @enter-key="commentPost" @focus-out="onCommentBlur" />
                         <div v-if="mentionOpen && mentionResults.length"
                             class="absolute z-30 left-0 right-0 top-full mt-1 bg-[var(--surface)] border rounded-lg shadow-lg overflow-hidden">
                             <button v-for="u in mentionResults" :key="u.userId" type="button"
-                                class="w-full text-left px-3 py-2 text-sm hover:bg-[var(--brand-soft)] truncate"
-                                @click="pickMention(u)">@{{ u.fullName }}</button>
+                                class="w-full text-left px-3 py-2 text-sm hover:bg-[var(--brand-soft)] truncate flex items-center gap-2"
+                                @mousedown.prevent="pickMention(u)">
+                                <span class="avatar-fallback size-6 text-xs">{{ (u.fullName || '?')[0] }}</span>
+                                <span class="truncate">{{ u.fullName }}</span>
+                            </button>
                         </div>
                     </div>
                     <EmojiPicker direction="down" @pick="addCommentEmoji" />
@@ -159,11 +162,12 @@ const commentImg = ref(null);
 const commentImgPreview = ref('');
 const commentFileEl = ref(null);
 
-/* ---------- @nhắc tên ---------- */
+/* ---------- @nhắc tên (hiển thị @Tên, gửi kèm id ẩn) ---------- */
 const allUsers = ref([]);
 const mentionOpen = ref(false);
 const mentionResults = ref([]);
-const MENTION_TAIL = /@([^\s@[\]]{0,20})$/;
+const pickedMentions = ref([]);           // [{ name, id }] đã chọn
+const MENTION_TAIL = /@([^\s@[\]]{0,30})$/;
 
 const loadUsers = async () => {
     try {
@@ -172,7 +176,7 @@ const loadUsers = async () => {
     } catch (e) { allUsers.value = []; }
 };
 
-watch(contentPost, (val) => {
+const detectMention = (val) => {
     const mm = (val || '').match(MENTION_TAIL);
     if (!mm) { mentionOpen.value = false; return; }
     const q = mm[1].toLowerCase();
@@ -180,11 +184,34 @@ watch(contentPost, (val) => {
         .filter((u) => (u.fullName || '').toLowerCase().includes(q))
         .slice(0, 6);
     mentionOpen.value = mentionResults.value.length > 0;
-});
+};
+
+// DxTextBox v-model chỉ đồng bộ khi blur -> đọc trực tiếp từ sự kiện input
+const onCommentType = (e) => {
+    let v = e?.event?.target?.value;
+    if (v == null && e?.component?.option) v = e.component.option('text');
+    if (v != null) contentPost.value = v;
+};
+const onCommentBlur = () => { setTimeout(() => { mentionOpen.value = false; }, 120); };
+
+watch(contentPost, detectMention);
 
 const pickMention = (u) => {
-    contentPost.value = (contentPost.value || '').replace(MENTION_TAIL, `@[${u.fullName}](${u.userId}) `);
+    contentPost.value = (contentPost.value || '').replace(MENTION_TAIL, `@${u.fullName} `);
+    if (!pickedMentions.value.some((p) => p.id === u.userId)) {
+        pickedMentions.value.push({ name: u.fullName, id: u.userId });
+    }
     mentionOpen.value = false;
+};
+
+// đổi "@Tên" -> "@[Tên](id)" cho những người đã chọn, ngay trước khi gửi
+const resolveMentions = (text) => {
+    let out = text || '';
+    for (const { name, id } of pickedMentions.value) {
+        const tag = '@' + name;
+        if (out.includes(tag)) out = out.split(tag).join(`@[${name}](${id})`);
+    }
+    return out;
 };
 
 const getDataPostById = async() => {
@@ -222,10 +249,12 @@ const clearCommentImg = () => {
 const commentPost = async()=> {
     if (!contentPost.value && !commentImg.value) return;
     try {
-        const payload = { content: contentPost.value || '' };
+        const payload = { content: resolveMentions(contentPost.value) };
         if (commentImg.value) payload.commentImg = commentImg.value;
         await createComment(id.value, payload);
         contentPost.value = '';
+        pickedMentions.value = [];
+        mentionOpen.value = false;
         clearCommentImg();
         await getDataPostById();
     } catch (error) {
