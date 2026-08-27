@@ -55,6 +55,8 @@
                         </div>
                     </div>
                     <div v-if="r.status === 'OPEN'" class="flex gap-1 flex-none">
+                        <DxButton v-if="r.targetType !== 'USER'" text="Xoá nội dung" type="danger" stylingMode="outlined"
+                            @click="() => doRemove(r)" />
                         <DxButton text="Đã xử lý" stylingMode="outlined" @click="() => doHandle(r, 'RESOLVED')" />
                         <DxButton text="Bỏ qua" stylingMode="text" @click="() => doHandle(r, 'DISMISSED')" />
                     </div>
@@ -110,7 +112,7 @@ import { DxTextBox, DxButton } from 'devextreme-vue';
 import { onMounted, ref, inject } from 'vue';
 import { useRouter } from 'vue-router';
 import { getBlacklist, grantAdmin, banUser, unbanUser } from '@/apis/admin';
-import { getReports, handleReport } from '@/apis/report';
+import { getReports, handleReport, removeReportedTarget } from '@/apis/report';
 import { timeAgo } from '@/js/helper';
 
 const router = useRouter();
@@ -146,6 +148,19 @@ const doHandle = async (r, status) => {
     } catch (e) {
         showDialog?.('Thông báo', e?.description || 'Thao tác thất bại');
     }
+}
+
+const doRemove = (r) => {
+    const what = r.targetType === 'POST' ? 'bài viết' : 'bình luận';
+    openConfirm?.('Xoá nội dung', `Xoá ${what} bị báo cáo? Mọi báo cáo về nội dung này sẽ được đóng.`, async () => {
+        try {
+            await removeReportedTarget(r.reportId);
+            toast?.('Đã xoá nội dung');
+            await loadReports();
+        } catch (e) {
+            showDialog?.('Thông báo', e?.description || 'Xoá thất bại');
+        }
+    }, { danger: true, confirmText: 'Xoá' });
 }
 
 const loadBlacklist = async () => {

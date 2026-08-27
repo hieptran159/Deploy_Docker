@@ -12,3 +12,7 @@ export const getReports = (status = 'OPEN') => {
 export const handleReport = (reportId, status) => {
     return authApi.patch(`/report/admin/${reportId}?status=${status}`);
 }
+
+export const removeReportedTarget = (reportId) => {
+    return authApi.post(`/report/admin/${reportId}/remove-target`);
+}

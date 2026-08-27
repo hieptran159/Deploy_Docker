@@ -13,4 +13,7 @@ public interface ReportService {
 
     // Admin: xử lý 1 báo cáo (status: RESOLVED | DISMISSED)
     boolean handle(String reportId, String status) throws Exception;
+
+    // Admin: xoá luôn nội dung bị báo cáo (POST | COMMENT) + đóng mọi báo cáo OPEN cùng đối tượng
+    boolean removeReportedTarget(String reportId) throws Exception;
 }

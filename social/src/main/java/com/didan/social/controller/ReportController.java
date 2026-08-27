@@ -57,6 +57,23 @@ public class ReportController {
         }
     }
 
+    @Operation(summary = "Admin: xoá nội dung bị báo cáo (POST/COMMENT) + đóng báo cáo liên quan",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @PostMapping("/admin/{report_id}/remove-target")
+    public ResponseEntity<?> removeTarget(@PathVariable("report_id") String reportId) {
+        ResponseData payload = new ResponseData();
+        try {
+            reportService.removeReportedTarget(reportId);
+            payload.setDescription("Đã xoá nội dung và đóng báo cáo");
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e) {
+            payload.setSuccess(false);
+            payload.setStatusCode(500);
+            payload.setDescription(e.getMessage());
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
     @Operation(summary = "Admin: xử lý báo cáo", description = "status: RESOLVED | DISMISSED",
             security = @SecurityRequirement(name = "bearerAuth"))
     @PatchMapping("/admin/{report_id}")

@@ -10,6 +10,8 @@ import com.didan.social.repository.PostRepository;
 import com.didan.social.repository.ReportRepository;
 import com.didan.social.repository.UserRepository;
 import com.didan.social.service.AuthorizePathService;
+import com.didan.social.service.CommentService;
+import com.didan.social.service.PostService;
 import com.didan.social.service.ReportService;
 import com.didan.social.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +22,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
@@ -33,17 +36,22 @@ public class ReportServiceImpl implements ReportService {
     private final CommentRepository commentRepository;
     private final AuthorizePathService authorizePathService;
     private final UserService userService;
+    private final PostService postService;
+    private final CommentService commentService;
 
     @Autowired
     public ReportServiceImpl(ReportRepository reportRepository, UserRepository userRepository,
                              PostRepository postRepository, CommentRepository commentRepository,
-                             AuthorizePathService authorizePathService, UserService userService) {
+                             AuthorizePathService authorizePathService, UserService userService,
+                             PostService postService, CommentService commentService) {
         this.reportRepository = reportRepository;
         this.userRepository = userRepository;
         this.postRepository = postRepository;
         this.commentRepository = commentRepository;
         this.authorizePathService = authorizePathService;
         this.userService = userService;
+        this.postService = postService;
+        this.commentService = commentService;
     }
 
     private Users requireAdmin() throws Exception {
@@ -156,6 +164,34 @@ public class ReportServiceImpl implements ReportService {
         r.setHandledBy(admin.getUserId());
         r.setHandledAt(Timestamp.valueOf(LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"))));
         reportRepository.save(r);
+        return true;
+    }
+
+    @Override
+    public boolean removeReportedTarget(String reportId) throws Exception {
+        Users admin = requireAdmin();
+        Reports r = reportRepository.findById(reportId).orElse(null);
+        if (r == null) {
+            throw new Exception("Không tìm thấy báo cáo");
+        }
+        String type = r.getTargetType();
+        if ("POST".equals(type)) {
+            postService.deletePost(r.getTargetId());       // nhánh admin trong deletePost cho phép xoá của người khác
+        } else if ("COMMENT".equals(type)) {
+            commentService.deleteComment(r.getTargetId());
+        } else {
+            throw new Exception("Chỉ xoá được nội dung bài viết / bình luận. Với người dùng hãy dùng chức năng chặn.");
+        }
+        // đóng mọi báo cáo OPEN cùng đối tượng
+        Date now = Timestamp.valueOf(LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh")));
+        for (Reports open : reportRepository.findTop300ByStatusOrderByCreatedAtDesc("OPEN")) {
+            if (type.equals(open.getTargetType()) && r.getTargetId().equals(open.getTargetId())) {
+                open.setStatus("RESOLVED");
+                open.setHandledBy(admin.getUserId());
+                open.setHandledAt(now);
+                reportRepository.save(open);
+            }
+        }
         return true;
     }
 }
