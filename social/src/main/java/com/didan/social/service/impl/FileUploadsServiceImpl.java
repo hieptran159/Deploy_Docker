@@ -10,19 +10,42 @@ import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.imageio.IIOImage;
+import javax.imageio.ImageIO;
+import javax.imageio.ImageWriteParam;
+import javax.imageio.ImageWriter;
+import javax.imageio.stream.ImageOutputStream;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
+import java.util.Iterator;
 
 @Service
 public class FileUploadsServiceImpl implements FileUploadsService {
     private final Logger logger = LoggerFactory.getLogger(FileUploadsServiceImpl.class);
     private final Environment env;
+
+    private final long maxSizeBytes;
+    private final int maxDimension;
+    private final float jpegQuality;
+
     @Autowired
     public FileUploadsServiceImpl(Environment env){
         this.env = env;
+        this.maxSizeBytes = parseLong(env.getProperty("app.file.max-size-bytes"), 8L * 1024 * 1024);
+        this.maxDimension = (int) parseLong(env.getProperty("app.file.max-dimension"), 1600);
+        this.jpegQuality = parseFloat(env.getProperty("app.file.jpeg-quality"), 0.82f);
     }
+
+    private static long parseLong(String v, long def){ try { return v == null ? def : Long.parseLong(v.trim()); } catch (Exception e){ return def; } }
+    private static float parseFloat(String v, float def){ try { return v == null ? def : Float.parseFloat(v.trim()); } catch (Exception e){ return def; } }
+
     private Path rootPath1; // 1 đường dẫn tạo folder ở trong src
     private Path rootPath2; // 1 đường dẫn tạo folder ở ngoài src (trong ./target) (ko cần khởi động lại server, truy cập ngay lập tức)
 
@@ -41,21 +64,24 @@ public class FileUploadsServiceImpl implements FileUploadsService {
     @Override
     public boolean validateFile(MultipartFile file) {
         try{
-            if(file.getSize() >= (10 * 1024 * 1e6)){
-                System.out.println(file.getSize());
-                logger.error("File size should be less than 10MB");
-                throw new Exception("File size should be less than 10MB");
+            if (file == null || file.isEmpty()){
+                logger.error("Empty upload");
+                return false;
+            }
+            if(file.getSize() > maxSizeBytes){
+                logger.error("File quá lớn: {} bytes (giới hạn {})", file.getSize(), maxSizeBytes);
+                return false;
             }
             String extension = FilenameUtils.getExtension(file.getOriginalFilename());
-            if(!isSupportedExtension(extension)){
-                logger.error("File extension is not support");
-                throw new Exception("File extension is not support");
+            if(!isSupportedExtension(extension == null ? null : extension.toLowerCase())){
+                logger.error("File extension is not support: {}", extension);
+                return false;
             }
             Tika tika = new Tika();
             String mimeType = tika.detect(file.getInputStream());
             if(!isSupportedContentType(mimeType)){
-                logger.error("Content type of file is not support");
-                throw new Exception("Content type of file is not support");
+                logger.error("Content type of file is not support: {}", mimeType);
+                return false;
             }
             return true;
         }catch (Exception e){
@@ -67,41 +93,115 @@ public class FileUploadsServiceImpl implements FileUploadsService {
     @Override
     public boolean isSupportedExtension(String extension) {
         return extension != null &&
-                extension.equals("png")
-                || extension.equals("jpg")
-                || extension.equals("jpeg");
+                (extension.equals("png") || extension.equals("jpg") || extension.equals("jpeg"));
     }
 
     @Override
     public boolean isSupportedContentType(String contentType) {
-        return contentType.equals("image/png")
-                || contentType.equals("image/jpg")
-                || contentType.equals("image/jpeg");
+        return contentType != null &&
+                (contentType.equals("image/png") || contentType.equals("image/jpg") || contentType.equals("image/jpeg"));
     }
 
     @Override
     public String storeFile(MultipartFile file, String typeFile, String id) throws Exception {
         init(typeFile);
-        String fileName = id + "." + FilenameUtils.getExtension(file.getOriginalFilename());
+        String ext = FilenameUtils.getExtension(file.getOriginalFilename());
+        ext = ext == null ? "jpg" : ext.toLowerCase();
+        String fileName = id + "." + ext;
         try{
-            if(validateFile(file)){
-                if (fileName.contains("..")) { // Kiểm tra xem tên file có chứa các kí tự đặc biệt không
-                    logger.error("Sorry! Filename contains invalid path sequence " + fileName);
-                    throw new RuntimeException("Sorry! Filename contains invalid path sequence " + fileName); // Nếu có thì sẽ báo lỗi
-                }
-                Path targetLocation = this.rootPath1.resolve(fileName); // Tạo đường dẫn tới nơi lưu trữ file (trong static của src)
-                Path targetLocation2 = this.rootPath2.resolve(fileName); //Tạo đường dẫn tới nơi lưu trữ file (trong target ngoài src)
-                Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING); // Tạo file trong src
-                Files.copy(file.getInputStream(), targetLocation2, StandardCopyOption.REPLACE_EXISTING); // Tạo file trong target
-
-            } else {
+            if(!validateFile(file)){
                 logger.error("Could not upload file");
-                throw new Exception("Could not upload file");
+                throw new Exception("Ảnh không hợp lệ (định dạng png/jpg/jpeg, tối đa " + (maxSizeBytes / (1024 * 1024)) + "MB)");
             }
+            if (fileName.contains("..")) {
+                logger.error("Sorry! Filename contains invalid path sequence " + fileName);
+                throw new RuntimeException("Sorry! Filename contains invalid path sequence " + fileName);
+            }
+
+            byte[] data;
+            try (InputStream in = file.getInputStream()) {
+                data = compress(in.readAllBytes(), ext);
+            }
+
+            Path targetLocation = this.rootPath1.resolve(fileName);
+            Path targetLocation2 = this.rootPath2.resolve(fileName);
+            Files.write(targetLocation, data);
+            Files.write(targetLocation2, data);
             return fileName;
         }catch (Exception e){
             logger.error("Could not store file " + fileName + ". Please try again!");
-            throw new RuntimeException("Could not store file " + fileName + ". Please try again!", e); // Nếu không lưu được file thì sẽ báo lỗi
+            throw new RuntimeException(e.getMessage() != null ? e.getMessage()
+                    : ("Could not store file " + fileName + ". Please try again!"), e);
+        }
+    }
+
+    /**
+     * Thu nhỏ ảnh về tối đa {@link #maxDimension}px cạnh dài và nén lại (JPEG quality
+     * {@link #jpegQuality}). Giữ nguyên định dạng đầu vào. Nếu không giải mã được thì
+     * trả lại bytes gốc để không chặn upload.
+     */
+    private byte[] compress(byte[] original, String ext) {
+        try {
+            BufferedImage src = ImageIO.read(new ByteArrayInputStream(original));
+            if (src == null) {
+                logger.warn("Không giải mã được ảnh để nén, lưu bản gốc");
+                return original;
+            }
+            int w = src.getWidth(), h = src.getHeight();
+            double scale = Math.min(1.0, (double) maxDimension / Math.max(w, h));
+            boolean resize = scale < 1.0;
+            boolean png = ext.equals("png");
+
+            // PNG trong giới hạn kích thước: giữ nguyên (tránh phá alpha, re-encode ít lợi)
+            if (png && !resize) return original;
+
+            int nw = resize ? Math.max(1, (int) Math.round(w * scale)) : w;
+            int nh = resize ? Math.max(1, (int) Math.round(h * scale)) : h;
+
+            BufferedImage dst = new BufferedImage(nw, nh,
+                    png ? BufferedImage.TYPE_INT_ARGB : BufferedImage.TYPE_INT_RGB);
+            Graphics2D g = dst.createGraphics();
+            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            if (!png) {
+                g.setColor(java.awt.Color.WHITE); // nền cho ảnh nguồn có alpha khi xuất JPEG
+                g.fillRect(0, 0, nw, nh);
+            }
+            g.drawImage(src, 0, 0, nw, nh, null);
+            g.dispose();
+
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            if (png) {
+                ImageIO.write(dst, "png", out);
+            } else {
+                writeJpeg(dst, out);
+            }
+            byte[] result = out.toByteArray();
+            // Nếu nén xong lại to hơn bản gốc (ảnh gốc đã tối ưu) thì dùng bản gốc
+            if (!resize && result.length >= original.length) return original;
+            logger.info("Nén ảnh {}x{} ({}KB) -> {}x{} ({}KB)", w, h, original.length / 1024, nw, nh, result.length / 1024);
+            return result;
+        } catch (Exception e) {
+            logger.warn("Nén ảnh lỗi ({}), lưu bản gốc", e.getMessage());
+            return original;
+        }
+    }
+
+    private void writeJpeg(BufferedImage img, ByteArrayOutputStream out) throws Exception {
+        Iterator<ImageWriter> it = ImageIO.getImageWritersByFormatName("jpeg");
+        if (!it.hasNext()) { ImageIO.write(img, "jpg", out); return; }
+        ImageWriter writer = it.next();
+        try (ImageOutputStream ios = ImageIO.createImageOutputStream(out)) {
+            writer.setOutput(ios);
+            ImageWriteParam param = writer.getDefaultWriteParam();
+            if (param.canWriteCompressed()) {
+                param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+                param.setCompressionQuality(jpegQuality);
+            }
+            writer.write(null, new IIOImage(img, null, null), param);
+        } finally {
+            writer.dispose();
         }
     }
 
@@ -121,7 +221,7 @@ public class FileUploadsServiceImpl implements FileUploadsService {
             return true;
         }catch (Exception e){
             logger.error("Could not delete file " + fileName + ". Please try again!");
-            throw new RuntimeException("Could not delete file " + fileName + ". Please try again!", e); // Nếu không lưu được file thì sẽ báo lỗi
+            throw new RuntimeException("Could not delete file " + fileName + ". Please try again!", e);
         }
     }
 }

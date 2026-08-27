@@ -110,6 +110,15 @@ There is effectively no test suite — only `social/src/test/.../SocialApplicati
   `ResourceWebConfig` serves them at `/images/**` from `file:./uploads/images/` (with a
   `classpath:/static/uploads/images/` fallback for the seeded images). Signup avatar is
   optional — `avtUrl` is set to `""` when omitted.
+- `FileUploadsServiceImpl.storeFile` accepts only png/jpg/jpeg (extension + Tika mime),
+  rejects `> app.file.max-size-bytes` (`UPLOAD_MAX_BYTES`, default 10MB) with a Vietnamese
+  message, then `compress(...)` downscales to `app.file.max-dimension`px (`UPLOAD_MAX_DIMENSION`,
+  1600) on the long edge and re-encodes (JPEG `app.file.jpeg-quality`=0.82; PNG kept as PNG,
+  and left untouched if already within bounds). Undecodable/oversized-after-encode → original
+  bytes stored (never blocks upload). EXIF orientation is NOT applied. Spring's hard multipart
+  cap is `UPLOAD_MULTIPART_MAX` (12MB); `controller/UploadExceptionHandler`
+  (`@RestControllerAdvice`) turns `MaxUploadSizeExceededException` / `MultipartException` into
+  the standard 503 + `statusCode:500` ResponseData body.
 - `hibernate.ddl-auto=update` — schema is auto-migrated from entities on startup.
 - Hibernate dialect is set inconsistently (`MySQL5Dialect` and `MySQL8Dialect` both
   appear in `application.properties`); leave as-is unless fixing that specifically.
