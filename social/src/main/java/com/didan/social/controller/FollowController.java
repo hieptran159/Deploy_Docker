@@ -1,6 +1,5 @@
 package com.didan.social.controller;
 
-import com.didan.social.dto.FollowDTO;
 import com.didan.social.payload.ResponseData;
 import com.didan.social.service.FollowService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -13,101 +12,88 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.Callable;
 
 @RestController
-@Tag(name = "Follow")
-@RequestMapping("/follow")
+@Tag(name = "Friend")
+@RequestMapping("/friend")
 public class FollowController {
     private final FollowService followService;
 
     @Autowired
-    public FollowController(FollowService followService){
+    public FollowController(FollowService followService) {
         this.followService = followService;
     }
-    // Get Follower
-    @Operation(summary = "Get all people who followed you",
-            description = "Get all people who followed you",
-            security = @SecurityRequirement(name = "bearerAuth"))
-    @GetMapping("/followers/{userId}")
-    public ResponseEntity<?> getFollowers(@PathVariable String userId){
+
+    private ResponseEntity<?> run(Callable<Object> action, String okMsg) {
         ResponseData payload = new ResponseData();
         try {
-            FollowDTO data = followService.getFollowers(userId);
-            payload.setData(data);
+            payload.setData(action.call());
+            payload.setDescription(okMsg);
             return new ResponseEntity<>(payload, HttpStatus.OK);
-        } catch (Exception e){
+        } catch (Exception e) {
             payload.setSuccess(false);
             payload.setStatusCode(500);
             payload.setDescription(e.getMessage());
             return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
         }
     }
-    // Get Followings
-    @Operation(summary = "Get all people who are followed by you",
-            description = "Get all people who are followed by you",
-            security = @SecurityRequirement(name = "bearerAuth"))
-    @GetMapping("/followings/{userId}")
-    public ResponseEntity<?> getFollowings(@PathVariable String userId){
-        ResponseData payload = new ResponseData();
-        try {
-            FollowDTO data = followService.getFollowings(userId);
-            payload.setData(data);
-            return new ResponseEntity<>(payload, HttpStatus.OK);
-        } catch (Exception e){
-            payload.setSuccess(false);
-            payload.setStatusCode(500);
-            payload.setDescription(e.getMessage());
-            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
-        }
+
+    @Operation(summary = "Danh sách bạn bè của 1 người dùng", security = @SecurityRequirement(name = "bearerAuth"))
+    @GetMapping("/list/{userId}")
+    public ResponseEntity<?> getFriends(@PathVariable String userId) {
+        return run(() -> followService.getFriends(userId), "OK");
     }
-    // Follow
-    @Operation(summary = "Follow user",
-            description = "Enter the id use you want to follow",
-            security = @SecurityRequirement(name = "bearerAuth"))
-    @PostMapping("/{userId}")
-    public ResponseEntity<?> postFollow(@PathVariable String userId){
-        ResponseData payload = new ResponseData();
-        Map<String, String> data = new HashMap<>();
-        try {
-            if (followService.followUser(userId)){
-                payload.setDescription("Follow this user successful");
-                data.put("userId", userId);
-                payload.setData(data);
-            } else {
-                payload.setDescription("Fail to follow this user");
-                payload.setStatusCode(422);
-            }
-            return new ResponseEntity<>(payload, HttpStatus.OK);
-        } catch (Exception e){
-            payload.setSuccess(false);
-            payload.setStatusCode(500);
-            payload.setDescription(e.getMessage());
-            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
-        }
+
+    @Operation(summary = "Lời mời kết bạn đang nhận (chờ tôi chấp nhận)", security = @SecurityRequirement(name = "bearerAuth"))
+    @GetMapping("/requests/incoming")
+    public ResponseEntity<?> incoming() {
+        return run(() -> followService.getIncomingRequests(), "OK");
     }
-    // Unfollow
-    @Operation(summary = "Unfollow",
-            description = "Enter id user ypu want to unfollow",
-            security = @SecurityRequirement(name = "bearerAuth"))
+
+    @Operation(summary = "Lời mời kết bạn tôi đã gửi", security = @SecurityRequirement(name = "bearerAuth"))
+    @GetMapping("/requests/outgoing")
+    public ResponseEntity<?> outgoing() {
+        return run(() -> followService.getOutgoingRequests(), "OK");
+    }
+
+    @Operation(summary = "Quan hệ giữa tôi và userId", security = @SecurityRequirement(name = "bearerAuth"))
+    @GetMapping("/status/{userId}")
+    public ResponseEntity<?> status(@PathVariable String userId) {
+        return run(() -> {
+            Map<String, String> m = new HashMap<>();
+            m.put("status", followService.friendStatus(userId));
+            return m;
+        }, "OK");
+    }
+
+    @Operation(summary = "Gửi lời mời kết bạn", security = @SecurityRequirement(name = "bearerAuth"))
+    @PostMapping("/request/{userId}")
+    public ResponseEntity<?> request(@PathVariable String userId) {
+        return run(() -> followService.sendRequest(userId), "Đã gửi lời mời kết bạn");
+    }
+
+    @Operation(summary = "Chấp nhận lời mời kết bạn từ userId", security = @SecurityRequirement(name = "bearerAuth"))
+    @PostMapping("/accept/{userId}")
+    public ResponseEntity<?> accept(@PathVariable String userId) {
+        return run(() -> followService.acceptRequest(userId), "Đã chấp nhận");
+    }
+
+    @Operation(summary = "Từ chối lời mời kết bạn từ userId", security = @SecurityRequirement(name = "bearerAuth"))
+    @DeleteMapping("/decline/{userId}")
+    public ResponseEntity<?> decline(@PathVariable String userId) {
+        return run(() -> followService.declineRequest(userId), "Đã từ chối");
+    }
+
+    @Operation(summary = "Huỷ lời mời kết bạn mình đã gửi", security = @SecurityRequirement(name = "bearerAuth"))
+    @DeleteMapping("/cancel/{userId}")
+    public ResponseEntity<?> cancel(@PathVariable String userId) {
+        return run(() -> followService.cancelRequest(userId), "Đã huỷ lời mời");
+    }
+
+    @Operation(summary = "Huỷ kết bạn", security = @SecurityRequirement(name = "bearerAuth"))
     @DeleteMapping("/{userId}")
-    public ResponseEntity<?> unfollow(@PathVariable String userId){
-        ResponseData payload = new ResponseData();
-        Map<String, String> data = new HashMap<>();
-        try {
-            if (followService.unfollowUser(userId)){
-                payload.setDescription("Unfollow this user successful");
-                data.put("userId", userId);
-                payload.setData(data);
-            } else {
-                payload.setDescription("Fail to unfollow this user");
-                payload.setStatusCode(422);
-            }
-            return new ResponseEntity<>(payload, HttpStatus.OK);
-        } catch (Exception e){
-            payload.setSuccess(false);
-            payload.setStatusCode(500);
-            payload.setDescription(e.getMessage());
-            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
-        }
+    public ResponseEntity<?> unfriend(@PathVariable String userId) {
+        return run(() -> followService.unfriend(userId), "Đã huỷ kết bạn");
     }
 }

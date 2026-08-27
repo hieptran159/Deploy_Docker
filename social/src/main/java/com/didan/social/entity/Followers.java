@@ -17,7 +17,20 @@ public class Followers {
     @JoinColumn(name = "followed_id", insertable = false, updatable = false)
     private Users users2;
 
+    // "pending" = users1 đã gửi lời mời kết bạn cho users2, chờ chấp nhận
+    // "accepted" = đã là bạn bè. NULL (dữ liệu cũ) coi như đã là bạn.
+    @Column(name = "status", length = 20)
+    private String status;
+
     public Followers(){}
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
 
     public Followers(FollowerId folId, Users users1, Users users2) {
         this.folId = folId;

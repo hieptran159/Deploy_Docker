@@ -1,5 +1,6 @@
 package com.didan.social.socket;
 
+import com.corundumstudio.socketio.SocketIOClient;
 import com.corundumstudio.socketio.SocketIOServer;
 import com.corundumstudio.socketio.listener.ConnectListener;
 import com.corundumstudio.socketio.listener.DataListener;
@@ -84,7 +85,17 @@ public class SocketModule {
                 jwtUtils.validateAccessToken(accessToken);
                 String userId = jwtUtils.getUserIdFromAccessToken(accessToken);
                 String conversationId = client.getHandshakeData().getSingleUrlParam("conversationID"); // Lấy ra các tham số và giá trị của URL mà client gửi lên
+                client.set("userId", userId); // lưu userId lên session để người khác biết
                 client.joinRoom(conversationId); // Thêm client vào phòng chat với id là roomId
+                // cho người vừa vào biết ai đang online sẵn trong phòng
+                for (SocketIOClient other : server.getRoomOperations(conversationId).getClients()) {
+                    if (!other.getSessionId().equals(client.getSessionId())) {
+                        String otherUid = other.get("userId");
+                        if (otherUid != null) {
+                            client.sendEvent("presence", presencePayload(otherUid, true));
+                        }
+                    }
+                }
                 socketService.broadcastExcept(conversationId, "presence", presencePayload(userId, true), client); // báo cho người khác biết mình online
                 socketService.saveInfoMessage(conversationId, "get_message", client, String.format("%s joined to chat", userId)); // Lưu tin nhắn thông báo đã kết nối và gửi đó cho tất cả client khác trong phòng qua hàm saveInfoMessage của service
                 logger.info(String.format("Socket ID[%s] - conversation ID[%s] - userId[%s]  Connected to chat module through", client.getSessionId().toString(), conversationId, userId)); // In ra màn hình console thông tin của session, phòng và tên của client vừa kết nối

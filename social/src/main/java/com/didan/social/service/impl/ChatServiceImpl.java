@@ -32,6 +32,7 @@ public class ChatServiceImpl implements ChatService {
     private final MessageRepository messageRepository;
     private final AuthorizePathService authorizePathService;
     private final com.didan.social.service.NotificationService notificationService;
+    private final com.didan.social.service.FollowService followService;
     @Autowired
     public ChatServiceImpl(ConversationRepository conversationRepository,
                            UserRepository userRepository,
@@ -39,7 +40,8 @@ public class ChatServiceImpl implements ChatService {
                            FileUploadsService fileUploadsService,
                            MessageRepository messageRepository,
                            AuthorizePathService authorizePathService,
-                           com.didan.social.service.NotificationService notificationService){
+                           com.didan.social.service.NotificationService notificationService,
+                           com.didan.social.service.FollowService followService){
         this.conversationRepository = conversationRepository;
         this.userRepository = userRepository;
         this.participantRepository = participantRepository;
@@ -47,6 +49,7 @@ public class ChatServiceImpl implements ChatService {
         this.messageRepository = messageRepository;
         this.authorizePathService = authorizePathService;
         this.notificationService = notificationService;
+        this.followService = followService;
     }
 
     // Bắn thông báo "đã nhắn tin cho bạn" cho các participant khác trong hội thoại 1-1
@@ -146,6 +149,10 @@ public class ChatServiceImpl implements ChatService {
         }
         if (participantRepository.findFirstByConversations_ConversationIdAndUsers_UserId(conversationId, userId) != null) {
             return true; // đã ở trong nhóm
+        }
+        if (!followService.areFriends(myId, userId)) {
+            logger.error("Chỉ có thể thêm bạn bè vào nhóm");
+            throw new Exception("Chỉ có thể thêm bạn bè vào nhóm");
         }
         addParticipantIfAbsent(conversation, target);
         return true;

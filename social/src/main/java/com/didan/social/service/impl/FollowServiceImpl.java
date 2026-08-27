@@ -18,6 +18,9 @@ import java.util.*;
 
 @Service
 public class FollowServiceImpl implements FollowService {
+    private static final String PENDING = "pending";
+    private static final String ACCEPTED = "accepted";
+
     private final Logger logger = LoggerFactory.getLogger(FollowServiceImpl.class);
     private final FollowRepository followRepository;
     private final AuthorizePathService authorizePathService;
@@ -28,102 +31,147 @@ public class FollowServiceImpl implements FollowService {
     public FollowServiceImpl(FollowRepository followRepository,
                              AuthorizePathService authorizePathService,
                              UserRepository userRepository,
-                             NotificationService notificationService)
-    {
+                             NotificationService notificationService) {
         this.followRepository = followRepository;
         this.authorizePathService = authorizePathService;
         this.userRepository = userRepository;
         this.notificationService = notificationService;
     }
 
-    @Override
-    public FollowDTO getFollowers(String userId) throws Exception {
-        Users user = userRepository.findFirstByUserId(userId);
-        if (user == null) {
-            logger.error("User is not found");
-            throw new Exception("User is not found");
-        }
-        List<String> userFollows = new ArrayList<>();
-        Set<Followers> followers = user.getFolloweds();
-        for (Followers follower : followers){
-            userFollows.add(follower.getUsers1().getUserId());
-        }
-        return new FollowDTO(userFollows.size(), userFollows);
+    private boolean isAccepted(Followers f) {
+        return f != null && (f.getStatus() == null || ACCEPTED.equals(f.getStatus()));
+    }
+    private boolean isPending(Followers f) {
+        return f != null && PENDING.equals(f.getStatus());
+    }
+    private Followers row(String a, String b) {
+        return followRepository.findFirstByUsers1_UserIdAndUsers2_UserId(a, b);
+    }
+    private Users requireUser(String userId, String msg) throws Exception {
+        Users u = userRepository.findFirstByUserId(userId);
+        if (u == null) { logger.error(msg); throw new Exception(msg); }
+        return u;
     }
 
     @Override
-    public FollowDTO getFollowings(String userId) throws Exception {
-        Users user = userRepository.findFirstByUserId(userId);
-        if (user == null) {
-            logger.error("User is not found");
-            throw new Exception("User is not found");
-        }
-        List<String> userFollowings = new ArrayList<>();
-        Set<Followers> followings = user.getFollowers();
-        for (Followers follower : followings){
-            userFollowings.add(follower.getUsers2().getUserId());
-        }
-        return new FollowDTO(userFollowings.size(), userFollowings);
+    public boolean areFriends(String a, String b) {
+        if (a == null || b == null || a.equals(b)) return false;
+        return isAccepted(row(a, b)) || isAccepted(row(b, a));
     }
-    /*
-     *Follow User
-     */
+
     @Override
-    public boolean followUser(String userIdFollow) throws Exception {
-        String userId = authorizePathService.getUserIdAuthoried();
-        Users user = userRepository.findFirstByUserId(userId);
-        if (user == null) {
-            logger.error("User is not found");
-            throw new Exception("User is not found");
+    public String friendStatus(String userId) throws Exception {
+        String me = authorizePathService.getUserIdAuthoried();
+        if (me.equals(userId)) return "self";
+        Followers out = row(me, userId);
+        Followers in = row(userId, me);
+        if (isAccepted(out) || isAccepted(in)) return "friends";
+        if (isPending(out)) return "pending_out";
+        if (isPending(in)) return "pending_in";
+        return "none";
+    }
+
+    @Override
+    public boolean sendRequest(String userId) throws Exception {
+        String me = authorizePathService.getUserIdAuthoried();
+        if (me.equals(userId)) throw new Exception("Không thể tự kết bạn với chính mình");
+        Users other = requireUser(userId, "The user isnt existed");
+        Users meUser = userRepository.findFirstByUserId(me);
+
+        Followers out = row(me, userId);
+        Followers in = row(userId, me);
+        if (isAccepted(out) || isAccepted(in)) throw new Exception("Hai người đã là bạn bè");
+        if (isPending(out)) throw new Exception("Bạn đã gửi lời mời cho người này");
+        if (isPending(in)) {
+            // đối phương đã gửi lời mời cho mình -> chấp nhận luôn
+            in.setStatus(ACCEPTED);
+            followRepository.save(in);
+            notificationService.push(userId, me, "FRIEND_ACCEPT", me,
+                    meUser.getFullName() + " đã chấp nhận lời mời kết bạn");
+            return true;
         }
-        if (user.getUserId().equals(userIdFollow)) {
-            logger.warn("Can not follow yourself");
-            throw new Exception("Can not follow yourself");
-        }
-        if (userRepository.findFirstByUserId(userIdFollow) == null) {
-            logger.error("The user isnt existed");
-            throw new Exception("The user isnt existed");
-        }
-        Followers follower = new Followers();
-        if(followRepository.findFirstByUsers1_UserIdAndUsers2_UserId(user.getUserId(), userIdFollow) != null) {
-            logger.error("This user has already followed");
-            throw new Exception("This user has already followed");
-        }
-        else {
-            follower.setFolId(new FollowerId(user.getUserId(), userIdFollow));
-        }
-        followRepository.save(follower);
-        notificationService.push(userIdFollow, user.getUserId(), "FOLLOW", user.getUserId(),
-                user.getFullName() + " đã theo dõi bạn");
+        Followers f = new Followers();
+        f.setFolId(new FollowerId(me, userId));
+        f.setStatus(PENDING);
+        followRepository.save(f);
+        notificationService.push(userId, me, "FRIEND_REQUEST", me,
+                meUser.getFullName() + " đã gửi cho bạn lời mời kết bạn");
         return true;
     }
-    /*
-     * Unfollow User
-     */
+
     @Override
-    public boolean unfollowUser(String userIdUnfollow) throws Exception {
-        String userId = authorizePathService.getUserIdAuthoried();
-        Users user = userRepository.findFirstByUserId(userId);
-        if (user == null) {
-            logger.error("User is not found");
-            throw new Exception("User is not found");
-        }
-        if (user.getUserId().equals(userIdUnfollow)) {
-            logger.warn("Can not unfollow yourself");
-            throw new Exception("Can not unfollow yourself");
-        }
-        if (userRepository.findFirstByUserId(userIdUnfollow) == null) {
-            logger.error("The user isnt existed");
-            throw new Exception("The user isnt existed");
-        }
-        Followers follower = followRepository.findFirstByUsers1_UserIdAndUsers2_UserId(user.getUserId(), userIdUnfollow);
-        if(follower == null) {
-            logger.error("This user hasn't followed yet");
-            throw new Exception("This user hasn't followed yet");
-        }
-        else {
-            followRepository.delete(follower);
-        }
+    public boolean acceptRequest(String requesterId) throws Exception {
+        String me = authorizePathService.getUserIdAuthoried();
+        Followers in = row(requesterId, me);
+        if (!isPending(in)) throw new Exception("Không có lời mời kết bạn từ người này");
+        in.setStatus(ACCEPTED);
+        followRepository.save(in);
+        Users meUser = userRepository.findFirstByUserId(me);
+        notificationService.push(requesterId, me, "FRIEND_ACCEPT", me,
+                meUser.getFullName() + " đã chấp nhận lời mời kết bạn");
         return true;
+    }
+
+    @Override
+    public boolean declineRequest(String requesterId) throws Exception {
+        String me = authorizePathService.getUserIdAuthoried();
+        Followers in = row(requesterId, me);
+        if (!isPending(in)) throw new Exception("Không có lời mời kết bạn từ người này");
+        followRepository.delete(in);
+        return true;
+    }
+
+    @Override
+    public boolean cancelRequest(String userId) throws Exception {
+        String me = authorizePathService.getUserIdAuthoried();
+        Followers out = row(me, userId);
+        if (!isPending(out)) throw new Exception("Bạn chưa gửi lời mời cho người này");
+        followRepository.delete(out);
+        return true;
+    }
+
+    @Override
+    public boolean unfriend(String userId) throws Exception {
+        String me = authorizePathService.getUserIdAuthoried();
+        Followers out = row(me, userId);
+        Followers in = row(userId, me);
+        boolean done = false;
+        if (isAccepted(out)) { followRepository.delete(out); done = true; }
+        if (isAccepted(in)) { followRepository.delete(in); done = true; }
+        if (!done) throw new Exception("Hai người chưa là bạn bè");
+        return true;
+    }
+
+    @Override
+    public FollowDTO getFriends(String userId) throws Exception {
+        requireUser(userId, "User is not found");
+        List<String> ids = new ArrayList<>();
+        for (Followers f : followRepository.findAcceptedOf(userId)) {
+            String a = f.getUsers1() != null ? f.getUsers1().getUserId() : null;
+            String b = f.getUsers2() != null ? f.getUsers2().getUserId() : null;
+            String other = userId.equals(a) ? b : a;
+            if (other != null && !ids.contains(other)) ids.add(other);
+        }
+        return new FollowDTO(ids.size(), ids);
+    }
+
+    @Override
+    public FollowDTO getIncomingRequests() throws Exception {
+        String me = authorizePathService.getUserIdAuthoried();
+        List<String> ids = new ArrayList<>();
+        for (Followers f : followRepository.findAllByUsers2_UserIdAndStatus(me, PENDING)) {
+            if (f.getUsers1() != null) ids.add(f.getUsers1().getUserId());
+        }
+        return new FollowDTO(ids.size(), ids);
+    }
+
+    @Override
+    public FollowDTO getOutgoingRequests() throws Exception {
+        String me = authorizePathService.getUserIdAuthoried();
+        List<String> ids = new ArrayList<>();
+        for (Followers f : followRepository.findAllByUsers1_UserIdAndStatus(me, PENDING)) {
+            if (f.getUsers2() != null) ids.add(f.getUsers2().getUserId());
+        }
+        return new FollowDTO(ids.size(), ids);
     }
 }
