@@ -43,6 +43,7 @@ import { useRouter } from 'vue-router';
 import { inject, ref } from 'vue';
 import { editUser, getUserInfo } from '@/apis/user';
 import { LOCALKEYS, getItemLocal, setItemLocal } from '@/storages/localStorage';
+import { IMAGE_BASE } from '@/config';
 
 const route = useRouter();
 const showDialog = inject("openDialogError");
@@ -77,7 +78,7 @@ const refreshLocalUser = async () => {
     try {
         const data = await getUserInfo(getItemLocal(LOCALKEYS.USER_ID));
         setItemLocal(LOCALKEYS.USER_NAME, data?.data?.data?.fullName);
-        setItemLocal(LOCALKEYS.LINK_AVT, "http://localhost:8081/images/" + data?.data?.data?.avtUrl);
+        setItemLocal(LOCALKEYS.LINK_AVT, IMAGE_BASE + data?.data?.data?.avtUrl);
     } catch (error) {
         console.log(error);
     }

@@ -36,6 +36,7 @@ import { login } from '../../apis/auth';
 import { getUserInfo } from '@/apis/user';
 import { inject, ref } from 'vue';
 import { LOCALKEYS, setItemLocal } from '../../storages/localStorage';
+import { IMAGE_BASE } from '@/config';
 import { useRouter } from 'vue-router';
 
 const  route = useRouter();
@@ -63,7 +64,7 @@ const getDataUser = async(id) => {
     try {
         const data = await getUserInfo(id);
         setItemLocal(LOCALKEYS.USER_NAME, data?.data?.data?.fullName);
-        setItemLocal(LOCALKEYS.LINK_AVT, "http://localhost:8081/images/" + data?.data?.data?.avtUrl);
+        setItemLocal(LOCALKEYS.LINK_AVT, IMAGE_BASE + data?.data?.data?.avtUrl);
     } catch (error) {
         console.error(error);
     }

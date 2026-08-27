@@ -130,6 +130,7 @@ import { DxTextBox, DxButton, DxPopup } from 'devextreme-vue';
 import BaseAvatar from '../BaseAvatar.vue';
 import { LOCALKEYS, getItemLocal } from '@/storages/localStorage';
 import EditPost from '@/components/Post/EditPost.vue';
+import { IMAGE_BASE } from '@/config';
 
 const  route = useRouter();
 
@@ -146,14 +147,14 @@ const ishowEditPost = ref(false);
 const getDataPostById = async() => {
     const data =  await getPostById(id.value);
     post.value = data?.data?.data;
-    linkPostImg.value = "http://localhost:8081/images/" + post.value.postImg;
+    linkPostImg.value = IMAGE_BASE + post.value.postImg;
 }
 
 const getDataUser = async() => {
     try {
         const data = await getUserInfo(post.value?.userCreatedPost);
         userCreatedPost.value = data?.data?.data?.fullName;
-        linkAvt.value = "http://localhost:8081/images/" + data?.data?.data?.avtUrl;
+        linkAvt.value = IMAGE_BASE + data?.data?.data?.avtUrl;
     } catch (error) {
         console.error(error);
     }

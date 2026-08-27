@@ -93,9 +93,10 @@ There is effectively no test suite — only `social/src/test/.../SocialApplicati
   `authApiFormData`); `authApi*` inject `Authorization: Bearer <Token from localStorage>`.
   The response interceptor rejects with `error.response.data` (the `ResponseData` body),
   and on HTTP 401 clears `localStorage` + redirects to `/login`.
-  **`BASE_URL` is hardcoded** in `api.js` (currently `http://localhost:8081/`); image
-  URLs and the Socket.IO URL (`http://localhost:8082`, in `pages/chat/Chat.vue`) are
-  hardcoded too — not read from `.env`. Per-feature calls live in `src/apis/*.js`.
+  Endpoints are centralised in `src/config.js` (`API_URL`, `SOCKET_URL`, `IMAGE_BASE`),
+  overridable via Vite env vars `VITE_API_URL` / `VITE_SOCKET_URL` in `forum_fe/.env`
+  (defaults point at `localhost:8081` / `localhost:8082`). Per-feature calls live in
+  `src/apis/*.js`; avatar/image `<img src>` uses `IMAGE_BASE`.
 - Real-time chat (`pages/chat/Chat.vue`) uses `socket.io-client` against the backend's
   netty-socketio on `:8082`, passing `conversationID` + `token` as handshake query
   params. One socket is bound to one conversation; switching conversations reconnects.

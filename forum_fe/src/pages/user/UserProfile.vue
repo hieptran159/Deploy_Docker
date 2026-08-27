@@ -46,6 +46,7 @@ import { getUserInfo } from '@/apis/user';
 import { getPostById } from '@/apis/post';
 import { followApi, unFollowApi } from '@/apis/follow';
 import { LOCALKEYS, getItemLocal } from '@/storages/localStorage';
+import { IMAGE_BASE } from '@/config';
 
 const route = useRouter();
 const userId = computed(() => route.currentRoute.value.params.id);
@@ -55,7 +56,7 @@ const posts = ref([]);
 const avatarOk = ref(true);
 
 const isMe = computed(() => userId.value === getItemLocal(LOCALKEYS.USER_ID));
-const avatarUrl = computed(() => "http://localhost:8081/images/" + (user.value?.avtUrl || ""));
+const avatarUrl = computed(() => IMAGE_BASE + (user.value?.avtUrl || ""));
 
 const load = async () => {
     user.value = null;

@@ -62,7 +62,7 @@
                                 : 'self-start bg-gray-200 text-black'">
                             {{ m.content }}
                             <img v-if="m.messageImg && !m.messageImg.includes('null')"
-                                :src="'http://localhost:8081/images/' + m.messageImg" class="mt-1 max-w-[200px]"/>
+                                :src="IMAGE_BASE + m.messageImg" class="mt-1 max-w-[200px]"/>
                         </div>
                     </div>
 
@@ -86,8 +86,7 @@ import {
     createConversation, joinConversation, leaveConversation,
 } from '@/apis/chat';
 import { LOCALKEYS, getItemLocal } from '@/storages/localStorage';
-
-const SOCKET_URL = 'http://localhost:8082';
+import { SOCKET_URL, IMAGE_BASE } from '@/config';
 
 const showDialog = inject('openDialogError');
 const myId = getItemLocal(LOCALKEYS.USER_ID);

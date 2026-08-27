@@ -32,7 +32,7 @@
 
             <div v-for="user in users" :key="user.userId" class="flex items-center m-4">
                 <BaseAvatar
-                    :linkAvt="'http://localhost:8081/images/' + user.avtUrl"
+                    :linkAvt="IMAGE_BASE + user.avtUrl"
                     :userCreatedPost="user.fullName"
                     :userId="user.userId"
                 />
@@ -54,6 +54,7 @@ import { DxTextBox, DxButton } from 'devextreme-vue';
 import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { searchUserApi } from '@/apis/user';
+import { IMAGE_BASE } from '@/config';
 import BaseAvatar from '@/components/BaseAvatar.vue';
 
 const route = useRouter();

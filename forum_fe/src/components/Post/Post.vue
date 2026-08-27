@@ -28,6 +28,7 @@
 import { computed, onMounted, ref } from "vue";
 import { getUserInfo } from '../../apis/user';
 import { calculateTimeDifference } from '../../js/helper';
+import { IMAGE_BASE } from '@/config';
 
 import { useRouter } from 'vue-router';
 
@@ -48,7 +49,7 @@ const getDataUser = async() => {
     try {
         const data = await getUserInfo(post.value?.userCreatedPost);
         userCreatedPost.value = data?.data?.data?.fullName;
-        linkAvt.value = "http://localhost:8081/images/" + data?.data?.data?.avtUrl;
+        linkAvt.value = IMAGE_BASE + data?.data?.data?.avtUrl;
     } catch (error) {
         console.error(error);
     }
