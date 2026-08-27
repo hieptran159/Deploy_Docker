@@ -301,14 +301,26 @@ public class ChatServiceImpl implements ChatService {
             logger.error("You hasnot joined any conversations yet");
             throw new Exception("You hasnot joined any conversations yet");
         }
+        // 1 truy vấn lấy tin nhắn cuối của TẤT CẢ hội thoại (thay vì N+1)
+        List<String> convIds = new ArrayList<>();
+        for (Participants p : participants) convIds.add(p.getConversations().getConversationId());
+        Map<String, Messages> lastByConv = new HashMap<>();
+        for (Messages m : messageRepository.findLatestForConversations(convIds)) {
+            String cid = m.getConversations().getConversationId();
+            Messages cur = lastByConv.get(cid);
+            if (cur == null || (m.getSentAt() != null && cur.getSentAt() != null && m.getSentAt().after(cur.getSentAt()))) {
+                lastByConv.put(cid, m);
+            }
+        }
+
         List<ConversationDTO> conversationDTOs = new ArrayList<>();
         for (Participants participant : participants){
+            Conversations conversation = participant.getConversations(); // đã nạp sẵn theo participant, không truy vấn thêm
             ConversationDTO conversationDTO = new ConversationDTO();
-            Conversations conversation = conversationRepository.findFirstByConversationId(participant.getConversations().getConversationId());
             conversationDTO.setConversationId(conversation.getConversationId());
             conversationDTO.setConversationName(conversation.getConversationName());
             conversationDTO.setCreatedAt(conversation.getCreatedAt().toString());
-            Messages last = messageRepository.findFirstByConversations_ConversationIdOrderBySentAtDesc(conversation.getConversationId());
+            Messages last = lastByConv.get(conversation.getConversationId());
             if (last != null) {
                 conversationDTO.setLastMessage(last.getContent());
                 conversationDTO.setLastMessageImg(last.getMessageImg());

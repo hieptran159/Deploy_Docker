@@ -6,6 +6,9 @@ import jakarta.persistence.*;
 import java.util.Date;
 
 @Entity(name = "bookmarks")
+@Table(name = "bookmarks", indexes = {
+        @Index(name = "idx_bookmark_user_created", columnList = "user_id, created_at")
+})
 public class Bookmarks {
     @EmbeddedId
     private BookmarkId bookmarkId;

@@ -5,6 +5,9 @@ import jakarta.persistence.*;
 import java.util.Date;
 
 @Entity(name = "messages")
+@Table(name = "messages", indexes = {
+        @Index(name = "idx_msg_conv_sent", columnList = "conversation_id, sent_at")
+})
 public class Messages {
     @Id
     @Column(name = "message_id")

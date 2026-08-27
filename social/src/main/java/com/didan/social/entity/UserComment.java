@@ -3,11 +3,17 @@ package com.didan.social.entity;
 import com.didan.social.entity.keys.UserCommentId;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 
 
 @Entity(name = "user_comment")
+@Table(name = "user_comment", indexes = {
+        @Index(name = "idx_usercomment_comment", columnList = "comment_id"),
+        @Index(name = "idx_usercomment_post", columnList = "post_id")
+})
 public class UserComment {
     @EmbeddedId
     UserCommentId userCommentId;
