@@ -263,12 +263,14 @@ public class ChatServiceImpl implements ChatService {
         message.setConversations(conversation);
         messageRepository.save(message);
         messageNotifier.notifyMessage(conversation, user, sendMessageRequest.getContent());
-        return new MessageDTO(messageId,
+        MessageDTO dto = new MessageDTO(messageId,
                                 sendMessageRequest.getContent(),
-                                "message/"+fileName,
+                                fileName != null ? "message/" + fileName : null,
                                 nowSql.toString(),
                                 conversationId,
                                 user.getUserId());
+        dto.setRecalled(false);
+        return dto;
     }
 
     @Override
