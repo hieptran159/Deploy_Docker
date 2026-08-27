@@ -90,10 +90,11 @@ There is effectively no test suite — only `social/src/test/.../SocialApplicati
   calling `/admin/blacklist` (a GET only admins can run) after login and on header
   mount; the result is cached in `localStorage.isAdmin` and drives both the "Quản trị"
   header tab visibility and the `/admin` route guard (`AdminPage.vue` still self-gates).
-- Direct messages: the backend chat is group-only, so `UserProfile.vue`'s "Nhắn tin"
-  creates/finds a deterministic conversation named `dm_<sorted userIds>`, joins it, and
-  navigates to `/chat?c=<id>&name=<other name>`; `Chat.vue` opens the conversation from
-  that query and shows `dm_*` groups as "💬 Tin nhắn riêng".
+- Direct messages: `POST /chat/direct/{userId}` (added to `ChatController`/`ChatServiceImpl`)
+  finds-or-creates a conversation named `dm:<sorted userIds>` and adds **both** users as
+  participants. `UserProfile.vue`'s "Nhắn tin" calls it and navigates to
+  `/chat?c=<id>&name=<other name>`; `Chat.vue` opens the conversation from that query and
+  shows `dm:*` (and legacy `dm_*`) as "💬 Tin nhắn riêng".
 - API layer: `src/storages/api.js` creates axios instances (`api`, `apiForm`, `authApi`,
   `authApiFormData`); `authApi*` inject `Authorization: Bearer <Token from localStorage>`.
   The response interceptor rejects with `error.response.data` (the `ResponseData` body),
