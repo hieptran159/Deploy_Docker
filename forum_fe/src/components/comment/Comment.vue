@@ -14,7 +14,7 @@
                 >
                     {{ userComments || '—' }}
                 </span>
-                <span class="text-xs muted">· ♥ {{ comment?.commentLikes ?? 0 }}</span>
+                <span class="text-xs muted">· {{ comment?.commentLikes ?? 0 }} thích</span>
             </div>
             <div class="mt-0.5 whitespace-pre-wrap">{{ comment.content }}</div>
             <img
@@ -25,8 +25,13 @@
             />
 
             <div class="row-actions mt-1.5 text-xs">
-                <button class="link" @click="likePost">Yêu thích</button>
-                <button class="link" @click="unLikePost">Bỏ thích</button>
+                <button
+                    class="link"
+                    :class="{ 'font-bold text-[var(--danger)]': likedByMe }"
+                    @click="toggleLike"
+                >
+                    {{ likedByMe ? '♥ Đã thích' : '♡ Thích' }}
+                </button>
                 <template v-if="isOwner">
                     <span class="text-gray-300">|</span>
                     <button class="link" @click="isShowEditComment = true">Sửa</button>
@@ -70,7 +75,7 @@ const props = defineProps({
 const emits = defineEmits(['refresh']);
 const route = useRouter();
 
-const comment = ref(props.commentProps);
+const comment = computed(() => props.commentProps || {});
 const userComments = ref();
 const linkAvt = ref();
 const isShowEditComment = ref(false);
@@ -78,7 +83,9 @@ const showDialog = inject("openDialogError");
 const openConfirm = inject("openConfirm");
 const toast = inject("toast");
 
-const isOwner = computed(() => comment.value?.userComments == getItemLocal(LOCALKEYS.USER_ID));
+const myId = getItemLocal(LOCALKEYS.USER_ID);
+const isOwner = computed(() => comment.value?.userComments == myId);
+const likedByMe = computed(() => (comment.value?.userLikes || []).includes(myId));
 const commentImgUrl = computed(() => {
     const p = comment.value?.commentImg;
     return p && !String(p).includes('null') ? IMAGE_BASE + p : '';
@@ -98,11 +105,12 @@ const goAuthor = () => {
     if (comment.value?.userComments) route.push(`/user/${comment.value.userComments}`);
 }
 
-const likePost = async () => {
-    try { await likeCommentApi(comment.value.commentId); emits('refresh'); } catch (e) { console.log(e); }
-}
-const unLikePost = async () => {
-    try { await unLikeCommentApi(comment.value.commentId); emits('refresh'); } catch (e) { console.log(e); }
+const toggleLike = async () => {
+    try {
+        if (likedByMe.value) await unLikeCommentApi(comment.value.commentId);
+        else await likeCommentApi(comment.value.commentId);
+        emits('refresh');
+    } catch (e) { console.log(e); }
 }
 const confirmDelete = () => {
     openConfirm?.('Xoá bình luận', 'Xoá bình luận này?', async () => {

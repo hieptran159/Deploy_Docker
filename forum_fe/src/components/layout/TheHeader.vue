@@ -103,7 +103,7 @@ import { LOCALKEYS, getItemLocal, delItemLocal, setItemLocal } from '@/storages/
 import { useRouter } from 'vue-router';
 import { logout as logoutApi } from '@/apis/auth';
 import { checkIsAdmin } from '@/apis/admin';
-import { getNotifications, markAllRead } from '@/apis/notification';
+import { getNotifications, markAllRead, markRead } from '@/apis/notification';
 import { timeAgo } from '@/js/helper';
 import BaseAvatar from '../BaseAvatar.vue';
 
@@ -176,12 +176,20 @@ const targetOf = (n) => {
     return null;
 }
 
+const markReadLocal = async (n) => {
+    if (n.read) return;
+    n.read = true;
+    unread.value = Math.max(unread.value - 1, 0);
+    try { await markRead(n.notificationId); } catch (e) { /* ignore */ }
+}
+
 const toastNotif = (n) => {
+    const go = targetOf(n);
     toast?.(n.message, {
         type: 'info',
         sub: timeAgo(n.createdAt),
         avatar: (n.actorName || '?').charAt(0),
-        onClick: targetOf(n),
+        onClick: () => { markReadLocal(n); if (go) go(); },
         duration: 6000,
     });
 }
@@ -234,6 +242,7 @@ const onVisible = () => {
 
 const onNotifClick = (n) => {
     showNotif.value = false;
+    markReadLocal(n);
     const go = targetOf(n);
     if (go) go();
 }

@@ -33,7 +33,7 @@
                     </div>
 
                     <div class="text-sm muted mt-0.5">
-                        {{ calculateTimeDifference(post?.postedAt) }} trước · {{ post?.likesQuantity ?? 0 }} lượt yêu thích
+                        {{ calculateTimeDifference(post?.postedAt) }} trước
                     </div>
 
                     <div class="my-3 whitespace-pre-wrap">{{ post?.body }}</div>
@@ -41,8 +41,14 @@
                     <img :src="linkPostImg" v-if="post?.postImg" class="max-w-md rounded-xl border" />
 
                     <div class="row-actions mt-3">
-                        <DxButton icon="like" type="danger" text="Yêu thích" @click="likePost" />
-                        <DxButton icon="like" type="normal" stylingMode="outlined" text="Bỏ yêu thích" @click="unLikePost" />
+                        <DxButton
+                            :icon="likedByMe ? 'like' : 'like'"
+                            :type="likedByMe ? 'danger' : 'normal'"
+                            :styling-mode="likedByMe ? 'contained' : 'outlined'"
+                            :text="likedByMe ? 'Đã thích' : 'Thích'"
+                            @click="toggleLike"
+                        />
+                        <span class="muted text-sm self-center">{{ post?.likesQuantity ?? 0 }} lượt thích</span>
                     </div>
                 </div>
             </div>
@@ -98,7 +104,7 @@
 </template>
 
 <script setup>
-import { onMounted, ref, inject } from 'vue';
+import { onMounted, ref, computed, inject } from 'vue';
 import { getPostById } from '@/apis/post';
 import { createComment } from '@/apis/comment';
 import { likePostApi, unLikePostApi, deletePost } from '@/apis/post';
@@ -162,22 +168,16 @@ const commentPost = async()=> {
     }
 }
 
-const likePost = async() => {
-    try {
-        await likePostApi(id.value);
-        await getDataPostById();
-        toast?.('Đã yêu thích');
-    } catch (error) {
-        toast?.('Bạn đã yêu thích bài viết này', 'error');
-    }
-}
+const myId = getItemLocal(LOCALKEYS.USER_ID);
+const likedByMe = computed(() => (post.value?.userLikedPost || []).includes(myId));
 
-const unLikePost = async() => {
+const toggleLike = async() => {
     try {
-        await unLikePostApi(id.value);
+        if (likedByMe.value) await unLikePostApi(id.value);
+        else await likePostApi(id.value);
         await getDataPostById();
     } catch (error) {
-        console.log(error);
+        showDialog?.('Thông báo', error?.description || 'Thao tác thất bại');
     }
 }
 
