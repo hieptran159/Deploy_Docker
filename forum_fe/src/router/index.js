@@ -65,6 +65,15 @@ const routers = [
 	},
 
 	{
+		path: '/chat',
+		component: () =>
+			import(
+				"@/pages/chat/Chat.vue"
+			),
+		beforeEnter: handleBeforeEnter
+	},
+
+	{
 		path: '/users',
 		component: () =>
 			import(
