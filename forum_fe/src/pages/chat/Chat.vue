@@ -1,75 +1,75 @@
 <template>
-    <div class="content flex justify-center">
-        <div class="w-[90%] border rounded flex" style="height: 70vh;">
+    <div class="page page--wide">
+        <div class="card card--flush flex" style="height: 72vh;">
             <!-- Sidebar -->
-            <div class="w-[32%] border-r flex flex-col">
-                <div class="p-3 border-b">
-                    <div class="flex">
-                        <DxTextBox v-model="newName" placeholder="Tên nhóm mới" class="flex-1"/>
-                        <DxButton class="ml-2" icon="plus" type="default" @click="handleCreate"/>
+            <div class="w-[34%] min-w-[240px] border-r flex flex-col">
+                <div class="p-3 border-b flex flex-col gap-2">
+                    <div class="flex gap-2">
+                        <DxTextBox v-model="newName" placeholder="Tên nhóm mới" class="flex-1" @enter-key="handleCreate"/>
+                        <DxButton icon="plus" type="default" @click="handleCreate"/>
                     </div>
-                    <div class="flex mt-2">
+                    <div class="flex gap-2">
                         <DxTextBox v-model="searchName" placeholder="Tìm nhóm để tham gia" class="flex-1"
                             @enter-key="handleSearch"/>
-                        <DxButton class="ml-2" icon="search" @click="handleSearch"/>
+                        <DxButton icon="search" @click="handleSearch"/>
                     </div>
                 </div>
 
                 <div class="flex-1 overflow-y-auto">
                     <div v-if="searchResults.length" class="p-2">
-                        <div class="text-xs text-gray-500 mb-1">Kết quả tìm kiếm</div>
+                        <div class="text-xs muted mb-1 px-1">Kết quả tìm kiếm</div>
                         <div v-for="c in searchResults" :key="c.conversationId"
-                            class="flex items-center justify-between p-2 hover:bg-orange-50 rounded">
-                            <span>{{ c.conversationName }}</span>
-                            <DxButton text="Tham gia" @click="() => handleJoin(c)"/>
+                            class="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg">
+                            <span class="truncate">{{ displayName(c) }}</span>
+                            <DxButton text="Tham gia" stylingMode="text" @click="() => handleJoin(c)"/>
                         </div>
                         <hr class="my-2"/>
                     </div>
 
-                    <div class="text-xs text-gray-500 px-2 pt-2">Nhóm của bạn</div>
-                    <div v-if="conversations.length === 0" class="text-gray-400 p-3 text-sm">
+                    <div class="text-xs muted px-3 pt-2">Nhóm của bạn</div>
+                    <div v-if="conversations.length === 0" class="muted p-3 text-sm">
                         Chưa tham gia nhóm nào
                     </div>
                     <div v-for="c in conversations" :key="c.conversationId"
-                        class="p-3 cursor-pointer border-b hover:bg-orange-50"
-                        :class="{ 'bg-orange-100': active?.conversationId === c.conversationId }"
+                        class="px-3 py-2.5 cursor-pointer border-b transition hover:bg-gray-50"
+                        :class="{ 'bg-[var(--brand-soft)]': active?.conversationId === c.conversationId }"
                         @click="() => openConversation(c)">
-                        <div class="font-bold">{{ displayName(c) }}</div>
-                        <div class="text-xs text-gray-500">{{ c.createdAt }}</div>
+                        <div class="font-semibold text-sm truncate">{{ displayName(c) }}</div>
+                        <div class="text-xs muted truncate">{{ c.createdAt }}</div>
                     </div>
                 </div>
             </div>
 
             <!-- Message pane -->
-            <div class="flex-1 flex flex-col">
-                <div v-if="!active" class="flex-1 flex items-center justify-center text-gray-400">
+            <div class="flex-1 flex flex-col min-w-0">
+                <div v-if="!active" class="flex-1 flex items-center justify-center muted">
                     Chọn một nhóm để bắt đầu trò chuyện
                 </div>
                 <template v-else>
-                    <div class="p-3 border-b flex items-center">
-                        <div class="font-bold flex-1">{{ displayName(active) }}</div>
-                        <span class="text-xs mr-3" :class="connected ? 'text-green-600' : 'text-gray-400'">
+                    <div class="p-3 border-b flex items-center gap-3">
+                        <div class="font-bold flex-1 truncate">{{ displayName(active) }}</div>
+                        <span class="text-xs flex-none" :class="connected ? 'text-green-600' : 'muted'">
                             {{ connected ? '● trực tuyến' : '○ ngoại tuyến' }}
                         </span>
-                        <DxButton text="Rời nhóm" type="danger" @click="handleLeave"/>
+                        <DxButton text="Rời nhóm" type="danger" stylingMode="text" @click="handleLeave"/>
                     </div>
 
-                    <div ref="listEl" class="flex-1 overflow-y-auto p-3 flex flex-col gap-2">
+                    <div ref="listEl" class="flex-1 overflow-y-auto p-4 flex flex-col gap-2 bg-[var(--bg)]">
                         <div v-for="m in messages" :key="m.messageId"
-                            class="max-w-[70%] px-3 py-2 rounded"
+                            class="max-w-[72%] px-3 py-2 rounded-2xl text-sm shadow-sm"
                             :class="m.senderId === myId
-                                ? 'self-end bg-blue-500 text-white'
-                                : 'self-start bg-gray-200 text-black'">
+                                ? 'self-end bg-[var(--accent)] text-white rounded-br-md'
+                                : 'self-start bg-white text-[var(--text)] rounded-bl-md'">
                             {{ m.content }}
                             <img v-if="m.messageImg && !m.messageImg.includes('null')"
-                                :src="IMAGE_BASE + m.messageImg" class="mt-1 max-w-[200px]"/>
+                                :src="IMAGE_BASE + m.messageImg" class="mt-1 max-w-[200px] rounded-lg"/>
                         </div>
                     </div>
 
-                    <div class="p-3 border-t flex">
-                        <DxTextBox v-model="draft" placeholder="Nhập tin nhắn..." class="flex-1"
+                    <div class="p-3 border-t flex gap-2">
+                        <DxTextBox v-model="draft" placeholder="Nhập tin nhắn…" class="flex-1"
                             @enter-key="sendMessage"/>
-                        <DxButton class="ml-2" text="Gửi" type="default" @click="sendMessage"/>
+                        <DxButton text="Gửi" type="default" @click="sendMessage"/>
                     </div>
                 </template>
             </div>

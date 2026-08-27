@@ -1,61 +1,68 @@
 <template>
-    <div class="content flex justify-center flex-wrap">
-        <div class="w-[80%]">
-            <div v-if="!authorized" class="border rounded p-8 text-center text-gray-500">
-                <div class="text-2xl mb-2">Trang quản trị</div>
-                <div>{{ deniedMsg }}</div>
+    <div class="page">
+        <div v-if="!authorized" class="card state">
+            <div class="section-title">Trang quản trị</div>
+            <div>{{ deniedMsg }}</div>
+        </div>
+
+        <template v-else>
+            <div class="card">
+                <div class="section-title">Cấp quyền admin</div>
+                <div class="flex gap-2">
+                    <DxTextBox v-model="grantId" placeholder="userId cần cấp quyền" class="flex-1"/>
+                    <DxButton text="Cấp quyền" type="default" @click="doGrant"/>
+                </div>
             </div>
 
-            <template v-else>
-                <div class="border rounded p-5 mb-5">
-                    <div class="text-[22px] text-orange-400 font-bold mb-3">Cấp quyền admin</div>
-                    <div class="flex">
-                        <DxTextBox v-model="grantId" placeholder="userId cần cấp quyền" class="flex-1"/>
-                        <DxButton class="ml-2" text="Cấp quyền" type="default" @click="doGrant"/>
-                    </div>
+            <div class="card">
+                <div class="section-title">Chặn người dùng</div>
+                <div class="flex gap-2">
+                    <DxTextBox v-model="banId" placeholder="userId cần chặn" class="flex-1"/>
+                    <DxButton text="Chặn" type="danger" @click="() => doBan(banId)"/>
                 </div>
+            </div>
 
-                <div class="border rounded p-5 mb-5">
-                    <div class="text-[22px] text-orange-400 font-bold mb-3">Chặn người dùng</div>
-                    <div class="flex">
-                        <DxTextBox v-model="banId" placeholder="userId cần chặn" class="flex-1"/>
-                        <DxButton class="ml-2" text="Chặn" type="danger" @click="() => doBan(banId)"/>
-                    </div>
-                </div>
-
-                <div class="border rounded p-5">
-                    <div class="text-[22px] text-orange-400 font-bold mb-3">Danh sách bị báo cáo / chặn</div>
-                    <div v-if="blacklist.length === 0" class="text-gray-500">Không có ai trong danh sách</div>
-                    <table v-else class="w-full text-left">
+            <div class="card">
+                <div class="section-title">Danh sách bị báo cáo / chặn</div>
+                <div v-if="blacklist.length === 0" class="state">Không có ai trong danh sách</div>
+                <div v-else class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
                         <thead>
-                            <tr class="border-b text-gray-600">
-                                <th class="py-2">Họ tên</th>
-                                <th>Email</th>
-                                <th>Trạng thái</th>
-                                <th>Số báo cáo</th>
-                                <th>Bị chặn lúc</th>
+                            <tr class="border-b muted">
+                                <th class="py-2 pr-3">Họ tên</th>
+                                <th class="pr-3">Email</th>
+                                <th class="pr-3">Trạng thái</th>
+                                <th class="pr-3">Báo cáo</th>
+                                <th class="pr-3">Bị chặn lúc</th>
                                 <th></th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr v-for="u in blacklist" :key="u.userId" class="border-b">
-                                <td class="py-2">{{ u.fullName }}</td>
-                                <td>{{ u.email }}</td>
-                                <td>{{ u.reportStatus }}</td>
-                                <td>{{ u.reportedQuantity }}</td>
-                                <td>{{ u.blockedAt || '-' }}</td>
+                                <td class="py-2 pr-3 font-medium">{{ u.fullName }}</td>
+                                <td class="pr-3">{{ u.email }}</td>
+                                <td class="pr-3">
+                                    <span class="px-2 py-0.5 rounded-full text-xs font-semibold"
+                                        :class="u.reportStatus === 'blocked'
+                                            ? 'bg-rose-50 text-rose-600'
+                                            : 'bg-amber-50 text-amber-600'">
+                                        {{ u.reportStatus }}
+                                    </span>
+                                </td>
+                                <td class="pr-3">{{ u.reportedQuantity }}</td>
+                                <td class="pr-3">{{ u.blockedAt || '-' }}</td>
                                 <td>
                                     <DxButton v-if="u.reportStatus === 'blocked'"
-                                        text="Bỏ chặn" @click="() => doUnban(u.userId)"/>
+                                        text="Bỏ chặn" stylingMode="outlined" @click="() => doUnban(u.userId)"/>
                                     <DxButton v-else
-                                        text="Chặn" type="danger" @click="() => doBan(u.userId)"/>
+                                        text="Chặn" type="danger" stylingMode="outlined" @click="() => doBan(u.userId)"/>
                                 </td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
-            </template>
-        </div>
+            </div>
+        </template>
     </div>
 </template>
 

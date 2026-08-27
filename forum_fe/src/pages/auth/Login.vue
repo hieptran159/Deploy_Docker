@@ -1,19 +1,15 @@
 <template>
-    <div class="form-login flex justify-center">
-        <div class="w-[60%] flex flex-col bg-orange-400 items-center rounded py-4">
-            <span class="text-[32px] mb-4">
-                Đăng nhập
-            </span>
-            <span class="text-white mb-4">
-                Chào mừng bạn đến với diễn đàn, vui lòng đăng nhập để tiếp tục
-            </span>
-            <div class="w-[40%] mb-4 form-login-fields">
+    <div class="form-login">
+        <div class="flex flex-col items-stretch gap-3">
+            <div class="section-title">Đăng nhập</div>
+            <p class="muted text-sm text-center -mt-2">Chào mừng bạn đến với diễn đàn</p>
+            <div class="form-login-fields">
                 <div>
-                    <span>Email:</span>
+                    <label class="text-sm muted">Email</label>
                     <DxTextBox v-model="formData.email" @enter-key="loginHandler"/>
                 </div>
                 <div>
-                    <span>Mật khẩu:</span>
+                    <label class="text-sm muted">Mật khẩu</label>
                     <DxTextBox
                         v-model="formData.password"
                         mode="password"
@@ -21,18 +17,14 @@
                     />
                 </div>
             </div>
-            <DxButton
-                @click="loginHandler"
-                type="default"
-            >
-                Đăng nhập
-            </DxButton>
-            <i class="mt-4">
-                Nếu chưa có tài khoản vui lòng đăng kí
-            </i>
-            <i class="mt-2 cursor-pointer underline" @click="() => route.push('/forgot-password')">
-                Quên mật khẩu?
-            </i>
+            <DxButton width="100%" text="Đăng nhập" type="default" @click="loginHandler" />
+            <div class="text-sm text-center muted">
+                Chưa có tài khoản?
+                <span class="link" @click="() => route.push('/signup')">Đăng ký</span>
+            </div>
+            <div class="text-sm text-center">
+                <span class="link" @click="() => route.push('/forgot-password')">Quên mật khẩu?</span>
+            </div>
         </div>
     </div>
 </template>
@@ -84,6 +76,10 @@ const getDataUser = async(id) => {
 
 <style scoped>
 .form-login-fields > div {
-    margin-bottom: 8px;
+    margin-bottom: 10px;
+}
+.form-login-fields label {
+    display: block;
+    margin-bottom: 2px;
 }
 </style>

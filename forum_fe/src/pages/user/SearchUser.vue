@@ -1,49 +1,40 @@
 <template>
-    <div class="content flex justify-center flex-wrap">
-        <div class="w-[80%] border p-5 rounded">
-            <div class="flex items-center mb-3">
-                <span class="text-[32px] text-orange-400 font-bold">
-                    Tìm người dùng
-                </span>
-                <div class="ml-auto flex items-center">
-                    <DxTextBox
-                        :value="searchText"
-                        @value-changed="onInput"
-                        @enter-key="doSearch"
-                        placeholder="Nhập tên hoặc email rồi Enter"
-                        :showClearButton="true"
-                        width="260"
-                    />
-                    <DxButton
-                        class="ml-2"
-                        icon="search"
-                        type="default"
-                        @click="doSearch"
-                    >
-                        Tìm
-                    </DxButton>
-                </div>
+    <div class="page">
+        <div class="card">
+            <div class="flex items-center gap-3 mb-4">
+                <span class="section-title mb-0 flex-1">Tìm người dùng</span>
+                <DxTextBox
+                    :value="searchText"
+                    @value-changed="onInput"
+                    @enter-key="doSearch"
+                    placeholder="Tên hoặc email…"
+                    :show-clear-button="true"
+                    width="240"
+                />
+                <DxButton icon="search" type="default" text="Tìm" @click="doSearch" />
             </div>
 
-            <div v-if="loading" class="text-gray-500">Đang tải...</div>
-            <div v-else-if="users.length === 0" class="text-gray-500">
-                Không có người dùng nào
-            </div>
+            <div v-if="loading" class="state">Đang tải…</div>
+            <div v-else-if="users.length === 0" class="state">Không có người dùng nào</div>
 
-            <div v-for="user in users" :key="user.userId" class="flex items-center m-4">
+            <div
+                v-for="user in users"
+                :key="user.userId"
+                class="flex items-center gap-4 py-3 border-b last:border-b-0"
+            >
                 <BaseAvatar
                     :linkAvt="IMAGE_BASE + user.avtUrl"
                     :userCreatedPost="user.fullName"
                     :userId="user.userId"
                 />
                 <div
-                    class="text-black font-bold text-[18px] ml-5 w-[30%] cursor-pointer hover:underline"
+                    class="font-semibold text-[15px] flex-1 min-w-0 truncate cursor-pointer hover:underline"
                     @click="() => route.push('/user/' + user.userId)"
                 >
                     {{ user.fullName }}
                 </div>
-                <div class="text-gray-600 mr-5">{{ user.followers }} người theo dõi</div>
-                <div class="text-gray-600">{{ user.posts }} bài viết</div>
+                <div class="muted text-sm flex-none">{{ user.followers ?? 0 }} theo dõi</div>
+                <div class="muted text-sm flex-none">{{ user.posts ?? 0 }} bài</div>
             </div>
         </div>
     </div>

@@ -1,37 +1,32 @@
 <template>
-    <div class="form-login flex justify-center">
-        <div class="w-[60%] flex flex-col bg-orange-400 items-center rounded py-4">
-            <span class="text-[32px] mb-4">
-                Chỉnh sửa hồ sơ
-            </span>
-            <span class="text-white mb-4">
-                Nhập mật khẩu hiện tại để xác nhận thay đổi
-            </span>
-            <div class="form-edit-profile flex flex-col w-[40%]">
-                <div>
-                    <span>Mật khẩu hiện tại (bắt buộc):</span>
-                    <DxTextBox v-model="dataForm.password" mode="password"/>
-                </div>
-                <div>
-                    <span>Email mới:</span>
-                    <DxTextBox v-model="dataForm.email"/>
-                </div>
-                <div>
-                    <span>Mật khẩu mới:</span>
-                    <DxTextBox v-model="dataForm.newPassword" mode="password"/>
-                </div>
-                <div>
-                    <span>Avatar mới:</span>
-                    <input type="file" accept="image/*" @change="handleFileChange">
-                </div>
-                <div class="flex justify-center">
-                    <DxButton
-                        type="default"
-                        @click="handleSubmit"
-                    >
-                        Cập nhật
-                    </DxButton>
-                </div>
+    <div class="page">
+        <div class="card">
+            <div class="section-title">Xác thực</div>
+            <p class="muted text-sm mb-2">Nhập mật khẩu hiện tại — bắt buộc cho mọi thay đổi bên dưới.</p>
+            <DxTextBox v-model="currentPassword" mode="password" placeholder="Mật khẩu hiện tại" />
+        </div>
+
+        <div class="card">
+            <div class="section-title">Đổi email</div>
+            <div class="flex flex-col sm:flex-row gap-2">
+                <DxTextBox v-model="newEmail" class="flex-1" placeholder="Email mới" />
+                <DxButton type="default" text="Cập nhật email" @click="updateEmail" />
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="section-title">Đổi mật khẩu</div>
+            <div class="flex flex-col sm:flex-row gap-2">
+                <DxTextBox v-model="newPassword" mode="password" class="flex-1" placeholder="Mật khẩu mới (tối thiểu 5 ký tự)" />
+                <DxButton type="default" text="Đổi mật khẩu" @click="updatePassword" />
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="section-title">Đổi ảnh đại diện</div>
+            <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+                <input type="file" accept="image/*" class="flex-1" @change="handleFileChange" />
+                <DxButton type="default" text="Cập nhật ảnh" @click="updateAvatar" />
             </div>
         </div>
     </div>
@@ -48,30 +43,21 @@ import { IMAGE_BASE } from '@/config';
 const route = useRouter();
 const showDialog = inject("openDialogError");
 
-const dataForm = ref({
-    password: null,
-    email: null,
-    newPassword: null,
-    avatar: null,
-});
+const currentPassword = ref("");
+const newEmail = ref("");
+const newPassword = ref("");
+const avatarFile = ref(null);
 
 function handleFileChange(event) {
-    dataForm.value.avatar = event.target.files[0] || null;
+    avatarFile.value = event.target.files[0] || null;
 }
 
-const handleSubmit = async () => {
-    if (!dataForm.value.password) {
+const requirePassword = () => {
+    if (!currentPassword.value) {
         showDialog("Thông báo", "Vui lòng nhập mật khẩu hiện tại");
-        return;
+        return false;
     }
-    try {
-        await editUser(dataForm.value);
-        await refreshLocalUser();
-        showDialog("Thông báo", "Cập nhật hồ sơ thành công");
-        route.push('/');
-    } catch (error) {
-        showDialog("Thông báo", error?.description || "Cập nhật hồ sơ thất bại");
-    }
+    return true;
 }
 
 const refreshLocalUser = async () => {
@@ -83,10 +69,46 @@ const refreshLocalUser = async () => {
         console.log(error);
     }
 }
-</script>
 
-<style scoped>
-.form-edit-profile>div{
-    margin-bottom: 8px;
+const updateEmail = async () => {
+    if (!requirePassword()) return;
+    if (!newEmail.value) { showDialog("Thông báo", "Nhập email mới"); return; }
+    try {
+        await editUser({ password: currentPassword.value, email: newEmail.value });
+        await refreshLocalUser();
+        showDialog("Thông báo", "Cập nhật email thành công");
+        newEmail.value = "";
+    } catch (e) {
+        showDialog("Thông báo", e?.description || "Cập nhật email thất bại");
+    }
 }
-</style>
+
+const updatePassword = async () => {
+    if (!requirePassword()) return;
+    if (!newPassword.value || newPassword.value.length < 5) {
+        showDialog("Thông báo", "Mật khẩu mới phải có tối thiểu 5 ký tự");
+        return;
+    }
+    try {
+        await editUser({ password: currentPassword.value, newPassword: newPassword.value });
+        showDialog("Thông báo", "Đổi mật khẩu thành công, vui lòng đăng nhập lại", () => route.push('/login'));
+        newPassword.value = "";
+        currentPassword.value = "";
+    } catch (e) {
+        showDialog("Thông báo", e?.description || "Đổi mật khẩu thất bại");
+    }
+}
+
+const updateAvatar = async () => {
+    if (!requirePassword()) return;
+    if (!avatarFile.value) { showDialog("Thông báo", "Chọn ảnh đại diện mới"); return; }
+    try {
+        await editUser({ password: currentPassword.value, avatar: avatarFile.value });
+        await refreshLocalUser();
+        showDialog("Thông báo", "Cập nhật ảnh đại diện thành công");
+        avatarFile.value = null;
+    } catch (e) {
+        showDialog("Thông báo", e?.description || "Cập nhật ảnh thất bại");
+    }
+}
+</script>

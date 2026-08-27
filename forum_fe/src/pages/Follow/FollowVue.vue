@@ -1,38 +1,22 @@
 <template>
-    <div class="content flex justify-center flex-wrap">
-        <div class="w-[80%] border p-5 rounded mb-5">
-            <span class="text-[32px] text-orange-400 font-bold mb-5">
-                Danh sách người dùng bạn đang theo dõi
-            </span>
-            <div v-if="listFollow.length === 0" class="text-gray-500 mt-3">
-                Bạn chưa theo dõi ai
-            </div>
-            <div v-for="item in listFollow" :key="item.id" class="flex items-center m-5">
-                <BaseAvatar
-                    :userCreatedPost="item.name"
-                    :userId="item.id"
-                    :isShow="false"
-                />
+    <div class="page">
+        <div class="card">
+            <div class="section-title">Đang theo dõi</div>
+            <div v-if="listFollow.length === 0" class="state">Bạn chưa theo dõi ai</div>
+            <div
+                v-for="item in listFollow"
+                :key="item.id"
+                class="flex items-center gap-4 py-3 border-b last:border-b-0"
+            >
+                <BaseAvatar :userCreatedPost="item.name" :userId="item.id" :isShow="false" />
                 <div
-                    class="text-black font-bold text-[18px] ml-5 w-[25%] cursor-pointer hover:underline"
+                    class="font-semibold text-[15px] flex-1 min-w-0 truncate cursor-pointer hover:underline"
                     @click="() => route.push('/user/' + item.id)"
                 >
                     {{ item.name }}
                 </div>
-                <DxButton
-                    type="success"
-                    icon="message"
-                    @click="() => messageUser(item)"
-                >
-                    Nhắn tin
-                </DxButton>
-                <DxButton
-                    class="ml-2"
-                    type="danger"
-                    @click="() => unFollow(item)"
-                >
-                    Bỏ theo dõi
-                </DxButton>
+                <DxButton type="success" icon="message" text="Nhắn tin" @click="() => messageUser(item)" />
+                <DxButton type="normal" stylingMode="outlined" text="Bỏ theo dõi" @click="() => unFollow(item)" />
             </div>
         </div>
     </div>

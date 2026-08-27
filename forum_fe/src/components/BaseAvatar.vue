@@ -1,12 +1,12 @@
 <template>
     <div class="base-avatar relative cursor-pointer" @click="() => {isFollow = !isFollow}">
-        <img v-if="imageLoaded" :src="linkAvt" @load="handleImageLoad" width="36px" />
-        <div v-if="!imageLoaded" class="size-[36px] rounded flex bg-red-600 items-center justify-center font-bold text-lg text-white">
+        <img v-if="imageLoaded" :src="linkAvt" @load="handleImageLoad" class="size-9 rounded-full object-cover" />
+        <div v-if="!imageLoaded" class="avatar-fallback size-9 text-base">
             <span v-if="userCreatedPost && userCreatedPost?.length > 0">
                     {{ userCreatedPost[0] }}
             </span>
         </div>
-        <div class="absolute top-[36px] left-0 flex flex-col w-[100px] p-1" v-if="isFollow && userName!= userCreatedPost && isShow">
+        <div class="absolute top-[38px] left-0 z-20 flex flex-col gap-1 w-[110px] p-1 bg-white border rounded-lg shadow" v-if="isFollow && userName!= userCreatedPost && isShow">
             <DxButton
                 type="default"
                 @click="follow"

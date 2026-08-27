@@ -1,47 +1,33 @@
 <template>
-    <div class="form-login flex justify-center">
-        <div class="w-[60%] flex flex-col bg-orange-400 items-center rounded py-4">
-            <span class="text-[32px] mb-4">
-                Quên mật khẩu
-            </span>
+    <div class="form-login">
+        <div class="flex flex-col gap-3">
+            <div class="section-title">Quên mật khẩu</div>
 
-            <div v-if="step === 1" class="flex flex-col w-[40%]">
-                <span class="text-white mb-4">
-                    Nhập email đã đăng ký để nhận mã OTP
-                </span>
-                <div class="mb-2">
-                    <span>Email:</span>
-                    <DxTextBox v-model="email"/>
+            <div v-if="step === 1" class="flex flex-col gap-2">
+                <p class="muted text-sm text-center -mt-2">Nhập email đã đăng ký để nhận mã OTP</p>
+                <div>
+                    <label class="text-sm muted">Email</label>
+                    <DxTextBox v-model="email" @enter-key="requestOtp"/>
                 </div>
-                <div class="flex justify-center">
-                    <DxButton type="default" @click="requestOtp">
-                        Gửi mã OTP
-                    </DxButton>
-                </div>
+                <DxButton width="100%" type="default" text="Gửi mã OTP" @click="requestOtp"/>
             </div>
 
-            <div v-else class="flex flex-col w-[40%]">
-                <span class="text-white mb-4">
-                    Đã gửi OTP tới email. Nhập OTP và mật khẩu mới.
-                </span>
-                <div class="mb-2">
-                    <span>Mã OTP:</span>
+            <div v-else class="flex flex-col gap-2">
+                <p class="muted text-sm text-center -mt-2">Đã gửi OTP tới email. Nhập OTP và mật khẩu mới.</p>
+                <div>
+                    <label class="text-sm muted">Mã OTP</label>
                     <DxTextBox v-model="token"/>
                 </div>
-                <div class="mb-2">
-                    <span>Mật khẩu mới (tối thiểu 5 ký tự):</span>
-                    <DxTextBox v-model="newPassword" mode="password"/>
+                <div>
+                    <label class="text-sm muted">Mật khẩu mới (tối thiểu 5 ký tự)</label>
+                    <DxTextBox v-model="newPassword" mode="password" @enter-key="submitReset"/>
                 </div>
-                <div class="flex justify-center">
-                    <DxButton type="default" @click="submitReset">
-                        Đặt lại mật khẩu
-                    </DxButton>
-                </div>
+                <DxButton width="100%" type="default" text="Đặt lại mật khẩu" @click="submitReset"/>
             </div>
 
-            <i class="mt-4 cursor-pointer" @click="() => route.push('/login')">
-                Quay lại đăng nhập
-            </i>
+            <div class="text-sm text-center">
+                <span class="link" @click="() => route.push('/login')">Quay lại đăng nhập</span>
+            </div>
         </div>
     </div>
 </template>

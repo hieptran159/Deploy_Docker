@@ -15,3 +15,7 @@ export const searchUserApi = (name) => {
 export const editUser = (data) => {
     return authApiFormData.patch('/user/edit', data);
 }
+
+export const reportUser = (userId) => {
+    return authApi.post(`/user/${userId}`);
+}

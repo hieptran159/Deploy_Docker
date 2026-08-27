@@ -1,45 +1,33 @@
 <template>
-    <div class="form-login flex justify-center">
-        <div class="w-[60%] flex flex-col bg-orange-400 items-center rounded py-4">
-            <span class="text-[32px] mb-4">
-                Đăng ký thành viên
-            </span>
-            <span class="text-white mb-4">
-                Vui lòng nhập đầy đủ thông tin để đăng ký
-            </span>
-            <div class="form-sign-up flex flex-col w-[40%]">
+    <div class="form-login">
+        <div class="flex flex-col gap-2">
+            <div class="section-title">Đăng ký thành viên</div>
+            <p class="muted text-sm text-center -mt-2 mb-1">Nhập đầy đủ thông tin để tạo tài khoản</p>
+            <div class="form-sign-up flex flex-col">
                 <div>
-                    <span>Họ và tên:</span>
+                    <label class="text-sm muted">Họ và tên</label>
                     <DxTextBox v-model="dataForm.fullName"/>
                 </div>
                 <div>
-                    <span>Email:</span>
+                    <label class="text-sm muted">Email</label>
                     <DxTextBox v-model="dataForm.email"/>
                 </div>
                 <div>
-                    <span>Mật khẩu (tối thiểu 5 ký tự):</span>
+                    <label class="text-sm muted">Mật khẩu (tối thiểu 5 ký tự)</label>
                     <DxTextBox v-model="dataForm.password" mode="password"/>
                 </div>
                 <div>
-                    <span>Ngày sinh:</span>
-                    <DxDateBox v-model="dataForm.birthday" type="date" display-format="yyyy-MM-dd"/>
+                    <label class="text-sm muted">Ngày sinh</label>
+                    <DxDateBox v-model="dataForm.birthday" type="date" display-format="yyyy-MM-dd" width="100%"/>
                 </div>
                 <div>
-                    <span>Avatar:</span>
+                    <label class="text-sm muted">Ảnh đại diện (tuỳ chọn)</label>
                     <input type="file" accept="image/*" @change="handleFileChange">
                 </div>
-                <div class="flex justify-center">
-                    <DxButton
-                        type="default"
-                        @click="handleSignUp"
-                    >
-                        Đăng ký
-                    </DxButton>
-                </div>
-                <div class="text-center mt-2">
-                    <i class="cursor-pointer underline" @click="() => route.push('/login')">
-                        Đã có tài khoản? Đăng nhập
-                    </i>
+                <DxButton width="100%" text="Đăng ký" type="default" @click="handleSignUp"/>
+                <div class="text-center text-sm muted mt-1">
+                    Đã có tài khoản?
+                    <span class="link" @click="() => route.push('/login')">Đăng nhập</span>
                 </div>
             </div>
         </div>
@@ -85,18 +73,10 @@ const handleSignUp = async () => {
         showDialog("Thông báo", "Mật khẩu phải có tối thiểu 5 ký tự");
         return;
     }
-    if (!avatar) {
-        showDialog("Thông báo", "Vui lòng chọn ảnh đại diện");
-        return;
-    }
     try {
-        await signup({
-            fullName,
-            email,
-            password,
-            birthday: formatDate(birthday),
-            avatar,
-        });
+        const payload = { fullName, email, password, birthday: formatDate(birthday) };
+        if (avatar) payload.avatar = avatar;
+        await signup(payload);
         showDialog("Thông báo", "Đăng ký thành công, hãy đăng nhập");
         route.push("/login");
     } catch (error) {
@@ -106,7 +86,11 @@ const handleSignUp = async () => {
 </script>
 
 <style scoped>
-.form-sign-up>div{
-    margin-bottom: 8px;
+.form-sign-up > div {
+    margin-bottom: 10px;
+}
+.form-sign-up label {
+    display: block;
+    margin-bottom: 2px;
 }
 </style>

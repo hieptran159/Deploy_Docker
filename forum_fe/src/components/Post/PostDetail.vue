@@ -1,119 +1,91 @@
 <template>
-    <div class="post-detail w-[100%] flex justify-center items-center flex-col">
-        <div class="w-[80%] border py-5 rounded flex">
-            <div class="w-[10%] h-[120px] flex flex-col justify-center items-center p-2">
-                <BaseAvatar
-                    :linkAvt ="linkAvt"
-                    :userCreatedPost="userCreatedPost"
-                    :userId="post?.userCreatedPost"
-                />
-                <div class="text-black font-bold text-[18px] mt-1 text-center" >
-                    {{ userCreatedPost }}
+    <div class="page">
+        <div class="card">
+            <div class="flex gap-4">
+                <div class="flex flex-col items-center gap-1 flex-none w-16">
+                    <BaseAvatar
+                        :linkAvt="linkAvt"
+                        :userCreatedPost="userCreatedPost"
+                        :userId="post?.userCreatedPost"
+                        :is-show="false"
+                    />
+                    <div
+                        class="text-xs font-semibold text-center cursor-pointer hover:underline truncate w-full"
+                        @click="goAuthor"
+                    >
+                        {{ userCreatedPost }}
+                    </div>
                 </div>
-            </div>
-            <div class="w-[90%] bg-orange-200 p-2 rounded mr-5">
-                <span
-                    class="font-bold text-lg text-[#2577b1] cursor-pointer"
-                >
-                    {{ post?.title }}
-                </span>
 
-                <span class="flex mb-1">
-                    <i class="ml-2 text-yellow-500">
-                        {{ calculateTimeDifference(post?.postedAt) }} trước
-                    </i>
-                    <span class="text-red-500 ml-auto">
-                        <b>{{ post?.likesQuantity }}</b> lượt yêu thích
-                    </span>
-                    <div class="setting relative ml-3" 
-                    @click="() => {isShowSetting = !isShowSetting}"
-                    v-if="post?.userCreatedPost == getItemLocal(LOCALKEYS.USER_ID)">
-                        <DxButton
-                            icon = "info"
-                        />
-                        <div class="absolute w-[100px] flex flex-col" v-if="isShowSetting">
-                            <DxButton
-                                icon = "background"
-                                type = "default"
-                                @click="()=>{ishowEditPost = true}"
-                            >
-                                Chỉnh sửa
-                            </DxButton>
-                            <DxButton
-                                type="danger"
-                                @click="handleDeletePost"
-                            >
-                                Xoá
-                            </DxButton>
+                <div class="min-w-0 flex-1">
+                    <div class="flex items-start gap-2">
+                        <div class="font-bold text-xl text-[var(--accent)] flex-1">{{ post?.title }}</div>
+                        <div
+                            class="relative flex-none"
+                            v-if="post?.userCreatedPost == getItemLocal(LOCALKEYS.USER_ID)"
+                        >
+                            <DxButton icon="overflow" stylingMode="text" @click="isShowSetting = !isShowSetting" />
+                            <div class="absolute right-0 z-20 w-32 flex flex-col bg-white border rounded-lg shadow p-1" v-if="isShowSetting">
+                                <DxButton icon="edit" type="default" stylingMode="text" text="Chỉnh sửa" @click="ishowEditPost = true" />
+                                <DxButton icon="trash" type="danger" stylingMode="text" text="Xoá" @click="handleDeletePost" />
+                            </div>
                         </div>
-                    </div> 
-                </span>
+                    </div>
 
-                <div class="my-2">
-                    {{ post?.body }}
-                </div>
+                    <div class="text-sm muted mt-0.5">
+                        {{ calculateTimeDifference(post?.postedAt) }} trước · {{ post?.likesQuantity ?? 0 }} lượt yêu thích
+                    </div>
 
-                <img :src="linkPostImg" width="400" v-if="post?.postImg"/>
+                    <div class="my-3 whitespace-pre-wrap">{{ post?.body }}</div>
 
-                <div class="flex">
-                    <DxButton
-                        class= "ml-auto"
-                        icon = "like"
-                        type = "danger"
-                        @click="likePost"
-                    >
-                        Yêu thích
-                    </DxButton>
+                    <img :src="linkPostImg" v-if="post?.postImg" class="max-w-md rounded-xl border" />
 
-                    <DxButton
-                        class= "ml-2"
-                        icon = "like"
-                        type = "default"
-                        @click="unLikePost"
-                    >
-                        Bỏ yêu thích
-                    </DxButton>
+                    <div class="row-actions mt-3">
+                        <DxButton icon="like" type="danger" text="Yêu thích" @click="likePost" />
+                        <DxButton icon="like" type="normal" stylingMode="outlined" text="Bỏ yêu thích" @click="unLikePost" />
+                    </div>
                 </div>
             </div>
+        </div>
 
-        </div>
-        <div class="w-[80%] border py-5 rounded mt-3" v-for="comment in post?.comments" :key="comment?.commentId">
-            <Comment :commentProps="comment" @refresh="getDataPostById"/>
-        </div>
-        <div class="w-[80%] border p-5 rounded my-3 flex">
-            <BaseAvatar
-                    :linkAvt ="getItemLocal(LOCALKEYS.LINK_AVT)"
+        <div class="card">
+            <div class="section-title">Bình luận ({{ post?.comments?.length ?? 0 }})</div>
+
+            <div class="flex items-center gap-3 pb-3 border-b">
+                <BaseAvatar
+                    :linkAvt="getItemLocal(LOCALKEYS.LINK_AVT)"
                     :userCreatedPost="getItemLocal(LOCALKEYS.USER_NAME)"
-            />
-            <div class="w-[80%] mx-4">
-                <DxTextBox
-                placeholder="Viết câu trả lời ..."
-                v-model="contentPost"
+                    :is-show="false"
                 />
+                <DxTextBox class="flex-1" placeholder="Viết bình luận…" v-model="contentPost" @enter-key="commentPost" />
+                <DxButton type="default" text="Gửi" @click="commentPost" />
             </div>
 
-            <DxButton
-                type="default"
-                @click="commentPost"
+            <div v-if="!post?.comments?.length" class="state">Chưa có bình luận</div>
+            <div
+                class="py-3 border-b last:border-b-0"
+                v-for="comment in post?.comments"
+                :key="comment?.commentId"
             >
-                Gửi
-            </DxButton>
+                <Comment :commentProps="comment" @refresh="getDataPostById" />
+            </div>
         </div>
 
         <DxPopup
             title="Chỉnh sửa bài viết"
             v-model:visible="ishowEditPost"
-            width="700px"
-            height="400px"
-            >
+            :width="700"
+            :height="420"
+            :hide-on-outside-click="true"
+        >
             <EditPost
                 :postId="id"
                 :body="post?.body"
                 :title="post?.title"
-                @close="() => {ishowEditPost = false; getDataPostById()}"
+                @close="() => { ishowEditPost = false; getDataPostById() }"
                 @post-fail="showDialog('Cập nhật bài viết thất bại')"
-                />
-            </DxPopup>
+            />
+        </DxPopup>
     </div>
 </template>
 
@@ -200,6 +172,10 @@ const handleDeletePost = async() => {
     } catch (error) {
         console.log(error);
     }
+}
+
+const goAuthor = () => {
+    if (post.value?.userCreatedPost) route.push(`/user/${post.value.userCreatedPost}`);
 }
 
 onMounted(async() => {

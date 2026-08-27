@@ -1,51 +1,41 @@
 <template>
-    <div class="header w-[100%] flex sticky mb-5">
-        <div class="w-[40%] ml-[10%]">
-            <DxTabs
-            :selected-index="0"
-            :dataSource="options"
-            @item-click="selectChange"
-            >
-            </DxTabs>
-        </div>
-        <div class="ml-auto mr-[10%] flex items-center">
-            <div v-if="isLogin">
-                <BaseAvatar
-                :link-avt="getItemLocal(LOCALKEYS.LINK_AVT)"
-                :user-created-post="getItemLocal(LOCALKEYS.USER_NAME)"
+    <header class="app-header">
+        <div class="app-header__inner">
+            <span class="app-brand" @click="() => route.push('/')">HIP&nbsp;Forum</span>
+
+            <div v-if="isLogin" class="flex-1 min-w-0">
+                <DxTabs
+                    :selected-index="0"
+                    :dataSource="options"
+                    styling-mode="secondary"
+                    @item-click="selectChange"
                 />
             </div>
-            <div
-                v-if="isLogin"
-                class="text-black font-bold text-[18px] text-center mx-2 cursor-pointer"
-                @click="() => {route.push('/profile/edit')}"
-            >
-                {{ getItemLocal(LOCALKEYS.USER_NAME) }}
+            <div v-else class="flex-1"></div>
+
+            <div v-if="isLogin" class="row-actions">
+                <div
+                    class="flex items-center gap-2 cursor-pointer px-2 py-1 rounded-lg hover:bg-gray-100"
+                    @click="() => route.push('/profile/edit')"
+                >
+                    <BaseAvatar
+                        :link-avt="getItemLocal(LOCALKEYS.LINK_AVT)"
+                        :user-created-post="getItemLocal(LOCALKEYS.USER_NAME)"
+                        :is-show="false"
+                    />
+                    <span class="font-semibold text-[15px] hidden sm:inline">
+                        {{ getItemLocal(LOCALKEYS.USER_NAME) }}
+                    </span>
+                </div>
+                <DxButton icon="runner" hint="Đăng xuất" type="normal" stylingMode="text" @click="logout" />
             </div>
-            <DxButton
-                v-if="isLogin"
-                type="danger"
-                @click="logout"
-            >
-                Đăng xuất
-            </DxButton>
-            <DxButton
-                v-if="!isLogin"
-                class="mr-2"
-                type="success"
-                @click="signUp"
-            >
-                Đăng kí
-            </DxButton>
-            <DxButton
-                v-if="!isLogin"
-                type="default"
-                @click="() => {route.push('/login')}"
-            >
-                Đăng nhập
-            </DxButton>
+
+            <div v-else class="row-actions">
+                <DxButton type="success" stylingMode="contained" @click="signUp">Đăng ký</DxButton>
+                <DxButton type="default" stylingMode="contained" @click="() => route.push('/login')">Đăng nhập</DxButton>
+            </div>
         </div>
-    </div>
+    </header>
 </template>
 
 <script setup>
