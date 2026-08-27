@@ -15,7 +15,11 @@
                 :user-created-post="getItemLocal(LOCALKEYS.USER_NAME)"
                 />
             </div>
-            <div class="text-black font-bold text-[18px] text-center mx-2" >
+            <div
+                v-if="isLogin"
+                class="text-black font-bold text-[18px] text-center mx-2 cursor-pointer"
+                @click="() => {route.push('/profile/edit')}"
+            >
                 {{ getItemLocal(LOCALKEYS.USER_NAME) }}
             </div>
             <DxButton
@@ -71,6 +75,11 @@ const options = ref([
         text: "Bạn bè",
         icon: "group"
     },
+    {
+        id: 3,
+        text: "Tìm người dùng",
+        icon: "search"
+    },
 ])
 
 const isLogin = ref(
@@ -90,17 +99,15 @@ const logout = async () => {
     route.push('/login');
 }
 
+const routeById = {
+    0: '/',
+    1: '/chat',
+    2: '/follow',
+    3: '/users',
+}
+
 const selectChange = (e)=> {
-    const id = e.itemData.id;
-    if(id == 0){
-        route.push('/');
-    }
-    else if(id == 1){
-        route.push('/chat');
-    }
-    else {
-        route.push('/follow');
-    }
+    route.push(routeById[e.itemData.id] || '/');
 }
 
 const signUp = () => {

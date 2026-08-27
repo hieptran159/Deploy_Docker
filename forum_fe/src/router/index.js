@@ -56,6 +56,24 @@ const routers = [
 		beforeEnter: handleBeforeEnter
 	},
 
+	{
+		path: '/users',
+		component: () =>
+			import(
+				"@/pages/user/SearchUser.vue"
+			),
+		beforeEnter: handleBeforeEnter
+	},
+
+	{
+		path: '/profile/edit',
+		component: () =>
+			import(
+				"@/pages/profile/EditProfile.vue"
+			),
+		beforeEnter: handleBeforeEnter
+	},
+
 ]
 
 const vueRouter = createRouter({
