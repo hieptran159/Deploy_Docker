@@ -63,6 +63,15 @@ public class SocketService { // Khai báo một service để xử lý logic
         }
     }
 
+    // Phát 1 sự kiện bất kỳ (typing/seen...) tới mọi client trong phòng trừ người gửi
+    public void broadcastExcept(String conversationId, String eventName, Object payload, SocketIOClient senderClient){
+        for (SocketIOClient client : senderClient.getNamespace().getRoomOperations(conversationId).getClients()) {
+            if (!client.getSessionId().toString().equals(senderClient.getSessionId().toString())) {
+                client.sendEvent(eventName, payload);
+            }
+        }
+    }
+
     public void saveMessage(String userId, String conversationId, String eventName, SocketIOClient senderClient, SendMessageRequest sendMessageRequest) throws Exception{ // Hàm lưu tin nhắn vào database và gửi lại tin nhắn đó cho tất cả client khác trong phòng
         Users user = userRepository.findFirstByUserId(userId);
         if (user == null) {

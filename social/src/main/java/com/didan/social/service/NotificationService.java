@@ -17,4 +17,6 @@ public interface NotificationService {
     void markAllRead() throws Exception;
     // Đánh dấu 1 thông báo đã đọc
     void markRead(String notificationId) throws Exception;
+    // Đánh dấu mọi thông báo CHƯA ĐỌC có cùng targetId là đã đọc; trả về số lượng
+    int markReadByTarget(String targetId) throws Exception;
 }

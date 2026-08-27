@@ -127,6 +127,30 @@ public class ChatServiceImpl implements ChatService {
         return conversationDTO;
     }
 
+    @Override
+    public boolean addMember(String conversationId, String userId) throws Exception {
+        String myId = authorizePathService.getUserIdAuthoried();
+        Conversations conversation = conversationRepository.findFirstByConversationId(conversationId);
+        if (conversation == null) {
+            logger.error("There is no conversation");
+            throw new Exception("There is no conversation");
+        }
+        if (participantRepository.findFirstByConversations_ConversationIdAndUsers_UserId(conversationId, myId) == null) {
+            logger.error("You are not in this conversation");
+            throw new Exception("You are not in this conversation");
+        }
+        Users target = userRepository.findFirstByUserId(userId);
+        if (target == null) {
+            logger.error("User is not found");
+            throw new Exception("User is not found");
+        }
+        if (participantRepository.findFirstByConversations_ConversationIdAndUsers_UserId(conversationId, userId) != null) {
+            return true; // đã ở trong nhóm
+        }
+        addParticipantIfAbsent(conversation, target);
+        return true;
+    }
+
     private void addParticipantIfAbsent(Conversations conversation, Users user) {
         Participants existing = participantRepository.findFirstByConversations_ConversationIdAndUsers_UserId(
                 conversation.getConversationId(), user.getUserId());

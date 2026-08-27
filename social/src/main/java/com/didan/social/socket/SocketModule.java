@@ -14,6 +14,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
+import java.util.Collections;
+
 @Component
 public class SocketModule {
     private final Logger logger = LoggerFactory.getLogger(SocketModule.class);
@@ -28,6 +30,23 @@ public class SocketModule {
         server.addConnectListener(onConnected()); // Thêm listener khi có client kết nối
         server.addDisconnectListener(onDisconnected()); // Thêm listener khi có client ngắt kết nối
         server.addEventListener("send_message", SendMessageRequest.class, onChatReceived()); // Thêm listener khi có client gửi tin nhắn, với tên sự kiện là send_message và kiểu dữ liệu là Chat
+        server.addEventListener("typing", Object.class, relayEvent("typing")); // "đang soạn tin"
+        server.addEventListener("seen", Object.class, relayEvent("seen")); // "đã xem"
+    }
+
+    // Chuyển tiếp 1 sự kiện đơn giản (typing/seen) cho những người còn lại trong phòng, kèm userId
+    private DataListener<Object> relayEvent(String eventName){
+        return (senderClient, data, ackServer) -> {
+            String accessToken = senderClient.getHandshakeData().getSingleUrlParam("token");
+            try {
+                jwtUtils.validateAccessToken(accessToken);
+                String userId = jwtUtils.getUserIdFromAccessToken(accessToken);
+                String conversationId = senderClient.getHandshakeData().getSingleUrlParam("conversationID");
+                socketService.broadcastExcept(conversationId, eventName, Collections.singletonMap("userId", userId), senderClient);
+            } catch (Exception e){
+                logger.error(e.getMessage());
+            }
+        };
     }
 
     private DataListener<SendMessageRequest> onChatReceived(){ // Hàm xử lý khi có tin nhắn được gửi đến

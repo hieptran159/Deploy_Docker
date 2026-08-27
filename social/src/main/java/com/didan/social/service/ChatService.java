@@ -12,6 +12,8 @@ public interface ChatService {
     String createConversation(String conversationName) throws Exception;
     // Mở (hoặc tạo) cuộc trò chuyện 1-1 với một người dùng, cả hai đều là participant
     ConversationDTO openDirectConversation(String otherUserId) throws Exception;
+    // Thêm 1 người dùng vào nhóm (người gọi phải là thành viên của nhóm)
+    boolean addMember(String conversationId, String userId) throws Exception;
     // Tham gia vào phòng chat
     ConversationDTO joinConversation(String conversationId) throws Exception;
     // Rời khỏi phòng chat

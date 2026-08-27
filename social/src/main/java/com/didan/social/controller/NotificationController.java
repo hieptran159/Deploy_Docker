@@ -76,6 +76,25 @@ public class NotificationController {
         }
     }
 
+    @Operation(summary = "Mark all my unread notifications for a target (e.g. conversation) as read",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @PatchMapping("/target/{target_id}/read")
+    public ResponseEntity<?> readByTarget(@PathVariable("target_id") String targetId) {
+        ResponseData payload = new ResponseData();
+        try {
+            Map<String, Object> data = new HashMap<>();
+            data.put("marked", notificationService.markReadByTarget(targetId));
+            payload.setData(data);
+            payload.setDescription("Marked by target");
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e) {
+            payload.setSuccess(false);
+            payload.setStatusCode(500);
+            payload.setDescription(e.getMessage());
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
     @Operation(summary = "Mark one notification as read",
             security = @SecurityRequirement(name = "bearerAuth"))
     @PatchMapping("/{notification_id}/read")

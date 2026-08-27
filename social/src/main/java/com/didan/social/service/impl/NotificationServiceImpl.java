@@ -120,6 +120,23 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     @Override
+    public int markReadByTarget(String targetId) throws Exception {
+        String myId = authorizePathService.getUserIdAuthoried();
+        List<Notifications> unread = notificationRepository.findByRecipientIdAndIsRead(myId, 0);
+        List<Notifications> matched = new ArrayList<>();
+        for (Notifications n : unread) {
+            if (targetId != null && targetId.equals(n.getTargetId())) {
+                n.setIsRead(1);
+                matched.add(n);
+            }
+        }
+        if (!matched.isEmpty()) {
+            notificationRepository.saveAll(matched);
+        }
+        return matched.size();
+    }
+
+    @Override
     public void markRead(String notificationId) throws Exception {
         String myId = authorizePathService.getUserIdAuthoried();
         Notifications n = notificationRepository.findById(notificationId).orElse(null);
