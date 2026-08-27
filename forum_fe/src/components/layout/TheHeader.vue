@@ -106,6 +106,8 @@ import { checkIsAdmin } from '@/apis/admin';
 import { getNotifications, markAllRead, markRead } from '@/apis/notification';
 import { timeAgo } from '@/js/helper';
 import { activeConversationId, activePostId, notifRefreshTick } from '@/storages/appState';
+import { SOCKET_URL } from '@/config';
+import { io } from 'socket.io-client';
 import BaseAvatar from '../BaseAvatar.vue';
 
 const route = useRouter();
@@ -265,14 +267,37 @@ const readAll = async () => {
     notifs.value = notifs.value.map((n) => ({ ...n, read: true }));
 }
 
+/* ---------- socket thông báo realtime (poll vẫn giữ làm dự phòng) ---------- */
+let notifSocket = null;
+let notifDebounce = null;
+const bumpPoll = () => {
+    clearTimeout(notifDebounce);
+    notifDebounce = setTimeout(pollNotifs, 400);
+}
+const startNotifSocket = () => {
+    stopNotifSocket();
+    const token = getItemLocal(LOCALKEYS.ACCESS_TOKEN);
+    if (!token) return;
+    try {
+        notifSocket = io(SOCKET_URL, { transports: ['websocket'], query: { token } });
+        notifSocket.on('notification', bumpPoll);
+    } catch (e) { /* ignore */ }
+}
+const stopNotifSocket = () => {
+    clearTimeout(notifDebounce);
+    if (notifSocket) { notifSocket.removeAllListeners(); notifSocket.disconnect(); notifSocket = null; }
+}
+
 const startNotifPoll = () => {
     stopNotifPoll();
     firstPoll = true;
     pollNotifs();
     pollTimer = setInterval(pollNotifs, 20000);
+    startNotifSocket();
 }
 const stopNotifPoll = () => {
     if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    stopNotifSocket();
 }
 
 const onDocClick = (e) => {

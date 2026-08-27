@@ -94,7 +94,7 @@ public class CommentServiceImpl extends ConvertDTO implements CommentService {
         UserComment userComment = new UserComment();
         UUID commentId = UUID.randomUUID();
         comment.setCommentId(commentId.toString());
-        comment.setContent(createCommentRequest.getContent());
+        comment.setContent(StringUtils.hasText(createCommentRequest.getContent()) ? createCommentRequest.getContent() : "");
         if (createCommentRequest.getCommentImg() != null && !createCommentRequest.getCommentImg().isEmpty()){
             String fileName = fileUploadsService.storeFile(createCommentRequest.getCommentImg(), "comment", commentId.toString());
             comment.setCommentImg("comment/"+fileName);

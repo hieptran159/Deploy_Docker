@@ -86,6 +86,12 @@ public class SocketModule {
                 String userId = jwtUtils.getUserIdFromAccessToken(accessToken);
                 String conversationId = client.getHandshakeData().getSingleUrlParam("conversationID"); // Lấy ra các tham số và giá trị của URL mà client gửi lên
                 client.set("userId", userId); // lưu userId lên session để người khác biết
+                client.joinRoom("user:" + userId); // phòng riêng để nhận thông báo realtime
+                if (!StringUtils.hasText(conversationId)) {
+                    // socket chỉ để nhận thông báo cá nhân, không tham gia phòng chat nào
+                    logger.info(String.format("Notification socket connected - userId[%s]", userId));
+                    return;
+                }
                 client.joinRoom(conversationId); // Thêm client vào phòng chat với id là roomId
                 // cho người vừa vào biết ai đang online sẵn trong phòng
                 for (SocketIOClient other : server.getRoomOperations(conversationId).getClients()) {
@@ -112,6 +118,11 @@ public class SocketModule {
                 jwtUtils.validateAccessToken(accessToken);
                 String userId = jwtUtils.getUserIdFromAccessToken(accessToken);
                 String conversationId = client.getHandshakeData().getSingleUrlParam("conversationID"); // Lấy ra các tham số và giá trị của URL mà client gửi lên
+                if (!StringUtils.hasText(conversationId)) {
+                    // socket thông báo cá nhân: không có phòng chat để xử lý
+                    logger.info(String.format("Notification socket disconnected - userId[%s]", userId));
+                    return;
+                }
                 socketService.broadcastExcept(conversationId, "presence", presencePayload(userId, false), client); // báo offline TRƯỚC khi rời phòng
                 client.leaveRoom(conversationId);
                 socketService.saveInfoMessage(conversationId, "get_message", client, String.format("%s disconnected", userId)); // Lưu tin nhắn thông báo đã kết nối và gửi đó cho tất cả client khác trong phòng qua hàm saveInfoMessage của service

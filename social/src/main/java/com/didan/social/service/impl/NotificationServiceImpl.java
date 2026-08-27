@@ -7,6 +7,7 @@ import com.didan.social.repository.NotificationRepository;
 import com.didan.social.repository.UserRepository;
 import com.didan.social.service.AuthorizePathService;
 import com.didan.social.service.NotificationService;
+import com.didan.social.socket.RealtimeGateway;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,14 +28,17 @@ public class NotificationServiceImpl implements NotificationService {
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
     private final AuthorizePathService authorizePathService;
+    private final RealtimeGateway realtimeGateway;
 
     @Autowired
     public NotificationServiceImpl(NotificationRepository notificationRepository,
                                    UserRepository userRepository,
-                                   AuthorizePathService authorizePathService) {
+                                   AuthorizePathService authorizePathService,
+                                   RealtimeGateway realtimeGateway) {
         this.notificationRepository = notificationRepository;
         this.userRepository = userRepository;
         this.authorizePathService = authorizePathService;
+        this.realtimeGateway = realtimeGateway;
     }
 
     @Override
@@ -54,6 +58,15 @@ public class NotificationServiceImpl implements NotificationService {
             LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
             n.setCreatedAt(Timestamp.valueOf(now));
             notificationRepository.save(n);
+            // đẩy realtime xuống chuông của người nhận (nếu họ đang mở web)
+            try {
+                java.util.Map<String, Object> ping = new java.util.HashMap<>();
+                ping.put("type", type);
+                ping.put("actorId", actorId);
+                ping.put("targetId", targetId);
+                ping.put("message", message);
+                realtimeGateway.toUser(recipientId, "notification", ping);
+            } catch (Exception ignore) { /* realtime là phụ */ }
         } catch (Exception e) {
             // thông báo là phụ, không được làm hỏng luồng chính
             logger.error("Could not push notification: " + e.getMessage());
