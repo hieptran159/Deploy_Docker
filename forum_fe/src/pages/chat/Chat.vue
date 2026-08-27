@@ -87,7 +87,16 @@
                 <template v-else>
                     <div class="p-3 border-b flex items-center gap-3">
                         <div class="min-w-0 flex-1">
-                            <div class="font-bold truncate">{{ displayName(active) }}</div>
+                            <div v-if="renaming" class="flex items-center gap-1">
+                                <DxTextBox v-model="renameText" class="flex-1" @enter-key="saveRename" />
+                                <DxButton icon="check" type="success" stylingMode="text" @click="saveRename" />
+                                <DxButton icon="close" stylingMode="text" @click="renaming = false" />
+                            </div>
+                            <div v-else class="font-bold truncate flex items-center gap-1">
+                                <span class="truncate">{{ displayName(active) }}</span>
+                                <button v-if="!isDm(active.conversationName)" class="text-xs muted hover:text-[var(--text)]"
+                                    title="Đổi tên nhóm" @click="startRename">✎</button>
+                            </div>
                             <div class="text-xs" :class="statusClass">{{ statusText }}</div>
                         </div>
                         <DxButton v-if="!isDm(active.conversationName)"
@@ -99,12 +108,15 @@
                         <DxButton text="Rời" type="danger" stylingMode="text" @click="handleLeave" />
                     </div>
 
-                    <div v-if="showMembers && !isDm(active.conversationName)" class="px-3 py-2 border-b bg-gray-50 flex flex-wrap gap-1">
-                        <span class="text-xs muted mr-1">Thành viên ({{ members.length }}):</span>
+                    <div v-if="showMembers && !isDm(active.conversationName)" class="px-3 py-2 border-b bg-gray-50 flex flex-wrap gap-1.5">
+                        <span class="text-xs muted mr-1 self-center">Thành viên ({{ members.length }}):</span>
                         <span v-for="mem in members" :key="mem.userId"
-                            class="text-xs bg-white border rounded-full px-2 py-0.5 cursor-pointer hover:underline"
-                            @click="() => router.push('/user/' + mem.userId)">
-                            {{ mem.fullName }}{{ mem.userId === myId ? ' (bạn)' : '' }}
+                            class="text-xs bg-white border rounded-full pl-2 pr-1 py-0.5 flex items-center gap-1">
+                            <span class="cursor-pointer hover:underline" @click="() => router.push('/user/' + mem.userId)">
+                                {{ mem.fullName }}{{ mem.userId === myId ? ' (bạn)' : '' }}
+                            </span>
+                            <button v-if="mem.userId !== myId" class="text-[var(--danger)] font-bold px-0.5"
+                                title="Xoá khỏi nhóm" @click="() => confirmRemoveMember(mem)">×</button>
                         </span>
                     </div>
 
@@ -199,7 +211,7 @@ import { io } from 'socket.io-client';
 import {
     getMyConversations, searchConversations, getMessages,
     createConversation, joinConversation, leaveConversation, sendMessageRest, addMember, getMembers,
-    editMessage, recallMessage,
+    editMessage, recallMessage, renameConversation, removeMember,
 } from '@/apis/chat';
 import { getUserInfo } from '@/apis/user';
 import { getFriends } from '@/apis/friend';
@@ -246,6 +258,10 @@ const addResults = ref([]);
 // sửa / thu hồi tin nhắn
 const editingId = ref(null);
 const editText = ref('');
+
+// đổi tên nhóm
+const renaming = ref(false);
+const renameText = ref('');
 
 // typing / seen / presence
 const otherTyping = ref(false);
@@ -436,6 +452,43 @@ const toggleMembers = () => {
     if (showMembers.value) loadMembers();
 }
 
+/* ---------- đổi tên nhóm / xoá thành viên ---------- */
+const setConvName = (convId, name) => {
+    if (active.value?.conversationId === convId) active.value = { ...active.value, conversationName: name };
+    const i = conversations.value.findIndex((c) => c.conversationId === convId);
+    if (i !== -1) conversations.value[i] = { ...conversations.value[i], conversationName: name };
+}
+
+const startRename = () => {
+    renameText.value = active.value?.conversationName || '';
+    renaming.value = true;
+}
+const saveRename = async () => {
+    const name = (renameText.value || '').trim();
+    if (!name) { showDialog?.('Thông báo', 'Tên nhóm không được để trống'); return; }
+    if (name === active.value?.conversationName) { renaming.value = false; return; }
+    try {
+        await renameConversation(active.value.conversationId, name);
+        setConvName(active.value.conversationId, name);
+        renaming.value = false;
+        toast?.('Đã đổi tên nhóm');
+    } catch (e) {
+        showDialog?.('Thông báo', e?.description || 'Đổi tên thất bại');
+    }
+}
+
+const confirmRemoveMember = (mem) => {
+    openConfirm?.('Xoá thành viên', `Xoá ${mem.fullName} khỏi nhóm?`, async () => {
+        try {
+            await removeMember(active.value.conversationId, mem.userId);
+            members.value = members.value.filter((m) => m.userId !== mem.userId);
+            toast?.(`Đã xoá ${mem.fullName}`);
+        } catch (e) {
+            showDialog?.('Thông báo', e?.description || 'Xoá thành viên thất bại');
+        }
+    }, { danger: true, confirmText: 'Xoá' });
+}
+
 const openAddMember = async () => {
     showAddMember.value = true;
     addQuery.value = '';
@@ -530,6 +583,8 @@ const openConversation = async (c) => {
     otherOnline.value = false;
     showMembers.value = false;
     members.value = [];
+    renaming.value = false;
+    editingId.value = null;
     try {
         const res = await getMessages(c.conversationId);
         messages.value = res?.data?.data || [];
@@ -574,6 +629,22 @@ const connectSocket = (conversationId) => {
     });
     socket.on('seen', () => { otherSeen.value = true; otherOnline.value = true; });
     socket.on('message_updated', (dto) => { applyUpdated(dto); });
+    socket.on('conversation_renamed', (p) => {
+        if (p && p.conversationId) setConvName(p.conversationId, p.conversationName);
+    });
+    socket.on('member_removed', (p) => {
+        if (!p || p.conversationId !== active.value?.conversationId) return;
+        if (p.userId === myId) {
+            toast?.('Bạn đã bị xoá khỏi nhóm này');
+            teardownSocket();
+            active.value = null;
+            activeConversationId.value = null;
+            messages.value = [];
+            loadConversations();
+        } else {
+            members.value = members.value.filter((m) => m.userId !== p.userId);
+        }
+    });
     socket.on('presence', (p) => {
         otherOnline.value = !!(p && p.online);
         if (p && !p.online) otherSeen.value = false;

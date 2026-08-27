@@ -33,4 +33,8 @@ public interface ChatService {
     MessageDTO editMessage(String messageId, String content) throws Exception;
     // Thu hồi 1 tin nhắn (chỉ chủ tin nhắn)
     MessageDTO recallMessage(String messageId) throws Exception;
+    // Đổi tên nhóm (người gọi phải là thành viên, không áp dụng cho DM)
+    boolean renameConversation(String conversationId, String newName) throws Exception;
+    // Xoá 1 thành viên khỏi nhóm (người gọi phải là thành viên, không áp dụng cho DM)
+    boolean removeMember(String conversationId, String userId) throws Exception;
 }

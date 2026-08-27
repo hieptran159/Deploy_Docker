@@ -40,6 +40,14 @@ export const sendMessageRest = (conversationId, data) => {
     return authApiFormData.post(`/chat/send/${conversationId}`, data);
 }
 
+export const renameConversation = (conversationId, name) => {
+    return authApi.patch(`/chat/conversation/${conversationId}/name`, { name });
+}
+
+export const removeMember = (conversationId, userId) => {
+    return authApi.delete(`/chat/${conversationId}/members/${userId}`);
+}
+
 export const editMessage = (messageId, content) => {
     return authApi.patch(`/chat/message/${messageId}`, { content });
 }

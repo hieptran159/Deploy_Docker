@@ -4,6 +4,7 @@ import com.didan.social.dto.ConversationDTO;
 import com.didan.social.dto.MessageDTO;
 import com.didan.social.payload.ResponseData;
 import com.didan.social.payload.request.EditMessageRequest;
+import com.didan.social.payload.request.RenameConversationRequest;
 import com.didan.social.payload.request.SendMessageRequest;
 import com.didan.social.service.ChatService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -109,6 +110,46 @@ public class ChatController {
         try {
             chatService.addMember(conversationId, userId);
             payload.setDescription("Added member successful");
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e){
+            payload.setSuccess(false);
+            payload.setStatusCode(500);
+            payload.setDescription(e.getMessage());
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
+    // Remove a member from a group
+    @Operation(summary = "Remove a member from a group conversation",
+            description = "Người gọi phải là thành viên của nhóm; không áp dụng cho tin nhắn riêng",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @DeleteMapping("/{conversation_id}/members/{user_id}")
+    public ResponseEntity<?> removeMember(@PathVariable("conversation_id") String conversationId,
+                                          @PathVariable("user_id") String userId){
+        ResponseData payload = new ResponseData();
+        try {
+            chatService.removeMember(conversationId, userId);
+            payload.setDescription("Removed member successful");
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e){
+            payload.setSuccess(false);
+            payload.setStatusCode(500);
+            payload.setDescription(e.getMessage());
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
+    // Rename a group conversation
+    @Operation(summary = "Rename a group conversation",
+            description = "Người gọi phải là thành viên của nhóm; không áp dụng cho tin nhắn riêng",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @PatchMapping("/conversation/{conversation_id}/name")
+    public ResponseEntity<?> renameConversation(@PathVariable("conversation_id") String conversationId,
+                                                @RequestBody RenameConversationRequest request){
+        ResponseData payload = new ResponseData();
+        try {
+            chatService.renameConversation(conversationId, request == null ? null : request.getName());
+            payload.setDescription("Renamed conversation successful");
             return new ResponseEntity<>(payload, HttpStatus.OK);
         } catch (Exception e){
             payload.setSuccess(false);

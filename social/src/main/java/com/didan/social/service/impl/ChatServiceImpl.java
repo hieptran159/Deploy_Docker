@@ -403,6 +403,64 @@ public class ChatServiceImpl implements ChatService {
         return dto;
     }
 
+    private boolean isDm(Conversations c) {
+        String n = c == null ? null : c.getConversationName();
+        return n != null && (n.startsWith("dm:") || n.startsWith("dm_"));
+    }
+
+    @Override
+    public boolean renameConversation(String conversationId, String newName) throws Exception {
+        String me = authorizePathService.getUserIdAuthoried();
+        if (newName == null || newName.trim().isEmpty()) {
+            throw new Exception("Tên nhóm không được để trống");
+        }
+        Conversations conversation = conversationRepository.findFirstByConversationId(conversationId);
+        if (conversation == null) {
+            throw new Exception("Không tìm thấy nhóm");
+        }
+        if (isDm(conversation)) {
+            throw new Exception("Không thể đổi tên tin nhắn riêng");
+        }
+        if (participantRepository.findFirstByConversations_ConversationIdAndUsers_UserId(conversationId, me) == null) {
+            throw new Exception("Bạn không ở trong nhóm này");
+        }
+        conversation.setConversationName(newName.trim());
+        conversationRepository.save(conversation);
+        Map<String, Object> p = new HashMap<>();
+        p.put("conversationId", conversationId);
+        p.put("conversationName", newName.trim());
+        realtimeGateway.toRoom(conversationId, "conversation_renamed", p);
+        return true;
+    }
+
+    @Override
+    public boolean removeMember(String conversationId, String userId) throws Exception {
+        String me = authorizePathService.getUserIdAuthoried();
+        Conversations conversation = conversationRepository.findFirstByConversationId(conversationId);
+        if (conversation == null) {
+            throw new Exception("Không tìm thấy nhóm");
+        }
+        if (isDm(conversation)) {
+            throw new Exception("Không thể xoá thành viên khỏi tin nhắn riêng");
+        }
+        if (participantRepository.findFirstByConversations_ConversationIdAndUsers_UserId(conversationId, me) == null) {
+            throw new Exception("Bạn không ở trong nhóm này");
+        }
+        if (me.equals(userId)) {
+            throw new Exception("Hãy dùng chức năng rời nhóm để tự rời");
+        }
+        Participants target = participantRepository.findFirstByConversations_ConversationIdAndUsers_UserId(conversationId, userId);
+        if (target == null) {
+            throw new Exception("Người này không ở trong nhóm");
+        }
+        participantRepository.delete(target);
+        Map<String, Object> p = new HashMap<>();
+        p.put("conversationId", conversationId);
+        p.put("userId", userId);
+        realtimeGateway.toRoom(conversationId, "member_removed", p);
+        return true;
+    }
+
     @Override
     public MessageDTO recallMessage(String messageId) throws Exception {
         String userId = authorizePathService.getUserIdAuthoried();
