@@ -22,12 +22,24 @@
 
             <!-- Chuông thông báo -->
             <div v-if="isLogin" class="relative">
-                <button class="relative p-1.5 rounded-lg hover:bg-gray-100" @click="toggleNotif">
-                    <span class="dx-icon dx-icon-bell text-[20px]"></span>
+                <button
+                    class="relative flex items-center justify-center size-9 rounded-lg hover:bg-gray-100"
+                    :class="{ 'text-[var(--brand)]': unread > 0 }"
+                    title="Thông báo"
+                    @click="toggleNotif"
+                >
+                    <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                        <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                    </svg>
                     <span
                         v-if="unread > 0"
-                        class="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-[var(--danger)] text-white text-[10px] font-bold flex items-center justify-center"
+                        class="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[var(--danger)] text-white text-[11px] leading-none font-bold flex items-center justify-center ring-2 ring-[var(--surface)]"
                     >{{ unread > 99 ? '99+' : unread }}</span>
+                    <span
+                        v-if="unread > 0"
+                        class="absolute -top-1 -right-1 size-[18px] rounded-full bg-[var(--danger)] opacity-60 animate-ping"
+                    ></span>
                 </button>
 
                 <div
@@ -169,11 +181,17 @@ const toggleNotif = async () => {
     try {
         const res = await getNotifications();
         notifs.value = res?.data?.data || [];
+        // đồng bộ lại badge theo dữ liệu mới nhất
+        unread.value = notifs.value.filter((n) => !n.read).length;
     } catch (e) {
         notifs.value = [];
     } finally {
         notifLoading.value = false;
     }
+}
+
+const onVisible = () => {
+    if (document.visibilityState === 'visible') loadUnread();
 }
 
 const onNotifClick = async (n) => {
@@ -196,7 +214,7 @@ const readAll = async () => {
 const startNotifPoll = () => {
     stopNotifPoll();
     loadUnread();
-    pollTimer = setInterval(loadUnread, 60000);
+    pollTimer = setInterval(loadUnread, 20000);
 }
 const stopNotifPoll = () => {
     if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
@@ -210,10 +228,12 @@ onMounted(() => {
     refreshAdminFlag();
     if (isLogin.value) startNotifPoll();
     document.addEventListener('click', onDocClick);
+    document.addEventListener('visibilitychange', onVisible);
 });
 onBeforeUnmount(() => {
     stopNotifPoll();
     document.removeEventListener('click', onDocClick);
+    document.removeEventListener('visibilitychange', onVisible);
 });
 
 watch(route.currentRoute, () => {
