@@ -19,7 +19,11 @@
                 </span>
                 <span class="text-xs muted">· {{ comment?.commentLikes ?? 0 }} thích</span>
             </div>
-            <div v-if="comment.content" class="mt-0.5 whitespace-pre-wrap">{{ comment.content }}</div>
+            <div v-if="comment.content" class="mt-0.5 whitespace-pre-wrap">
+                <template v-for="(p, i) in contentParts" :key="i"><span
+                    v-if="p.mention" class="text-[var(--brand)] font-semibold cursor-pointer hover:underline"
+                    @click="() => route.push('/user/' + p.id)">@{{ p.mention }}</span><template v-else>{{ p.t }}</template></template>
+            </div>
             <img
                 v-if="commentImgUrl"
                 :src="commentImgUrl"
@@ -95,6 +99,21 @@ const likedByMe = computed(() => (comment.value?.userLikes || []).includes(myId)
 const commentImgUrl = computed(() => {
     const p = comment.value?.commentImg;
     return p && !String(p).includes('null') ? IMAGE_BASE + p : '';
+});
+
+// tách @[Tên](userId) thành phần văn bản + phần nhắc tên
+const contentParts = computed(() => {
+    const text = comment.value?.content || '';
+    const re = /@\[([^\]]+)\]\(([0-9a-fA-F-]{8,})\)/g;
+    const out = [];
+    let last = 0, m;
+    while ((m = re.exec(text)) !== null) {
+        if (m.index > last) out.push({ t: text.slice(last, m.index) });
+        out.push({ mention: m[1], id: m[2] });
+        last = m.index + m[0].length;
+    }
+    if (last < text.length) out.push({ t: text.slice(last) });
+    return out;
 });
 
 const getDataUser = async () => {

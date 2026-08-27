@@ -58,13 +58,22 @@
             <div class="section-title">Bình luận ({{ post?.comments?.length ?? 0 }})</div>
 
             <div class="pb-3 border-b">
-                <div class="flex items-center gap-3">
+                <div class="flex items-center gap-3 relative">
                     <BaseAvatar
                         :linkAvt="getItemLocal(LOCALKEYS.LINK_AVT)"
                         :userCreatedPost="getItemLocal(LOCALKEYS.USER_NAME)"
                         :is-show="false"
                     />
-                    <DxTextBox class="flex-1" placeholder="Viết bình luận…" v-model="contentPost" @enter-key="commentPost" />
+                    <div class="flex-1 relative">
+                        <DxTextBox class="w-full" placeholder="Viết bình luận… (gõ @ để nhắc tên)" v-model="contentPost"
+                            :value-change-event="'input'" @enter-key="commentPost" />
+                        <div v-if="mentionOpen && mentionResults.length"
+                            class="absolute z-30 left-0 right-0 top-full mt-1 bg-[var(--surface)] border rounded-lg shadow-lg overflow-hidden">
+                            <button v-for="u in mentionResults" :key="u.userId" type="button"
+                                class="w-full text-left px-3 py-2 text-sm hover:bg-[var(--brand-soft)] truncate"
+                                @click="pickMention(u)">@{{ u.fullName }}</button>
+                        </div>
+                    </div>
                     <EmojiPicker direction="down" @pick="addCommentEmoji" />
                     <DxButton
                         :icon="commentImg ? 'photo' : 'image'"
@@ -115,11 +124,11 @@
 </template>
 
 <script setup>
-import { onMounted, onBeforeUnmount, ref, computed, inject } from 'vue';
+import { onMounted, onBeforeUnmount, ref, computed, inject, watch } from 'vue';
 import { getPostById } from '@/apis/post';
 import { createComment } from '@/apis/comment';
 import { likePostApi, unLikePostApi, deletePost } from '@/apis/post';
-import { getUserInfo } from '@/apis/user';
+import { getUserInfo, getAllUsers } from '@/apis/user';
 import { markReadByTarget } from '@/apis/notification';
 import { useRouter } from 'vue-router';
 import { calculateTimeDifference } from '@/js/helper';
@@ -149,6 +158,34 @@ const ishowEditPost = ref(false);
 const commentImg = ref(null);
 const commentImgPreview = ref('');
 const commentFileEl = ref(null);
+
+/* ---------- @nhắc tên ---------- */
+const allUsers = ref([]);
+const mentionOpen = ref(false);
+const mentionResults = ref([]);
+const MENTION_TAIL = /@([^\s@[\]]{0,20})$/;
+
+const loadUsers = async () => {
+    try {
+        const res = await getAllUsers();
+        allUsers.value = (res?.data?.data || []).filter((u) => u.userId !== getItemLocal(LOCALKEYS.USER_ID));
+    } catch (e) { allUsers.value = []; }
+};
+
+watch(contentPost, (val) => {
+    const mm = (val || '').match(MENTION_TAIL);
+    if (!mm) { mentionOpen.value = false; return; }
+    const q = mm[1].toLowerCase();
+    mentionResults.value = allUsers.value
+        .filter((u) => (u.fullName || '').toLowerCase().includes(q))
+        .slice(0, 6);
+    mentionOpen.value = mentionResults.value.length > 0;
+});
+
+const pickMention = (u) => {
+    contentPost.value = (contentPost.value || '').replace(MENTION_TAIL, `@[${u.fullName}](${u.userId}) `);
+    mentionOpen.value = false;
+};
 
 const getDataPostById = async() => {
     const data =  await getPostById(id.value);
@@ -234,6 +271,7 @@ const markPostNotifsRead = async () => {
 
 onMounted(async() => {
     activePostId.value = id.value;
+    loadUsers();
     await getDataPostById();
     await getDataUser();
     // đang xem bài này -> đánh dấu đã đọc các thông báo bình luận / thích của bài

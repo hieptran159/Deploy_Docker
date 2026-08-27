@@ -12,6 +12,10 @@ export const searchUserApi = (name) => {
     return authApi.get(`/user/search?name=${name}`);
 }
 
+export const getAllUsers = () => {
+    return authApi.get('/user/getAllUser');
+}
+
 export const editUser = (data) => {
     return authApiFormData.patch('/user/edit', data);
 }

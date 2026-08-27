@@ -110,6 +110,23 @@ public class CommentServiceImpl extends ConvertDTO implements CommentService {
             notificationService.push(owner.getUsers().getUserId(), user.getUserId(), "COMMENT", postId,
                     user.getFullName() + " đã bình luận bài viết của bạn");
         }
+        // @nhắc tên: tách các token dạng @[Tên](userId) trong nội dung
+        try {
+            String body = createCommentRequest.getContent();
+            if (body != null) {
+                java.util.regex.Matcher mt = java.util.regex.Pattern
+                        .compile("@\\[[^\\]]+\\]\\(([0-9a-fA-F\\-]{8,})\\)")
+                        .matcher(body);
+                java.util.Set<String> mentioned = new java.util.HashSet<>();
+                while (mt.find()) mentioned.add(mt.group(1));
+                for (String uid : mentioned) {
+                    notificationService.pushUniquePerActor(uid, user.getUserId(), "MENTION", postId,
+                            user.getFullName() + " đã nhắc đến bạn trong một bình luận");
+                }
+            }
+        } catch (Exception ex) {
+            logger.error("mention parse failed: " + ex.getMessage());
+        }
         return commentId.toString();
     }
 
