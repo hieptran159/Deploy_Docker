@@ -294,10 +294,12 @@ const readAll = async () => {
 /* ---------- socket thông báo realtime (poll vẫn giữ làm dự phòng) ---------- */
 let notifSocket = null;
 let notifDebounce = null;
+let hbTimer = null;
 const bumpPoll = () => {
     clearTimeout(notifDebounce);
     notifDebounce = setTimeout(pollNotifs, 400);
 }
+const sendBye = () => { try { notifSocket?.emit('bye'); } catch (e) { /* ignore */ } };
 const startNotifSocket = () => {
     stopNotifSocket();
     const token = getItemLocal(LOCALKEYS.ACCESS_TOKEN);
@@ -306,11 +308,15 @@ const startNotifSocket = () => {
         notifSocket = io(SOCKET_URL, { transports: ['websocket'], query: { token } });
         notifSocket.on('notification', bumpPoll);
         notifSocket.on('friend_presence', (p) => { if (p) setPeerOnline(p.userId, !!p.online); });
+        notifSocket.on('connect', () => { try { notifSocket.emit('hb'); } catch (e) { /* ignore */ } });
+        clearInterval(hbTimer);
+        hbTimer = setInterval(() => { try { notifSocket?.emit('hb'); } catch (e) { /* ignore */ } }, 20000);
     } catch (e) { /* ignore */ }
 }
 const stopNotifSocket = () => {
+    clearInterval(hbTimer);
     clearTimeout(notifDebounce);
-    if (notifSocket) { notifSocket.removeAllListeners(); notifSocket.disconnect(); notifSocket = null; }
+    if (notifSocket) { sendBye(); notifSocket.removeAllListeners(); notifSocket.disconnect(); notifSocket = null; }
     onlinePeers.value = new Set();
 }
 
@@ -330,16 +336,21 @@ const onDocClick = (e) => {
     if (showNotif.value && !e.target.closest('.app-header')) showNotif.value = false;
 }
 
+const onPageHide = () => { sendBye(); };
 onMounted(() => {
     refreshAdminFlag();
     if (isLogin.value) startNotifPoll();
     document.addEventListener('click', onDocClick);
     document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('pagehide', onPageHide);
+    window.addEventListener('beforeunload', onPageHide);
 });
 onBeforeUnmount(() => {
     stopNotifPoll();
     document.removeEventListener('click', onDocClick);
     document.removeEventListener('visibilitychange', onVisible);
+    window.removeEventListener('pagehide', onPageHide);
+    window.removeEventListener('beforeunload', onPageHide);
 });
 
 watch(route.currentRoute, () => {

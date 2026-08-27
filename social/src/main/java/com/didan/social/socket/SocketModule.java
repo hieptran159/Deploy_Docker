@@ -25,8 +25,9 @@ public class SocketModule {
     private final SocketService socketService; // Khai báo một service để xử lý logic
     private final JwtUtils jwtUtils;
     private final com.didan.social.service.FollowService followService;
-    // đếm số socket "thông báo" đang mở của mỗi user -> biết ai online
-    private final java.util.concurrent.ConcurrentHashMap<String, Integer> onlineCount = new java.util.concurrent.ConcurrentHashMap<>();
+    // userId -> mốc thời gian nhận heartbeat gần nhất (còn khoá = đang online)
+    private final java.util.concurrent.ConcurrentHashMap<String, Long> lastSeen = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final long ONLINE_TTL_MS = 45_000L;
     @Autowired
     public SocketModule(SocketIOServer server, SocketService socketService, JwtUtils jwtUtils,
                         com.didan.social.service.FollowService followService){ // Inject server socket và service vào
@@ -39,6 +40,8 @@ public class SocketModule {
         server.addEventListener("send_message", SendMessageRequest.class, onChatReceived()); // Thêm listener khi có client gửi tin nhắn, với tên sự kiện là send_message và kiểu dữ liệu là Chat
         server.addEventListener("typing", Object.class, relayEvent("typing")); // "đang soạn tin"
         server.addEventListener("seen", Object.class, relayEvent("seen")); // "đã xem"
+        server.addEventListener("hb", Object.class, onHeartbeat());   // client báo còn sống mỗi ~20s
+        server.addEventListener("bye", Object.class, onBye());        // client sắp đóng tab
     }
 
     private Map<String, Object> payload(String userId){
@@ -53,40 +56,81 @@ public class SocketModule {
         return m;
     }
 
-    // Khi 1 user mở socket thông báo: nếu vừa online -> báo cho bạn bè; đồng thời
-    // cho user này biết bạn bè nào đang online.
-    private void handleFriendPresenceOnConnect(SocketIOClient client, String userId){
+    private boolean isOnline(String userId){
+        Long ts = lastSeen.get(userId);
+        return ts != null && System.currentTimeMillis() - ts <= ONLINE_TTL_MS;
+    }
+
+    private void notifyFriends(String userId, boolean online){
         try {
-            int n = onlineCount.merge(userId, 1, Integer::sum);
-            java.util.List<String> friends = followService.friendIdsOf(userId);
-            if (n == 1) {
-                for (String fid : friends) {
-                    server.getRoomOperations("user:" + fid).sendEvent("friend_presence", presencePayload(userId, true));
-                }
-            }
-            for (String fid : friends) {
-                if (onlineCount.getOrDefault(fid, 0) > 0) {
-                    client.sendEvent("friend_presence", presencePayload(fid, true));
-                }
+            for (String fid : followService.friendIdsOf(userId)) {
+                server.getRoomOperations("user:" + fid).sendEvent("friend_presence", presencePayload(userId, online));
             }
         } catch (Exception e) {
-            logger.error("friend presence connect failed: " + e.getMessage());
+            logger.error("notifyFriends failed: " + e.getMessage());
         }
     }
 
-    private void handleFriendPresenceOnDisconnect(String userId){
+    // đánh dấu user online (từ connect hoặc heartbeat); nếu vừa chuyển sang online -> báo bạn bè
+    private void markOnline(String userId){
         if (userId == null) return;
-        try {
-            Integer left = onlineCount.computeIfPresent(userId, (k, v) -> v > 1 ? v - 1 : null);
-            logger.info(String.format("presence off: userId[%s] remaining[%s]", userId, left));
-            if (left == null) {
-                for (String fid : followService.friendIdsOf(userId)) {
-                    server.getRoomOperations("user:" + fid).sendEvent("friend_presence", presencePayload(userId, false));
-                }
-            }
-        } catch (Exception e) {
-            logger.error("friend presence disconnect failed: " + e.getMessage());
+        boolean wasOnline = isOnline(userId);
+        lastSeen.put(userId, System.currentTimeMillis());
+        if (!wasOnline) notifyFriends(userId, true);
+    }
+
+    private void markOffline(String userId){
+        if (userId == null) return;
+        if (lastSeen.remove(userId) != null) {
+            logger.info(String.format("presence off: userId[%s]", userId));
+            notifyFriends(userId, false);
         }
+    }
+
+    // dọn những user quá hạn heartbeat (đóng tab/mất mạng mà không kịp "bye")
+    private void sweepStale(){
+        long now = System.currentTimeMillis();
+        for (Map.Entry<String, Long> e : lastSeen.entrySet()) {
+            if (now - e.getValue() > ONLINE_TTL_MS) markOffline(e.getKey());
+        }
+    }
+
+    // Khi user mở socket thông báo: đánh dấu online + cho user biết bạn nào đang online.
+    private void handleFriendPresenceOnConnect(SocketIOClient client, String userId){
+        try {
+            sweepStale();
+            markOnline(userId);
+            for (String fid : followService.friendIdsOf(userId)) {
+                if (isOnline(fid)) client.sendEvent("friend_presence", presencePayload(fid, true));
+            }
+        } catch (Exception ex) {
+            logger.error("friend presence connect failed: " + ex.getMessage());
+        }
+    }
+
+    private DataListener<Object> onHeartbeat(){
+        return (client, data, ack) -> {
+            try {
+                String userId = client.get("userId");
+                if (userId == null) userId = jwtUtils.getUserIdFromAccessToken(client.getHandshakeData().getSingleUrlParam("token"));
+                markOnline(userId);
+                sweepStale();
+            } catch (Exception e) {
+                logger.error("hb failed: " + e.getMessage());
+            }
+        };
+    }
+
+    private DataListener<Object> onBye(){
+        return (client, data, ack) -> {
+            try {
+                String userId = client.get("userId");
+                if (userId == null) userId = jwtUtils.getUserIdFromAccessToken(client.getHandshakeData().getSingleUrlParam("token"));
+                markOffline(userId);
+            } catch (Exception e) {
+                logger.error("bye failed: " + e.getMessage());
+            }
+        };
     }
 
     // Chuyển tiếp 1 sự kiện đơn giản (typing/seen) cho những người còn lại trong phòng, kèm userId
@@ -185,7 +229,8 @@ public class SocketModule {
                 return; // socket theo dõi bài viết
             }
             if (!StringUtils.hasText(conversationId)) {
-                handleFriendPresenceOnDisconnect(userId); // socket thông báo cá nhân
+                // socket thông báo cá nhân: đánh dấu offline ngay nếu netty bắt được disconnect
+                markOffline(userId);
                 return;
             }
             try {
