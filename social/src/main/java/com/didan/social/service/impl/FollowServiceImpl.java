@@ -8,6 +8,7 @@ import com.didan.social.repository.FollowRepository;
 import com.didan.social.repository.UserRepository;
 import com.didan.social.service.AuthorizePathService;
 import com.didan.social.service.FollowService;
+import com.didan.social.service.NotificationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,15 +22,18 @@ public class FollowServiceImpl implements FollowService {
     private final FollowRepository followRepository;
     private final AuthorizePathService authorizePathService;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     @Autowired
     public FollowServiceImpl(FollowRepository followRepository,
                              AuthorizePathService authorizePathService,
-                             UserRepository userRepository)
+                             UserRepository userRepository,
+                             NotificationService notificationService)
     {
         this.followRepository = followRepository;
         this.authorizePathService = authorizePathService;
         this.userRepository = userRepository;
+        this.notificationService = notificationService;
     }
 
     @Override
@@ -89,6 +93,8 @@ public class FollowServiceImpl implements FollowService {
             follower.setFolId(new FollowerId(user.getUserId(), userIdFollow));
         }
         followRepository.save(follower);
+        notificationService.push(userIdFollow, user.getUserId(), "FOLLOW", user.getUserId(),
+                user.getFullName() + " đã theo dõi bạn");
         return true;
     }
     /*

@@ -35,6 +35,8 @@ public class CommentServiceImpl extends ConvertDTO implements CommentService {
     private final UserRepository userRepository;
     private final FileUploadsService fileUploadsService;
     private final AuthorizePathService authorizePathService;
+    private final UserPostRepository userPostRepository;
+    private final com.didan.social.service.NotificationService notificationService;
     @Autowired
     public CommentServiceImpl(UserCommentRepository userCommentRepository,
                               CommentRepository commentRepository,
@@ -42,7 +44,9 @@ public class CommentServiceImpl extends ConvertDTO implements CommentService {
                               UserRepository userRepository,
                               FileUploadsService fileUploadsService,
                               AuthorizePathService authorizePathService,
-                              PostRepository postRepository){
+                              PostRepository postRepository,
+                              UserPostRepository userPostRepository,
+                              com.didan.social.service.NotificationService notificationService){
         this.userCommentRepository = userCommentRepository;
         this.commentRepository = commentRepository;
         this.commentLikeRepository = commentLikeRepository;
@@ -50,6 +54,8 @@ public class CommentServiceImpl extends ConvertDTO implements CommentService {
         this.fileUploadsService = fileUploadsService;
         this.authorizePathService = authorizePathService;
         this.postRepository = postRepository;
+        this.userPostRepository = userPostRepository;
+        this.notificationService = notificationService;
     }
 
     @Override
@@ -98,6 +104,11 @@ public class CommentServiceImpl extends ConvertDTO implements CommentService {
         commentRepository.save(comment);
         userComment.setUserCommentId(new UserCommentId(postId, comment.getCommentId(), user.getUserId()));
         userCommentRepository.save(userComment);
+        UserPosts owner = userPostRepository.findFirstByPosts_PostId(postId);
+        if (owner != null && owner.getUsers() != null) {
+            notificationService.push(owner.getUsers().getUserId(), user.getUserId(), "COMMENT", postId,
+                    user.getFullName() + " đã bình luận bài viết của bạn");
+        }
         return commentId.toString();
     }
 
