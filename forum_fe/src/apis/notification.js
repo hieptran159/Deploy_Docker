@@ -15,3 +15,7 @@ export const markAllRead = () => {
 export const markRead = (id) => {
     return authApi.patch(`/notification/${id}/read`);
 }
+
+export const markReadByTarget = (targetId) => {
+    return authApi.patch(`/notification/target/${targetId}/read`);
+}

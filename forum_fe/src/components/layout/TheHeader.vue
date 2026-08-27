@@ -105,6 +105,7 @@ import { logout as logoutApi } from '@/apis/auth';
 import { checkIsAdmin } from '@/apis/admin';
 import { getNotifications, markAllRead, markRead } from '@/apis/notification';
 import { timeAgo } from '@/js/helper';
+import { activeConversationId, notifRefreshTick } from '@/storages/appState';
 import BaseAvatar from '../BaseAvatar.vue';
 
 const route = useRouter();
@@ -204,7 +205,12 @@ const pollNotifs = async () => {
         if (showNotif.value) notifs.value = list;
 
         if (!firstPoll) {
-            const fresh = list.filter((n) => !n.read && !seenIds.has(n.notificationId));
+            const fresh = list.filter((n) =>
+                !n.read
+                && !seenIds.has(n.notificationId)
+                // đang mở đúng hội thoại đó -> không cần toast
+                && !(n.type === 'MESSAGE' && n.targetId && n.targetId === activeConversationId.value)
+            );
             if (fresh.length > 3) {
                 toast?.(`Bạn có ${fresh.length} thông báo mới`, { type: 'info', onClick: () => { showNotif.value = true; }, duration: 6000 });
             } else {
@@ -285,5 +291,10 @@ watch(route.currentRoute, () => {
     isAdmin.value = getItemLocal(LOCALKEYS.IS_ADMIN) === true;
     if (isLogin.value && !wasLogin) startNotifPoll();
     else if (isLogin.value) pollNotifs();
+})
+
+// Chat.vue yêu cầu nạp lại thông báo ngay (vd: vừa đọc tin nhắn trong hội thoại)
+watch(notifRefreshTick, () => {
+    if (isLogin.value) pollNotifs();
 })
 </script>

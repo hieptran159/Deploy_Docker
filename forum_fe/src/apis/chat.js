@@ -20,6 +20,10 @@ export const openDirectConversation = (userId) => {
     return authApi.post(`/chat/direct/${userId}`);
 }
 
+export const addMember = (conversationId, userId) => {
+    return authApi.post(`/chat/${conversationId}/members/${userId}`);
+}
+
 export const joinConversation = (conversationId) => {
     return authApi.post(`/chat/join/${conversationId}`);
 }
