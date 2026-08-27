@@ -131,6 +131,7 @@
                             @click="pickImg"
                         />
                         <input ref="fileEl" type="file" accept="image/*" class="hidden" @change="onPickImg" />
+                        <EmojiPicker direction="up" @pick="addDraftEmoji" />
                         <DxTextBox v-model="draft" placeholder="Nhập tin nhắn…" class="flex-1"
                             @enter-key="sendMessage" @input="onTyping" @focus-in="onInputFocus" />
                         <DxButton text="Gửi" type="default" @click="sendMessage" />
@@ -173,6 +174,7 @@ import { LOCALKEYS, getItemLocal } from '@/storages/localStorage';
 import { activeConversationId, bumpNotifRefresh } from '@/storages/appState';
 import { SOCKET_URL, IMAGE_BASE } from '@/config';
 import { formatDateTime, formatTime } from '@/js/helper';
+import EmojiPicker from '@/components/EmojiPicker.vue';
 
 const showDialog = inject('openDialogError');
 const openConfirm = inject('openConfirm');
@@ -546,6 +548,8 @@ const sendMessage = async () => {
     appendLocal({ content: text });
     draft.value = '';
 }
+
+const addDraftEmoji = (e) => { draft.value = (draft.value || '') + e; };
 
 const pickImg = () => fileEl.value?.click();
 const onPickImg = (e) => { pendingImg.value = e.target.files[0] || null; };

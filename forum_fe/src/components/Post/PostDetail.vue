@@ -64,6 +64,7 @@
                     :is-show="false"
                 />
                 <DxTextBox class="flex-1" placeholder="Viết bình luận…" v-model="contentPost" @enter-key="commentPost" />
+                <EmojiPicker direction="down" @pick="addCommentEmoji" />
                 <DxButton
                     :icon="commentImg ? 'photo' : 'image'"
                     :type="commentImg ? 'success' : 'normal'"
@@ -115,6 +116,7 @@ import { calculateTimeDifference } from '@/js/helper';
 import Comment from '../comment/Comment.vue';
 import { DxTextBox, DxButton, DxPopup } from 'devextreme-vue';
 import BaseAvatar from '../BaseAvatar.vue';
+import EmojiPicker from '@/components/EmojiPicker.vue';
 import { LOCALKEYS, getItemLocal } from '@/storages/localStorage';
 import { activePostId, bumpNotifRefresh } from '@/storages/appState';
 import EditPost from '@/components/Post/EditPost.vue';
@@ -151,6 +153,8 @@ const getDataUser = async() => {
         console.error(error);
     }
 }
+
+const addCommentEmoji = (e) => { contentPost.value = (contentPost.value || '') + e; };
 
 const pickCommentImg = () => commentFileEl.value?.click();
 const onCommentImg = (e) => { commentImg.value = e.target.files[0] || null; };
