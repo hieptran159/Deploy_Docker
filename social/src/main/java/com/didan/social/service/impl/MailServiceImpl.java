@@ -33,7 +33,11 @@ public class MailServiceImpl implements MailService {
         Content content = new Content("text/html", text);
         Mail mail = new Mail(from, subject, to, content);
 
-        SendGrid sg = new SendGrid(env.getProperty("send_grid.api_key"));
+        String apiKey = env.getProperty("send_grid.api_key");
+        logger.info("SendGrid from={} keyPrefix={}",
+                env.getProperty("send_grid.from_email"),
+                apiKey == null ? "null" : apiKey.substring(0, Math.min(12, apiKey.length())));
+        SendGrid sg = new SendGrid(apiKey);
         Request request = new Request();
         try{
             request.setMethod(Method.POST);
