@@ -61,6 +61,23 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     @Override
+    public void pushUnique(String recipientId, String actorId, String type, String targetId, String message) {
+        try {
+            if (!StringUtils.hasText(recipientId) || recipientId.equals(actorId)) {
+                return;
+            }
+            Notifications existing = notificationRepository
+                    .findFirstByRecipientIdAndTypeAndTargetIdAndIsRead(recipientId, type, targetId, 0);
+            if (existing != null) {
+                return; // đã có thông báo chưa đọc cùng loại/đối tượng -> không spam thêm
+            }
+        } catch (Exception e) {
+            logger.error("pushUnique check failed: " + e.getMessage());
+        }
+        push(recipientId, actorId, type, targetId, message);
+    }
+
+    @Override
     public List<NotificationDTO> listMine() throws Exception {
         String myId = authorizePathService.getUserIdAuthoried();
         List<Notifications> items = notificationRepository.findTop50ByRecipientIdOrderByCreatedAtDesc(myId);

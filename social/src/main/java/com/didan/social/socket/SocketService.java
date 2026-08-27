@@ -13,6 +13,8 @@ import com.didan.social.repository.ParticipantRepository;
 import com.didan.social.repository.UserRepository;
 import com.didan.social.service.ChatService;
 import com.didan.social.service.FileUploadsService;
+import com.didan.social.service.NotificationService;
+import com.didan.social.entity.Participants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,19 +35,22 @@ public class SocketService { // Khai báo một service để xử lý logic
     private final ParticipantRepository participantRepository;
     private final MessageRepository messageRepository;
     private final FileUploadsService fileUploadsService;
+    private final NotificationService notificationService;
     @Autowired // Đánh dấu đây là một dependency và Spring sẽ tự động inject vào
     public SocketService(ChatService chatService,
                          UserRepository userRepository,
                          ConversationRepository conversationRepository,
                          ParticipantRepository participantRepository,
                          FileUploadsService fileUploadsService,
-                         MessageRepository messageRepository){ // Inject service vào
+                         MessageRepository messageRepository,
+                         NotificationService notificationService){ // Inject service vào
         this.chatService = chatService; // Gán service
         this.userRepository = userRepository;
         this.conversationRepository = conversationRepository;
         this.participantRepository = participantRepository;
         this.fileUploadsService = fileUploadsService;
         this.messageRepository = messageRepository;
+        this.notificationService = notificationService;
     }
 
     public void sendSocketMessage(String conversationId, String eventName, SocketIOClient senderClient, MessageDTO message){ // Hàm gửi tin nhắn qua socket cho tất cả client trong phòng
@@ -89,6 +94,20 @@ public class SocketService { // Khai báo một service để xử lý logic
         message.setUsers(user);
         message.setConversations(conversation);
         messageRepository.save(message);
+        try {
+            if (conversation.getConversationName() != null && conversation.getConversationName().startsWith("dm:")) {
+                for (Participants p : participantRepository.findAllByConversations_ConversationId(conversationId)) {
+                    if (p.getUsers() == null) continue;
+                    String pid = p.getUsers().getUserId();
+                    if (!pid.equals(user.getUserId())) {
+                        notificationService.pushUnique(pid, user.getUserId(), "MESSAGE",
+                                conversationId, user.getFullName() + " đã nhắn tin cho bạn");
+                    }
+                }
+            }
+        } catch (Exception ex) {
+            logger.error("notify dm on socket failed: " + ex.getMessage());
+        }
         MessageDTO messageDTO =
                 new MessageDTO(messageId,
                 sendMessageRequest.getContent(),

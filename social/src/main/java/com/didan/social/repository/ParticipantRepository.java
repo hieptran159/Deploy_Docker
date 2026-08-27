@@ -10,4 +10,5 @@ import java.util.List;
 public interface ParticipantRepository extends JpaRepository<Participants, String> {
     Participants findFirstByConversations_ConversationIdAndUsers_UserId(String conversationId, String userId);
     List<Participants> findAllByUsers_UserId(String userId);
+    List<Participants> findAllByConversations_ConversationId(String conversationId);
 }

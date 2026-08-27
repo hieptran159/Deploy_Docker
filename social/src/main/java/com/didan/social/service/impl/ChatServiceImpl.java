@@ -31,19 +31,40 @@ public class ChatServiceImpl implements ChatService {
     private final FileUploadsService fileUploadsService;
     private final MessageRepository messageRepository;
     private final AuthorizePathService authorizePathService;
+    private final com.didan.social.service.NotificationService notificationService;
     @Autowired
     public ChatServiceImpl(ConversationRepository conversationRepository,
                            UserRepository userRepository,
                            ParticipantRepository participantRepository,
                            FileUploadsService fileUploadsService,
                            MessageRepository messageRepository,
-                           AuthorizePathService authorizePathService){
+                           AuthorizePathService authorizePathService,
+                           com.didan.social.service.NotificationService notificationService){
         this.conversationRepository = conversationRepository;
         this.userRepository = userRepository;
         this.participantRepository = participantRepository;
         this.fileUploadsService = fileUploadsService;
         this.messageRepository = messageRepository;
         this.authorizePathService = authorizePathService;
+        this.notificationService = notificationService;
+    }
+
+    // Bắn thông báo "đã nhắn tin cho bạn" cho các participant khác trong hội thoại 1-1
+    private void notifyDirectMessage(Conversations conversation, Users sender) {
+        try {
+            String name = conversation.getConversationName();
+            if (name == null || !name.startsWith("dm:")) return;
+            for (Participants p : participantRepository.findAllByConversations_ConversationId(conversation.getConversationId())) {
+                if (p.getUsers() == null) continue;
+                String pid = p.getUsers().getUserId();
+                if (!pid.equals(sender.getUserId())) {
+                    notificationService.pushUnique(pid, sender.getUserId(), "MESSAGE",
+                            conversation.getConversationId(), sender.getFullName() + " đã nhắn tin cho bạn");
+                }
+            }
+        } catch (Exception e) {
+            logger.error("notifyDirectMessage failed: " + e.getMessage());
+        }
     }
     @Override
     public String createConversation(String conversationName) throws Exception {
@@ -203,6 +224,7 @@ public class ChatServiceImpl implements ChatService {
         message.setUsers(user);
         message.setConversations(conversation);
         messageRepository.save(message);
+        notifyDirectMessage(conversation, user);
         return new MessageDTO(messageId,
                                 sendMessageRequest.getContent(),
                                 "message/"+fileName,
