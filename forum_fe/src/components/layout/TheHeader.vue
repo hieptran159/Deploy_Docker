@@ -1,7 +1,7 @@
 <template>
     <header class="app-header">
         <div class="app-header__inner">
-            <span class="app-brand" @click="() => route.push('/')">HIP&nbsp;Forum</span>
+            <span class="app-brand" @click="() => route.push('/')">HIP-DIDAN&nbsp;Forum</span>
 
             <div v-if="isLogin" class="flex-1 min-w-0">
                 <DxTabs
