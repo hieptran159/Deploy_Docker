@@ -25,12 +25,12 @@ const handleAdminEnter = (to, form, next) => {
 
 const routers = [
 	{
+		// Trang chủ xem được không cần đăng nhập (khách chỉ xem, muốn tương tác thì mới cần tài khoản)
 		path: '/',
 		component: () =>
 			import(
 				 '../pages/home/Home.vue'
 			),
-		beforeEnter: handleBeforeEnter
 	},
 
     {

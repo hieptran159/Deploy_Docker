@@ -28,8 +28,8 @@ export const updatePost = (id, data) => {
     return authApiFormData.patch(`/post/update/${id}`, data);
 }
 
-export const searchPost = (key) => {
-    return authApi.get(`/post/search?name=${key}`);
+export const searchPost = (key, page = 0, size = 10) => {
+    return authApi.get(`/post/search?name=${encodeURIComponent(key)}&page=${page}&size=${size}`);
 }
 
 export const deletePost = (id) => {

@@ -136,8 +136,14 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
     }
 
     @Override
-    public List<PostDTO> getPostByTitle(String searchName) throws Exception {
-        List<Posts> posts = postRepository.findByTitleOrBodyContainingOrderByPostedAtDesc(searchName, searchName);
+    public List<PostDTO> getPostByTitle(String searchName, int page, int size) throws Exception {
+        if (searchName == null || searchName.trim().isEmpty()) {
+            return Collections.emptyList();
+        }
+        if (page < 0) page = 0;
+        if (size < 1) size = 10;
+        if (size > 50) size = 50;
+        List<Posts> posts = postRepository.searchByKeyword(searchName.trim(), PageRequest.of(page, size));
         if (posts.isEmpty()) {
             logger.info("No posts are here");
             return Collections.emptyList();
@@ -283,6 +289,11 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         PostDTO dto = new PostDTO();
         dto.setPostId(post.getPostId());
         dto.setUserCreatedPost(post.getUserPost().getUserPostId().getUserId());
+        Users author = post.getUserPost().getUsers();
+        if (author != null) {
+            dto.setAuthorName(author.getFullName());
+            dto.setAuthorAvatar(author.getAvtUrl());
+        }
         dto.setTitle(post.getTitle());
         dto.setPostImg(post.getPostImg());
         dto.setBody(post.getBody());

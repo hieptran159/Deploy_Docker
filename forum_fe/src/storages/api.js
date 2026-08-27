@@ -17,9 +17,9 @@ export const createApiInstance = (config, { auth = true, silent } = {}) => {
 	api.interceptors.request.use(
 		(config) => {
 			if (auth && config?.headers) {
-				config.headers.Authorization = `Bearer ${getItemLocal(
-					LOCALKEYS.ACCESS_TOKEN,
-				)}`;
+				const tk = getItemLocal(LOCALKEYS.ACCESS_TOKEN);
+				// Khách (chưa đăng nhập) vẫn gọi được các endpoint công khai -> không gắn header rỗng
+				if (tk) config.headers.Authorization = `Bearer ${tk}`;
 			}
 			return config;
 		},
@@ -50,13 +50,15 @@ export const createApiInstance = (config, { auth = true, silent } = {}) => {
 
 			const status = error?.response?.status;
 			if (status === 401 && typeof window !== 'undefined') {
-				// Token hết hạn / không hợp lệ: xoá phiên và quay về đăng nhập
+				// Chỉ đá về /login khi ĐÃ có phiên (token hết hạn/không hợp lệ).
+				// Khách chưa đăng nhập gọi endpoint công khai bị 401 thì bỏ qua.
+				const hadToken = !!getItemLocal(LOCALKEYS.ACCESS_TOKEN);
 				try {
 					Object.values(LOCALKEYS).forEach((k) => localStorage.removeItem(k));
 				} catch (e) {
 					/* ignore */
 				}
-				if (window.location.pathname !== '/login') {
+				if (hadToken && window.location.pathname !== '/login') {
 					window.location.assign('/login');
 				}
 			}

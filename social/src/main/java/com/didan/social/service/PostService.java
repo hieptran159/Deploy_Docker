@@ -22,8 +22,9 @@ public interface PostService {
     // Lấy bài viết theo id
     PostDTO getPostById(String postId) throws Exception;
 
-    // Tìm kiếm bài viết theo đề tài
-    List<PostDTO> getPostByTitle(String searchName) throws Exception;
+    // Tìm kiếm bài viết theo tiêu đề / nội dung (không phân biệt hoa thường), phân trang.
+    // page bắt đầu từ 0, size 1..50.
+    List<PostDTO> getPostByTitle(String searchName, int page, int size) throws Exception;
 
     // Like bài viết
     boolean likePost(String postId, String type) throws Exception;

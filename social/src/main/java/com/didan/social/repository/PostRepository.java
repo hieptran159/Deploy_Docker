@@ -22,7 +22,11 @@ public interface PostRepository extends JpaRepository<Posts, String> {
     @EntityGraph(attributePaths = {"userPost", "postLikes", "userComments", "userComments.comments"}, type = EntityGraph.EntityGraphType.FETCH)
     Posts findFirstByPostId(String postId);
 
-    @EntityGraph(attributePaths = {"userPost", "postLikes", "userComments", "userComments.comments"})
-    List<Posts> findByTitleOrBodyContainingOrderByPostedAtDesc(String title, String body);
+    // Tìm kiếm không phân biệt hoa thường, phân trang. Bỏ @EntityGraph nặng (fetch-join
+    // comments/likes tạo tích Descartes) - toListDTO chỉ cần author + likes, đã có
+    // default_batch_fetch_size lo phần nạp theo lô.
+    @Query("SELECT p FROM posts p WHERE lower(p.title) LIKE lower(concat('%', :q, '%')) "
+         + "OR lower(p.body) LIKE lower(concat('%', :q, '%')) ORDER BY p.postedAt DESC, p.postId ASC")
+    List<Posts> searchByKeyword(@org.springframework.data.repository.query.Param("q") String q, Pageable pageable);
 
 }

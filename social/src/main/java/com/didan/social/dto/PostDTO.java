@@ -6,6 +6,8 @@ import java.util.Map;
 public class PostDTO {
     private String postId;
     private String userCreatedPost;
+    private String authorName;
+    private String authorAvatar;
     private String title;
     private String postImg;
     private String body;
@@ -31,6 +33,22 @@ public class PostDTO {
         this.userLikedPost = userLikedPost;
         this.commentsQuantity = commentsQuantity;
         this.comments = comments;
+    }
+
+    public String getAuthorName() {
+        return authorName;
+    }
+
+    public void setAuthorName(String authorName) {
+        this.authorName = authorName;
+    }
+
+    public String getAuthorAvatar() {
+        return authorAvatar;
+    }
+
+    public void setAuthorAvatar(String authorAvatar) {
+        this.authorAvatar = authorAvatar;
     }
 
     public String getPostId() {

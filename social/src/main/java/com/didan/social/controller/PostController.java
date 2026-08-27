@@ -150,10 +150,12 @@ public class PostController {
             description = "Enter the name post you want to find",
             security = @SecurityRequirement(name = "bearerAuth"))
     @GetMapping("/search")
-    public ResponseEntity<?> searchPostById(@RequestParam(name = "name") String name) {
+    public ResponseEntity<?> searchPostById(@RequestParam(name = "name") String name,
+                                            @RequestParam(defaultValue = "0") int page,
+                                            @RequestParam(defaultValue = "10") int size) {
         ResponseData payload = new ResponseData();
         try {
-            List<PostDTO> postDTOs = postService.getPostByTitle(name);
+            List<PostDTO> postDTOs = postService.getPostByTitle(name, page, size);
             if (postDTOs.size() <= 0){
                 payload.setDescription("No post in here");
             } else {

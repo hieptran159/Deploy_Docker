@@ -35,8 +35,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from "vue";
-import { getUserInfo } from '../../apis/user';
+import { computed, ref } from "vue";
 import { calculateTimeDifference } from '../../js/helper';
 import { IMAGE_BASE } from '@/config';
 import { useRouter } from 'vue-router';
@@ -47,9 +46,10 @@ const props = defineProps({
     post: { type: Object }
 });
 
-const linkAvt = ref("");
 const post = computed(() => props.post);
-const userCreatedPost = ref("");
+// Tên + avatar tác giả đã đi kèm trong DTO feed -> không cần gọi /user/{id} cho từng thẻ
+const userCreatedPost = computed(() => post.value?.authorName || '');
+const linkAvt = computed(() => (post.value?.authorAvatar ? IMAGE_BASE + post.value.authorAvatar : ''));
 const avatarErrored = ref(false);
 
 const showAvatar = computed(() => {
@@ -62,17 +62,6 @@ const excerpt = computed(() => {
     return b.length > 140 ? b.slice(0, 140) + '…' : b;
 });
 
-const getDataUser = async () => {
-    try {
-        const data = await getUserInfo(post.value?.userCreatedPost);
-        userCreatedPost.value = data?.data?.data?.fullName;
-        const avt = data?.data?.data?.avtUrl;
-        linkAvt.value = avt ? IMAGE_BASE + avt : "";
-    } catch (error) {
-        console.error(error);
-    }
-}
-
 const viewDetail = () => {
     route.push(`/post/${post?.value?.postId}`);
 }
@@ -80,6 +69,4 @@ const viewDetail = () => {
 const goProfile = () => {
     if (post.value?.userCreatedPost) route.push(`/user/${post.value.userCreatedPost}`);
 }
-
-onMounted(getDataUser);
 </script>

@@ -1,6 +1,6 @@
 <template>
     <div class="page">
-        <div class="card flex items-center gap-4">
+        <div v-if="isLogin" class="card flex items-center gap-4">
             <BaseAvatar
                 :link-avt="getItemLocal(LOCALKEYS.LINK_AVT)"
                 :user-created-post="getItemLocal(LOCALKEYS.USER_NAME)"
@@ -27,6 +27,10 @@
             </DxPopup>
         </div>
 
+        <div v-else class="card text-sm muted">
+            Bạn đang xem với tư cách khách. Đăng nhập để viết bài, bình luận và tương tác.
+        </div>
+
         <div class="card">
             <div class="flex items-center gap-3 mb-3">
                 <span class="section-title mb-0 flex-1">Bài đăng mới nhất</span>
@@ -40,14 +44,28 @@
                 />
             </div>
 
-            <div v-if="loading" class="state">Đang tải…</div>
-            <div v-else-if="!posts.length" class="state">Chưa có bài viết nào</div>
+            <div v-if="searchMode" class="mb-3 text-sm muted flex items-center gap-2">
+                <span>Kết quả cho "<b>{{ activeQuery }}</b>"</span>
+                <button class="link" @click="clearSearch">Xoá tìm kiếm</button>
+            </div>
+
+            <div v-if="loading && !posts.length" class="state">Đang tải…</div>
+            <div v-else-if="!posts.length" class="state">
+                {{ searchMode ? 'Không tìm thấy bài viết nào' : 'Chưa có bài viết nào' }}
+            </div>
 
             <div v-for="post in posts" :key="post.postId" class="border-b last:border-b-0">
                 <Post :post="post" />
             </div>
 
-            <div class="flex items-center justify-center gap-2 mt-4 flex-wrap">
+            <div v-if="searchMode" class="text-center mt-4">
+                <button v-if="searchHasMore" class="link text-sm" :disabled="loading" @click="loadMoreSearch">
+                    {{ loading ? 'Đang tải…' : 'Xem thêm kết quả' }}
+                </button>
+                <span v-else-if="posts.length" class="muted text-xs">Đã hết kết quả</span>
+            </div>
+
+            <div v-else class="flex items-center justify-center gap-2 mt-4 flex-wrap">
                 <DxButton icon="chevronleft" :disabled="currentPage <= 1" @click="currentPageChange(-1)" />
                 <span class="muted text-sm">Trang</span>
                 <input
@@ -70,13 +88,14 @@
 import Post from '../../components/Post/Post.vue';
 import { DxButton, DxPopup, DxTextBox } from 'devextreme-vue';
 import { getListPostApi, searchPost, getFeedPages } from '@/apis/post';
-import { inject, onMounted, ref, watch } from 'vue';
+import { computed, inject, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import BaseAvatar from '@/components/BaseAvatar.vue';
 import { getItemLocal, LOCALKEYS } from '../../storages/localStorage';
 import CreatePost from '../../components/Post/CreatePost.vue';
 
 const router = useRouter();
+const isLogin = computed(() => getItemLocal(LOCALKEYS.ACCESS_TOKEN) != null);
 const posts = ref([]);
 const currentPage = ref(pageFromQuery());
 const totalPages = ref(1);
@@ -100,6 +119,12 @@ const doGoto = () => {
 
 const showDialog = inject("openDialogError");
 const searchText = ref("");
+
+const SEARCH_SIZE = 10;
+const searchMode = ref(false);
+const activeQuery = ref("");
+const searchPageNum = ref(0);
+const searchHasMore = ref(false);
 
 function pageFromQuery() {
     const p = parseInt(router.currentRoute.value.query.page, 10);
@@ -136,21 +161,44 @@ watch(() => router.currentRoute.value.query.page, () => {
 });
 
 const onSearchChanged = (e) => {
-    if (!e?.value) getListPost();
+    if (!e?.value) clearSearch();
 }
 
-const handleSearch = async () => {
-    if (!searchText.value) { getListPost(); return; }
+const clearSearch = () => {
+    searchText.value = "";
+    searchMode.value = false;
+    activeQuery.value = "";
+    searchHasMore.value = false;
+    getListPost();
+}
+
+const runSearch = async (append = false) => {
     loading.value = true;
     try {
-        const data = await searchPost(searchText.value);
-        posts.value = data?.data?.data || [];
+        const data = await searchPost(activeQuery.value, searchPageNum.value, SEARCH_SIZE);
+        const batch = data?.data?.data || [];
+        posts.value = append ? [...posts.value, ...batch] : batch;
+        searchHasMore.value = batch.length === SEARCH_SIZE;
+        searchPageNum.value += 1;
     } catch (e) {
-        posts.value = [];
+        if (!append) posts.value = [];
+        searchHasMore.value = false;
     } finally {
         loading.value = false;
     }
 }
+
+const handleSearch = () => {
+    const q = (searchText.value || "").trim();
+    if (!q) { clearSearch(); return; }
+    searchMode.value = true;
+    activeQuery.value = q;
+    searchPageNum.value = 0;
+    posts.value = [];
+    runSearch(false);
+}
+
+const loadMoreSearch = () => runSearch(true);
 
 onMounted(() => { getListPost(); loadPageInfo(); });
 </script>
