@@ -61,11 +61,20 @@
                         class="px-3 py-2.5 cursor-pointer border-b transition hover:bg-gray-50"
                         :class="{ 'bg-[var(--brand-soft)]': active?.conversationId === c.conversationId }"
                         @click="() => openConversation(c)">
-                        <div class="font-semibold text-sm truncate flex items-center gap-1">
+                        <div class="flex items-center gap-1">
                             <span>{{ isDm(c.conversationName) ? '💬' : '👥' }}</span>
-                            <span class="truncate">{{ displayName(c) }}</span>
+                            <span class="font-semibold text-sm truncate flex-1"
+                                :class="{ 'font-bold': unreadByConv[c.conversationId] }">{{ displayName(c) }}</span>
+                            <span v-if="unreadByConv[c.conversationId]"
+                                class="flex-none text-[11px] font-bold text-white bg-[var(--danger)] rounded-full min-w-[18px] h-[18px] px-1 text-center leading-[18px]">
+                                {{ unreadByConv[c.conversationId] > 9 ? '9+' : unreadByConv[c.conversationId] }}
+                            </span>
+                            <span class="flex-none text-[11px] muted">{{ timeAgo(c.lastMessageAt || c.createdAt) }}</span>
                         </div>
-                        <div class="text-xs muted truncate">{{ formatDateTime(c.createdAt) }}</div>
+                        <div class="text-xs truncate mt-0.5"
+                            :class="unreadByConv[c.conversationId] ? 'text-[var(--text)] font-semibold' : 'muted'">
+                            {{ previewOf(c) }}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -170,11 +179,11 @@ import {
 } from '@/apis/chat';
 import { getUserInfo } from '@/apis/user';
 import { getFriends } from '@/apis/friend';
-import { markReadByTarget } from '@/apis/notification';
+import { markReadByTarget, getNotifications } from '@/apis/notification';
 import { LOCALKEYS, getItemLocal } from '@/storages/localStorage';
-import { activeConversationId, bumpNotifRefresh } from '@/storages/appState';
+import { activeConversationId, bumpNotifRefresh, notifRefreshTick } from '@/storages/appState';
 import { SOCKET_URL, IMAGE_BASE } from '@/config';
-import { formatDateTime, formatTime } from '@/js/helper';
+import { formatTime, timeAgo } from '@/js/helper';
 import EmojiPicker from '@/components/EmojiPicker.vue';
 
 const showDialog = inject('openDialogError');
@@ -269,6 +278,31 @@ const displayName = (c) => {
     return c.conversationName || '';
 }
 
+/* ---------- xem trước tin nhắn cuối + badge chưa đọc ---------- */
+const unreadByConv = ref({});
+
+const previewOf = (c) => {
+    const hasImg = c.lastMessageImg && !String(c.lastMessageImg).includes('null');
+    let body = c.lastMessage || '';
+    if (!body && hasImg) body = '🖼 Hình ảnh';
+    if (!body) return 'Chưa có tin nhắn';
+    const mine = c.lastSenderId && c.lastSenderId === myId;
+    return (mine ? 'Bạn: ' : '') + body;
+}
+
+const loadUnread = async () => {
+    try {
+        const list = (await getNotifications())?.data?.data || [];
+        const m = {};
+        for (const n of list) {
+            if (n.type === 'MESSAGE' && !n.read && n.targetId) m[n.targetId] = (m[n.targetId] || 0) + 1;
+        }
+        // hội thoại đang mở thì luôn coi như đã đọc
+        if (active.value) delete m[active.value.conversationId];
+        unreadByConv.value = m;
+    } catch (e) { /* ignore */ }
+}
+
 /* ---------- conversations ---------- */
 const loadConversations = async () => {
     try {
@@ -278,6 +312,16 @@ const loadConversations = async () => {
         conversations.value = [];
     }
     resolveDmNames();
+    loadUnread();
+}
+
+// cập nhật tin cuối + đẩy hội thoại lên đầu mà không cần gọi lại API
+const bumpConversation = (convId, { content = '', messageImg = null, senderId = null } = {}) => {
+    const i = conversations.value.findIndex((c) => c.conversationId === convId);
+    if (i === -1) return;
+    const c = { ...conversations.value[i], lastMessage: content, lastMessageImg: messageImg, lastMessageAt: new Date().toISOString(), lastSenderId: senderId };
+    conversations.value.splice(i, 1);
+    conversations.value.unshift(c);
 }
 
 /* ---------- bạn bè (chỉ thêm bạn bè vào nhóm) ---------- */
@@ -467,6 +511,9 @@ const openConversation = async (c) => {
     scrollToBottom();
     connectSocket(c.conversationId);
     markConvRead();
+    const m = { ...unreadByConv.value };
+    delete m[c.conversationId];
+    unreadByConv.value = m;
 }
 
 const connectSocket = (conversationId) => {
@@ -486,6 +533,7 @@ const connectSocket = (conversationId) => {
             otherTyping.value = false;
             messages.value.push(msg);
             scrollToBottom();
+            bumpConversation(conversationId, { content: msg.content || '', messageImg: msg.messageImg || null, senderId: msg.senderId || null });
             if (document.visibilityState === 'visible' && socket) socket.emit('seen', {});
         }
     });
@@ -525,6 +573,7 @@ const appendLocal = (extra) => {
     });
     otherSeen.value = false;
     scrollToBottom();
+    bumpConversation(active.value.conversationId, { content: extra.content || '', messageImg: extra.messageImg || null, senderId: myId });
 }
 
 const sendMessage = async () => {
@@ -570,18 +619,24 @@ const openFromQuery = () => {
     }
 }
 
+let sidebarTimer = null;
+
 onMounted(async () => {
     loadFriends();
     await loadConversations();
     openFromQuery();
+    sidebarTimer = setInterval(() => { loadConversations(); }, 20000);
 });
 
 watch(() => router.currentRoute.value.query.c, (c) => {
     if (c && c !== active.value?.conversationId) openFromQuery();
 });
 
+watch(notifRefreshTick, () => { loadUnread(); });
+
 onBeforeUnmount(() => {
     teardownSocket();
+    clearInterval(sidebarTimer);
     activeConversationId.value = null;
 });
 </script>

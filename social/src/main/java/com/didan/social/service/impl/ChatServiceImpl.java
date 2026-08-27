@@ -304,9 +304,19 @@ public class ChatServiceImpl implements ChatService {
             conversationDTO.setConversationId(conversation.getConversationId());
             conversationDTO.setConversationName(conversation.getConversationName());
             conversationDTO.setCreatedAt(conversation.getCreatedAt().toString());
+            Messages last = messageRepository.findFirstByConversations_ConversationIdOrderBySentAtDesc(conversation.getConversationId());
+            if (last != null) {
+                conversationDTO.setLastMessage(last.getContent());
+                conversationDTO.setLastMessageImg(last.getMessageImg());
+                conversationDTO.setLastMessageAt(last.getSentAt() != null ? last.getSentAt().toString() : null);
+                conversationDTO.setLastSenderId(last.getUsers() != null ? last.getUsers().getUserId() : null);
+            }
             conversationDTOs.add(conversationDTO);
         }
-        Collections.sort(conversationDTOs, Comparator.comparing(ConversationDTO::getCreatedAt).reversed());
+        // sắp xếp theo tin nhắn mới nhất, chưa có tin thì theo ngày tạo
+        conversationDTOs.sort(Comparator.comparing(
+                (ConversationDTO c) -> c.getLastMessageAt() != null ? c.getLastMessageAt() : c.getCreatedAt()
+        ).reversed());
         return conversationDTOs;
     }
 

@@ -5,6 +5,10 @@ public class ConversationDTO {
     private String conversationId;
     private String conversationName;
     private String createdAt;
+    private String lastMessage;
+    private String lastMessageImg;
+    private String lastMessageAt;
+    private String lastSenderId;
 
     public ConversationDTO() {
     }
@@ -37,5 +41,37 @@ public class ConversationDTO {
 
     public void setCreatedAt(String createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public String getLastMessage() {
+        return lastMessage;
+    }
+
+    public void setLastMessage(String lastMessage) {
+        this.lastMessage = lastMessage;
+    }
+
+    public String getLastMessageImg() {
+        return lastMessageImg;
+    }
+
+    public void setLastMessageImg(String lastMessageImg) {
+        this.lastMessageImg = lastMessageImg;
+    }
+
+    public String getLastMessageAt() {
+        return lastMessageAt;
+    }
+
+    public void setLastMessageAt(String lastMessageAt) {
+        this.lastMessageAt = lastMessageAt;
+    }
+
+    public String getLastSenderId() {
+        return lastSenderId;
+    }
+
+    public void setLastSenderId(String lastSenderId) {
+        this.lastSenderId = lastSenderId;
     }
 }
