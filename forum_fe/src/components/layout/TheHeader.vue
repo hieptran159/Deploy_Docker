@@ -59,7 +59,13 @@
                         :class="{ 'bg-[var(--brand-soft)]': !n.read }"
                         @click="onNotifClick(n)"
                     >
-                        <div class="avatar-fallback size-8 text-sm flex-none">
+                        <img
+                            v-if="avatarUrlOf(n)"
+                            :src="avatarUrlOf(n)"
+                            class="size-8 rounded-full object-cover flex-none bg-gray-100"
+                            @error="(e) => e.target.style.display = 'none'"
+                        />
+                        <div v-else class="avatar-fallback size-8 text-sm flex-none">
                             {{ (n.actorName || '?')[0] }}
                         </div>
                         <div class="min-w-0">
@@ -106,7 +112,7 @@ import { checkIsAdmin } from '@/apis/admin';
 import { getNotifications, markAllRead, markRead } from '@/apis/notification';
 import { timeAgo } from '@/js/helper';
 import { activeConversationId, activePostId, notifRefreshTick } from '@/storages/appState';
-import { SOCKET_URL } from '@/config';
+import { SOCKET_URL, IMAGE_BASE } from '@/config';
 import { io } from 'socket.io-client';
 import BaseAvatar from '../BaseAvatar.vue';
 
@@ -188,12 +194,19 @@ const markReadLocal = async (n) => {
     try { await markRead(n.notificationId); } catch (e) { /* ignore */ }
 }
 
+const avatarUrlOf = (n) => {
+    const a = n?.actorAvatar;
+    if (!a || String(a).includes('null') || String(a).includes('undefined')) return '';
+    return IMAGE_BASE + a;
+}
+
 const toastNotif = (n) => {
     const go = targetOf(n);
     toast?.(n.message, {
         type: 'info',
         sub: timeAgo(n.createdAt),
         avatar: (n.actorName || '?').charAt(0),
+        avatarUrl: avatarUrlOf(n),
         onClick: () => { markReadLocal(n); if (go) go(); },
         duration: 6000,
     });

@@ -200,6 +200,11 @@ html, body {
     font-weight: 700;
     text-transform: uppercase;
 }
+.toast__avatar--img {
+    object-fit: cover;
+    background: rgba(255, 255, 255, .22);
+    padding: 0;
+}
 .toast__body { flex: 1; min-width: 0; }
 .toast__msg { line-height: 1.3; }
 .toast__sub { font-size: 12px; opacity: .8; margin-top: 1px; }

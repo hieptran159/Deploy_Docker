@@ -18,7 +18,9 @@
             :class="[`toast--${t.type}`, { 'toast--clickable': !!t.onClick }]"
             @click="onToastClick(t)"
         >
-            <div v-if="t.avatar" class="toast__avatar">{{ t.avatar }}</div>
+            <img v-if="t.avatarUrl" :src="t.avatarUrl" class="toast__avatar toast__avatar--img"
+                @error="(e) => { e.target.classList.add('hidden') }" />
+            <div v-else-if="t.avatar" class="toast__avatar">{{ t.avatar }}</div>
             <div class="toast__body">
                 <div class="toast__msg">{{ t.msg }}</div>
                 <div v-if="t.sub" class="toast__sub">{{ t.sub }}</div>
@@ -100,6 +102,7 @@ const toast = (msg, opts = {}) => {
         type: opts.type || 'success',
         sub: opts.sub || '',
         avatar: opts.avatar || '',
+        avatarUrl: opts.avatarUrl || '',
         onClick: opts.onClick || null,
     });
     setTimeout(() => dismissToast(id), opts.duration || 3200);
