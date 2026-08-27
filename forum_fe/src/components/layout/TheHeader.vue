@@ -98,16 +98,17 @@
 <script setup>
 import DxTabs from 'devextreme-vue/tabs';
 import DxButton from 'devextreme-vue/button';
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
+import { ref, computed, watch, onMounted, onBeforeUnmount, inject } from 'vue';
 import { LOCALKEYS, getItemLocal, delItemLocal, setItemLocal } from '@/storages/localStorage';
 import { useRouter } from 'vue-router';
 import { logout as logoutApi } from '@/apis/auth';
 import { checkIsAdmin } from '@/apis/admin';
-import { getNotifications, getUnreadCount, markAllRead, markRead } from '@/apis/notification';
+import { getNotifications, markAllRead } from '@/apis/notification';
 import { timeAgo } from '@/js/helper';
 import BaseAvatar from '../BaseAvatar.vue';
 
 const route = useRouter();
+const toast = inject('toast');
 
 /* ---------- theme ---------- */
 const isDark = ref(document.documentElement.dataset.theme === 'dark');
@@ -165,12 +166,45 @@ const notifs = ref([]);
 const showNotif = ref(false);
 const notifLoading = ref(false);
 let pollTimer = null;
+let seenIds = new Set();
+let firstPoll = true;
 
-const loadUnread = async () => {
+const targetOf = (n) => {
+    if (n.type === 'COMMENT' && n.targetId) return () => route.push(`/post/${n.targetId}`);
+    if (n.type === 'MESSAGE' && n.targetId) return () => route.push({ path: '/chat', query: { c: n.targetId, name: n.actorName || '' } });
+    if (n.actorId) return () => route.push(`/user/${n.actorId}`);
+    return null;
+}
+
+const toastNotif = (n) => {
+    toast?.(n.message, {
+        type: 'info',
+        sub: timeAgo(n.createdAt),
+        avatar: (n.actorName || '?').charAt(0),
+        onClick: targetOf(n),
+        duration: 6000,
+    });
+}
+
+// gộp: lấy danh sách, tính số chưa đọc, và bắn toast cho thông báo mới
+const pollNotifs = async () => {
     if (!getItemLocal(LOCALKEYS.ACCESS_TOKEN)) return;
     try {
-        const res = await getUnreadCount();
-        unread.value = Number(res?.data?.data?.count || 0);
+        const res = await getNotifications();
+        const list = res?.data?.data || [];
+        unread.value = list.filter((n) => !n.read).length;
+        if (showNotif.value) notifs.value = list;
+
+        if (!firstPoll) {
+            const fresh = list.filter((n) => !n.read && !seenIds.has(n.notificationId));
+            if (fresh.length > 3) {
+                toast?.(`Bạn có ${fresh.length} thông báo mới`, { type: 'info', onClick: () => { showNotif.value = true; }, duration: 6000 });
+            } else {
+                fresh.forEach(toastNotif);
+            }
+        }
+        seenIds = new Set(list.map((n) => n.notificationId));
+        firstPoll = false;
     } catch (e) { /* ignore */ }
 }
 
@@ -181,8 +215,12 @@ const toggleNotif = async () => {
     try {
         const res = await getNotifications();
         notifs.value = res?.data?.data || [];
-        // đồng bộ lại badge theo dữ liệu mới nhất
-        unread.value = notifs.value.filter((n) => !n.read).length;
+        seenIds = new Set(notifs.value.map((n) => n.notificationId));
+        // mở chuông = xem hết -> đánh dấu đã đọc ngay (giữ highlight trong lần mở này)
+        if (unread.value > 0) {
+            unread.value = 0;
+            try { await markAllRead(); } catch (e) { /* ignore */ }
+        }
     } catch (e) {
         notifs.value = [];
     } finally {
@@ -191,18 +229,13 @@ const toggleNotif = async () => {
 }
 
 const onVisible = () => {
-    if (document.visibilityState === 'visible') loadUnread();
+    if (document.visibilityState === 'visible') pollNotifs();
 }
 
-const onNotifClick = async (n) => {
+const onNotifClick = (n) => {
     showNotif.value = false;
-    if (!n.read) {
-        try { await markRead(n.notificationId); } catch (e) { /* ignore */ }
-        unread.value = Math.max(unread.value - 1, 0);
-    }
-    if (n.type === 'COMMENT' && n.targetId) route.push(`/post/${n.targetId}`);
-    else if (n.type === 'MESSAGE' && n.targetId) route.push({ path: '/chat', query: { c: n.targetId, name: n.actorName || '' } });
-    else if (n.actorId) route.push(`/user/${n.actorId}`);
+    const go = targetOf(n);
+    if (go) go();
 }
 
 const readAll = async () => {
@@ -213,8 +246,9 @@ const readAll = async () => {
 
 const startNotifPoll = () => {
     stopNotifPoll();
-    loadUnread();
-    pollTimer = setInterval(loadUnread, 20000);
+    firstPoll = true;
+    pollNotifs();
+    pollTimer = setInterval(pollNotifs, 20000);
 }
 const stopNotifPoll = () => {
     if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
@@ -241,6 +275,6 @@ watch(route.currentRoute, () => {
     isLogin.value = getItemLocal(LOCALKEYS.ACCESS_TOKEN) != null;
     isAdmin.value = getItemLocal(LOCALKEYS.IS_ADMIN) === true;
     if (isLogin.value && !wasLogin) startNotifPoll();
-    if (isLogin.value) loadUnread();
+    else if (isLogin.value) pollNotifs();
 })
 </script>

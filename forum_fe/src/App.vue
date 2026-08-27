@@ -11,8 +11,19 @@
     />
 
     <div class="toast-wrap">
-        <div v-for="t in toasts" :key="t.id" class="toast" :class="`toast--${t.type}`">
-            {{ t.msg }}
+        <div
+            v-for="t in toasts"
+            :key="t.id"
+            class="toast"
+            :class="[`toast--${t.type}`, { 'toast--clickable': !!t.onClick }]"
+            @click="onToastClick(t)"
+        >
+            <div v-if="t.avatar" class="toast__avatar">{{ t.avatar }}</div>
+            <div class="toast__body">
+                <div class="toast__msg">{{ t.msg }}</div>
+                <div v-if="t.sub" class="toast__sub">{{ t.sub }}</div>
+            </div>
+            <button class="toast__x" @click.stop="dismissToast(t.id)">×</button>
         </div>
     </div>
 </template>
@@ -63,12 +74,30 @@ const openConfirm = (title, content, onConfirm, opts = {}) => {
 /* ---------- toast ---------- */
 const toasts = ref([]);
 let toastId = 0;
-const toast = (msg, type = 'success') => {
+
+const dismissToast = (id) => {
+    toasts.value = toasts.value.filter((t) => t.id !== id);
+};
+
+const onToastClick = (t) => {
+    const cb = t.onClick;
+    dismissToast(t.id);
+    if (cb) cb();
+};
+
+// toast(msg)  hoặc  toast(msg, 'error')  hoặc  toast(msg, { type, sub, avatar, onClick, duration })
+const toast = (msg, opts = {}) => {
+    if (typeof opts === 'string') opts = { type: opts };
     const id = ++toastId;
-    toasts.value.push({ id, msg, type });
-    setTimeout(() => {
-        toasts.value = toasts.value.filter((t) => t.id !== id);
-    }, 3000);
+    toasts.value.push({
+        id,
+        msg,
+        type: opts.type || 'success',
+        sub: opts.sub || '',
+        avatar: opts.avatar || '',
+        onClick: opts.onClick || null,
+    });
+    setTimeout(() => dismissToast(id), opts.duration || 3200);
 };
 
 provide('openDialogError', openDialogError);
