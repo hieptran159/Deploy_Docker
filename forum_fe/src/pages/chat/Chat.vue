@@ -62,7 +62,11 @@
                         :class="{ 'bg-[var(--brand-soft)]': active?.conversationId === c.conversationId }"
                         @click="() => openConversation(c)">
                         <div class="flex items-center gap-1">
-                            <span>{{ isDm(c.conversationName) ? '💬' : '👥' }}</span>
+                            <span class="relative flex-none">
+                                {{ isDm(c.conversationName) ? '💬' : '👥' }}
+                                <span v-if="dmPeerOnline(c)"
+                                    class="absolute -bottom-0.5 -right-0.5 size-2 rounded-full bg-green-500 ring-1 ring-white"></span>
+                            </span>
                             <span class="font-semibold text-sm truncate flex-1"
                                 :class="{ 'font-bold': unreadByConv[c.conversationId] }">{{ displayName(c) }}</span>
                             <span v-if="unreadByConv[c.conversationId]"
@@ -235,7 +239,7 @@ import { getUserInfo } from '@/apis/user';
 import { getFriends } from '@/apis/friend';
 import { markReadByTarget, getNotifications } from '@/apis/notification';
 import { LOCALKEYS, getItemLocal } from '@/storages/localStorage';
-import { activeConversationId, bumpNotifRefresh, notifRefreshTick } from '@/storages/appState';
+import { activeConversationId, bumpNotifRefresh, notifRefreshTick, onlinePeers } from '@/storages/appState';
 import { SOCKET_URL, IMAGE_BASE } from '@/config';
 import { formatTime, timeAgo } from '@/js/helper';
 import EmojiPicker from '@/components/EmojiPicker.vue';
@@ -305,15 +309,21 @@ const lastMineIndex = computed(() => {
 /* ---------- helpers tên hội thoại ---------- */
 const isDm = (name) => typeof name === 'string' && (name.startsWith('dm:') || name.startsWith('dm_'));
 
+const activeDmPeerOnline = computed(() => {
+    if (!active.value || !isDm(active.value.conversationName)) return false;
+    if (otherOnline.value) return true;
+    const other = otherIdFromDm(active.value.conversationName);
+    return !!other && onlinePeers.value.has(other);
+});
 const statusText = computed(() => {
     if (!active.value) return '';
     if (isDm(active.value.conversationName)) {
-        return otherOnline.value ? '● Đang hoạt động' : '○ Không hoạt động';
+        return activeDmPeerOnline.value ? '● Đang hoạt động' : '○ Không hoạt động';
     }
     return connected.value ? '● Đã kết nối' : '○ Mất kết nối';
 });
 const statusClass = computed(() => {
-    const on = isDm(active.value?.conversationName) ? otherOnline.value : connected.value;
+    const on = isDm(active.value?.conversationName) ? activeDmPeerOnline.value : connected.value;
     return on ? 'text-green-600' : 'muted';
 });
 
@@ -321,6 +331,13 @@ const otherIdFromDm = (name) => {
     const raw = name.slice(3);
     const parts = raw.split(name.startsWith('dm:') ? ':' : '_');
     return parts.find((p) => p && p !== myId) || null;
+}
+
+// chấm xanh cho DM khi người kia đang online (từ friend_presence toàn cục)
+const dmPeerOnline = (c) => {
+    if (!c || !isDm(c.conversationName)) return false;
+    const other = otherIdFromDm(c.conversationName);
+    return !!other && onlinePeers.value.has(other);
 }
 
 const resolveDmNames = async () => {

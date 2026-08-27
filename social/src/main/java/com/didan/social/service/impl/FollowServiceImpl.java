@@ -60,6 +60,19 @@ public class FollowServiceImpl implements FollowService {
     }
 
     @Override
+    public java.util.List<String> friendIdsOf(String userId) {
+        java.util.List<String> ids = new ArrayList<>();
+        if (userId == null) return ids;
+        for (Followers f : followRepository.findAcceptedOf(userId)) {
+            String a = f.getUsers1() != null ? f.getUsers1().getUserId() : null;
+            String b = f.getUsers2() != null ? f.getUsers2().getUserId() : null;
+            String other = userId.equals(a) ? b : a;
+            if (other != null && !ids.contains(other)) ids.add(other);
+        }
+        return ids;
+    }
+
+    @Override
     public String friendStatus(String userId) throws Exception {
         String me = authorizePathService.getUserIdAuthoried();
         if (me.equals(userId)) return "self";

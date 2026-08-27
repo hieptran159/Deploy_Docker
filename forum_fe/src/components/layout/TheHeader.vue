@@ -111,7 +111,7 @@ import { logout as logoutApi } from '@/apis/auth';
 import { checkIsAdmin } from '@/apis/admin';
 import { getNotifications, markAllRead, markRead } from '@/apis/notification';
 import { timeAgo } from '@/js/helper';
-import { activeConversationId, activePostId, notifRefreshTick } from '@/storages/appState';
+import { activeConversationId, activePostId, notifRefreshTick, setPeerOnline, onlinePeers } from '@/storages/appState';
 import { SOCKET_URL, IMAGE_BASE } from '@/config';
 import { io } from 'socket.io-client';
 import BaseAvatar from '../BaseAvatar.vue';
@@ -305,11 +305,13 @@ const startNotifSocket = () => {
     try {
         notifSocket = io(SOCKET_URL, { transports: ['websocket'], query: { token } });
         notifSocket.on('notification', bumpPoll);
+        notifSocket.on('friend_presence', (p) => { if (p) setPeerOnline(p.userId, !!p.online); });
     } catch (e) { /* ignore */ }
 }
 const stopNotifSocket = () => {
     clearTimeout(notifDebounce);
     if (notifSocket) { notifSocket.removeAllListeners(); notifSocket.disconnect(); notifSocket = null; }
+    onlinePeers.value = new Set();
 }
 
 const startNotifPoll = () => {

@@ -24,11 +24,16 @@ public class SocketModule {
     private final SocketIOServer server; // Khai báo một server socket
     private final SocketService socketService; // Khai báo một service để xử lý logic
     private final JwtUtils jwtUtils;
+    private final com.didan.social.service.FollowService followService;
+    // đếm số socket "thông báo" đang mở của mỗi user -> biết ai online
+    private final java.util.concurrent.ConcurrentHashMap<String, Integer> onlineCount = new java.util.concurrent.ConcurrentHashMap<>();
     @Autowired
-    public SocketModule(SocketIOServer server, SocketService socketService, JwtUtils jwtUtils){ // Inject server socket và service vào
+    public SocketModule(SocketIOServer server, SocketService socketService, JwtUtils jwtUtils,
+                        com.didan.social.service.FollowService followService){ // Inject server socket và service vào
         this.jwtUtils = jwtUtils;
         this.server = server; // Gán server socket
         this.socketService = socketService; // Gán service
+        this.followService = followService;
         server.addConnectListener(onConnected()); // Thêm listener khi có client kết nối
         server.addDisconnectListener(onDisconnected()); // Thêm listener khi có client ngắt kết nối
         server.addEventListener("send_message", SendMessageRequest.class, onChatReceived()); // Thêm listener khi có client gửi tin nhắn, với tên sự kiện là send_message và kiểu dữ liệu là Chat
@@ -46,6 +51,40 @@ public class SocketModule {
         Map<String, Object> m = payload(userId);
         m.put("online", online);
         return m;
+    }
+
+    // Khi 1 user mở socket thông báo: nếu vừa online -> báo cho bạn bè; đồng thời
+    // cho user này biết bạn bè nào đang online.
+    private void handleFriendPresenceOnConnect(SocketIOClient client, String userId){
+        try {
+            int n = onlineCount.merge(userId, 1, Integer::sum);
+            java.util.List<String> friends = followService.friendIdsOf(userId);
+            if (n == 1) {
+                for (String fid : friends) {
+                    server.getRoomOperations("user:" + fid).sendEvent("friend_presence", presencePayload(userId, true));
+                }
+            }
+            for (String fid : friends) {
+                if (onlineCount.getOrDefault(fid, 0) > 0) {
+                    client.sendEvent("friend_presence", presencePayload(fid, true));
+                }
+            }
+        } catch (Exception e) {
+            logger.error("friend presence connect failed: " + e.getMessage());
+        }
+    }
+
+    private void handleFriendPresenceOnDisconnect(String userId){
+        try {
+            Integer left = onlineCount.computeIfPresent(userId, (k, v) -> v > 1 ? v - 1 : null);
+            if (left == null) {
+                for (String fid : followService.friendIdsOf(userId)) {
+                    server.getRoomOperations("user:" + fid).sendEvent("friend_presence", presencePayload(userId, false));
+                }
+            }
+        } catch (Exception e) {
+            logger.error("friend presence disconnect failed: " + e.getMessage());
+        }
     }
 
     // Chuyển tiếp 1 sự kiện đơn giản (typing/seen) cho những người còn lại trong phòng, kèm userId
@@ -98,7 +137,8 @@ public class SocketModule {
                     return;
                 }
                 if (!StringUtils.hasText(conversationId)) {
-                    // socket chỉ để nhận thông báo cá nhân, không tham gia phòng chat nào
+                    // socket chỉ để nhận thông báo cá nhân + theo dõi bạn bè online
+                    handleFriendPresenceOnConnect(client, userId);
                     logger.info(String.format("Notification socket connected - userId[%s]", userId));
                     return;
                 }
@@ -133,7 +173,8 @@ public class SocketModule {
                     return;
                 }
                 if (!StringUtils.hasText(conversationId)) {
-                    // socket thông báo cá nhân: không có phòng chat để xử lý
+                    // socket thông báo cá nhân: cập nhật trạng thái online cho bạn bè
+                    handleFriendPresenceOnDisconnect(userId);
                     logger.info(String.format("Notification socket disconnected - userId[%s]", userId));
                     return;
                 }

@@ -20,4 +20,6 @@ public interface FollowService {
 
     // Dùng cho tính năng khác (vd: thêm thành viên nhóm)
     boolean areFriends(String a, String b);
+    // Danh sách id bạn bè đã kết bạn của 1 người (không cần ngữ cảnh đăng nhập)
+    java.util.List<String> friendIdsOf(String userId);
 }
