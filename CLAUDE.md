@@ -147,8 +147,12 @@ There is effectively no test suite — only `social/src/test/.../SocialApplicati
 
 - Secrets are committed in `docker-compose.yml`, `social/compose.yml`,
   `social/src/main/resources/application.properties`, and `.env` files (JWT signing key,
-  SendGrid API key, DB passwords). Do not add more, and be deliberate before rotating or
-  echoing them.
+  DB passwords). Do not add more, and be deliberate before rotating or echoing them.
+- The SendGrid API key is NOT committed — set `SENDGRID_API_KEY` in `.env` (docker) or
+  `social/.env` (when running `./mvnw spring-boot:run`; `spring-dotenv` loads it). Blank
+  key = mail sending is skipped, OTP/verify codes still print to the backend log as
+  `[verify] ... code=`. `SENDGRID_FROM_EMAIL` must be on a SendGrid-authenticated
+  domain/sender. An OS env var of the same name overrides the `.env` file.
 - Hostnames/ports are pinned to a specific deployment (`hp11.hipe.id.vn`,
   `hipe.id.vn`, `didan.id.vn`). Changing target environment means editing the hardcoded
   frontend `BASE_URL`/`.env`, `nginx.conf` `server_name`/`proxy_pass`, and the compose

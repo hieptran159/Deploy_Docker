@@ -34,9 +34,13 @@ public class MailServiceImpl implements MailService {
         Mail mail = new Mail(from, subject, to, content);
 
         String apiKey = env.getProperty("send_grid.api_key");
+        if (apiKey == null || apiKey.isBlank()) {
+            logger.warn("SENDGRID_API_KEY chưa cấu hình -> bỏ qua gửi mail cho {}", email);
+            return;
+        }
         logger.info("SendGrid from={} keyPrefix={}",
                 env.getProperty("send_grid.from_email"),
-                apiKey == null ? "null" : apiKey.substring(0, Math.min(12, apiKey.length())));
+                apiKey.substring(0, Math.min(12, apiKey.length())));
         SendGrid sg = new SendGrid(apiKey);
         Request request = new Request();
         try{

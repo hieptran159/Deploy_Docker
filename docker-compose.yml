@@ -55,8 +55,8 @@ services:
       SOCKET_SERVER_HOST: 0.0.0.0
       JWT_SECRET: ${JWT_SECRET:-wyD7j04/rzm+8EABKgQTPO9cFojZI2Q2xRPycfhHtZc=}
       SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
-      SENDGRID_FROM_EMAIL: ${SENDGRID_FROM_EMAIL:-social-service@didan.id.vn}
-      SENDGRID_FROM_NAME: ${SENDGRID_FROM_NAME:-Social Service}
+      SENDGRID_FROM_EMAIL: ${SENDGRID_FROM_EMAIL:-no-reply@hipe.id.vn}
+      SENDGRID_FROM_NAME: ${SENDGRID_FROM_NAME:-HIPDN-EA Forum}
     ports:
       - "${BACKEND_PORT:-8081}:8081"
       - "${SOCKET_PORT:-8082}:8082"
