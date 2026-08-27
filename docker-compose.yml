@@ -57,6 +57,12 @@ services:
       SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
       SENDGRID_FROM_EMAIL: ${SENDGRID_FROM_EMAIL:-no-reply@hipe.id.vn}
       SENDGRID_FROM_NAME: ${SENDGRID_FROM_NAME:-HIPDN-EA Forum}
+      # Giới hạn tần suất /auth/** (có mặc định hợp lý; chỉ set khi cần đổi)
+      RATELIMIT_ENABLED: ${RATELIMIT_ENABLED:-true}
+      RATELIMIT_SIGNIN: ${RATELIMIT_SIGNIN:-20}
+      RATELIMIT_SIGNUP: ${RATELIMIT_SIGNUP:-6}
+      RATELIMIT_OTP_SEND: ${RATELIMIT_OTP_SEND:-5}
+      RATELIMIT_OTP_CHECK: ${RATELIMIT_OTP_CHECK:-20}
     ports:
       - "${BACKEND_PORT:-8081}:8081"
       - "${SOCKET_PORT:-8082}:8082"

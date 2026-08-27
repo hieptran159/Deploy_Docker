@@ -93,6 +93,15 @@ There is effectively no test suite — only `social/src/test/.../SocialApplicati
   `AuthorizePathService.getUserIdAuthoried()`.
 - `CustomFilterSecurity` permits `/auth/**`, `/images/**`, `/api-docs**/**`,
   `swagger-ui/**`; every other request needs a valid JWT. Session is STATELESS, CSRF off.
+- `security/RateLimitFilter` (plain servlet filter, order `HIGHEST_PRECEDENCE+5`, runs
+  before the JWT filter) throttles POST/PATCH on `/auth/**` per client IP with in-memory
+  fixed-window counters (single-instance deploy). Buckets: `signin` 20/5min, `signup`
+  6/hr, `otp-send` (`resend-verify`+`token-reset`) 5/15min, `otp-check` (`verify`+`reset`)
+  20/10min, `default` 40/5min. Over limit → HTTP **429** + `Retry-After` header, body
+  `{success:false,statusCode:429,description:"Bạn thao tác quá nhanh..."}` (surfaces via
+  the FE's `e?.description`). Client IP from `X-Forwarded-For`/`X-Real-IP` then
+  `getRemoteAddr`. Tunable via `app.ratelimit.*` props / `RATELIMIT_*` env
+  (`RATELIMIT_ENABLED=false` disables).
 - Real-time chat: `socket/SocketModule` registers `netty-socketio` listeners
   (`send_message` / `get_message` events, room per `conversationID`); token passed as a
   `token` URL param on the handshake. Runs on its own port (8082), separate from the
