@@ -132,7 +132,7 @@
 </template>
 
 <script setup>
-import { onMounted, onBeforeUnmount, ref, computed, inject, watch } from 'vue';
+import { onMounted, onBeforeUnmount, ref, computed, inject, watch, nextTick } from 'vue';
 import { getPostById } from '@/apis/post';
 import { createComment } from '@/apis/comment';
 import { likePostApi, unLikePostApi, deletePost } from '@/apis/post';
@@ -204,6 +204,9 @@ const onCommentType = (e) => {
 const onCommentBlur = () => { setTimeout(() => { mentionOpen.value = false; }, 120); };
 
 watch(contentPost, detectMention);
+
+// đổi ?comment= khi vẫn đang ở trang bài viết -> cuộn lại
+watch(() => route.currentRoute.value.query.comment, (c) => { if (c) scrollToComment(); });
 
 const pickMention = (u) => {
     contentPost.value = (contentPost.value || '').replace(MENTION_TAIL, `@${u.fullName} `);
@@ -340,6 +343,25 @@ const markPostNotifsRead = async () => {
     } catch (e) { /* ignore */ }
 }
 
+// cuộn tới đúng bình luận khi mở từ thông báo (?comment=<id>)
+const scrollToComment = async () => {
+    const cid = route.currentRoute.value.query.comment;
+    if (!cid) return;
+    await nextTick();
+    let tries = 0;
+    const tick = () => {
+        const el = document.getElementById('comment-' + cid);
+        if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            el.classList.add('comment-flash');
+            setTimeout(() => el.classList.remove('comment-flash'), 2200);
+        } else if (tries++ < 20) {
+            setTimeout(tick, 150);
+        }
+    };
+    tick();
+}
+
 /* ---------- realtime: bình luận từ người khác ---------- */
 let postSocket = null;
 let refetchTimer = null;
@@ -369,6 +391,7 @@ onMounted(async() => {
     // đang xem bài này -> đánh dấu đã đọc các thông báo bình luận / thích của bài
     markPostNotifsRead();
     connectPostSocket();
+    scrollToComment();
 })
 
 onBeforeUnmount(() => {

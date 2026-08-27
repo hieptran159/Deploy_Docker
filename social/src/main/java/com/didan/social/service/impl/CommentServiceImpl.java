@@ -134,15 +134,16 @@ public class CommentServiceImpl extends ConvertDTO implements CommentService {
         commentRepository.save(comment);
         userComment.setUserCommentId(new UserCommentId(postId, comment.getCommentId(), user.getUserId()));
         userCommentRepository.save(userComment);
+        String newCommentId = comment.getCommentId();
         UserPosts owner = userPostRepository.findFirstByPosts_PostId(postId);
         if (owner != null && owner.getUsers() != null) {
             notificationService.push(owner.getUsers().getUserId(), user.getUserId(), "COMMENT", postId,
-                    user.getFullName() + " đã bình luận bài viết của bạn");
+                    newCommentId, user.getFullName() + " đã bình luận bài viết của bạn");
         }
         // báo cho chủ bình luận được trả lời
         if (parentAuthorId != null) {
             notificationService.pushUniquePerActor(parentAuthorId, user.getUserId(), "REPLY", postId,
-                    user.getFullName() + " đã trả lời bình luận của bạn");
+                    newCommentId, user.getFullName() + " đã trả lời bình luận của bạn");
         }
         // @nhắc tên: tách các token dạng @[Tên](userId) trong nội dung
         try {
@@ -155,7 +156,7 @@ public class CommentServiceImpl extends ConvertDTO implements CommentService {
                 while (mt.find()) mentioned.add(mt.group(1));
                 for (String uid : mentioned) {
                     notificationService.pushUniquePerActor(uid, user.getUserId(), "MENTION", postId,
-                            user.getFullName() + " đã nhắc đến bạn trong một bình luận");
+                            newCommentId, user.getFullName() + " đã nhắc đến bạn trong một bình luận");
                 }
             }
         } catch (Exception ex) {
@@ -206,7 +207,7 @@ public class CommentServiceImpl extends ConvertDTO implements CommentService {
         commentLikeRepository.save(newCommentLike);
         if (uc != null && uc.getUsers() != null) {
             notificationService.pushUniquePerActor(uc.getUsers().getUserId(), user.getUserId(), "COMMENT_LIKE", likedPostId,
-                    user.getFullName() + " đã bày tỏ cảm xúc về bình luận của bạn");
+                    commentId, user.getFullName() + " đã bày tỏ cảm xúc về bình luận của bạn");
         }
         broadcastCommentsChanged(likedPostId);
         return true;

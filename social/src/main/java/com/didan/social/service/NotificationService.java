@@ -11,6 +11,9 @@ public interface NotificationService {
     void pushUnique(String recipientId, String actorId, String type, String targetId, String message);
     // Như push nhưng gộp theo TỪNG người tạo: bỏ qua nếu đã có thông báo chưa đọc cùng (recipient, actor, type, targetId)
     void pushUniquePerActor(String recipientId, String actorId, String type, String targetId, String message);
+    // Biến thể kèm refId (vd commentId) để client điều hướng chính xác
+    void push(String recipientId, String actorId, String type, String targetId, String refId, String message);
+    void pushUniquePerActor(String recipientId, String actorId, String type, String targetId, String refId, String message);
     // Danh sách thông báo của người dùng hiện tại (mới nhất trước)
     List<NotificationDTO> listMine() throws Exception;
     // Số thông báo chưa đọc của người dùng hiện tại

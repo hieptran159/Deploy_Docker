@@ -1,5 +1,5 @@
 <template>
-    <div class="flex gap-3">
+    <div class="flex gap-3 rounded-lg -mx-1 px-1 transition-colors" :id="'comment-' + (comment.commentId || '')">
         <BaseAvatar
             :linkAvt="linkAvt"
             :userCreatedPost="userComments"

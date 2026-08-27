@@ -43,6 +43,11 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Override
     public void push(String recipientId, String actorId, String type, String targetId, String message) {
+        push(recipientId, actorId, type, targetId, null, message);
+    }
+
+    @Override
+    public void push(String recipientId, String actorId, String type, String targetId, String refId, String message) {
         try {
             if (!StringUtils.hasText(recipientId) || recipientId.equals(actorId)) {
                 return; // không tự thông báo cho chính mình
@@ -53,6 +58,7 @@ public class NotificationServiceImpl implements NotificationService {
             n.setActorId(actorId);
             n.setType(type);
             n.setTargetId(targetId);
+            n.setRefId(refId);
             n.setMessage(message);
             n.setIsRead(0);
             LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
@@ -64,6 +70,7 @@ public class NotificationServiceImpl implements NotificationService {
                 ping.put("type", type);
                 ping.put("actorId", actorId);
                 ping.put("targetId", targetId);
+                ping.put("refId", refId);
                 ping.put("message", message);
                 realtimeGateway.toUser(recipientId, "notification", ping);
             } catch (Exception ignore) { /* realtime là phụ */ }
@@ -101,6 +108,7 @@ public class NotificationServiceImpl implements NotificationService {
             dto.setActorId(n.getActorId());
             dto.setType(n.getType());
             dto.setTargetId(n.getTargetId());
+            dto.setRefId(n.getRefId());
             dto.setMessage(n.getMessage());
             dto.setRead(n.getIsRead() == 1);
             dto.setCreatedAt(n.getCreatedAt() == null ? null : n.getCreatedAt().toString());
@@ -134,6 +142,11 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Override
     public void pushUniquePerActor(String recipientId, String actorId, String type, String targetId, String message) {
+        pushUniquePerActor(recipientId, actorId, type, targetId, null, message);
+    }
+
+    @Override
+    public void pushUniquePerActor(String recipientId, String actorId, String type, String targetId, String refId, String message) {
         try {
             if (!StringUtils.hasText(recipientId) || recipientId.equals(actorId)) {
                 return;
@@ -146,7 +159,7 @@ public class NotificationServiceImpl implements NotificationService {
         } catch (Exception e) {
             logger.error("pushUniquePerActor check failed: " + e.getMessage());
         }
-        push(recipientId, actorId, type, targetId, message);
+        push(recipientId, actorId, type, targetId, refId, message);
     }
 
     @Override

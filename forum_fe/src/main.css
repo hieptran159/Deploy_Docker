@@ -225,6 +225,15 @@ html, body {
     to { opacity: 1; transform: none; }
 }
 
+/* ---------- nháy sáng bình luận khi mở từ thông báo ---------- */
+.comment-flash {
+    animation: comment-flash 2.2s ease-out;
+}
+@keyframes comment-flash {
+    0%, 25% { background: var(--brand-soft); }
+    100% { background: transparent; }
+}
+
 /* ---------- lightbox xem ảnh ---------- */
 .lightbox {
     position: fixed;

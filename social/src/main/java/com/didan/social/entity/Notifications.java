@@ -22,6 +22,10 @@ public class Notifications {
     @Column(name = "target_id", length = 50)
     private String targetId;
 
+    // id phụ để điều hướng chính xác (vd: commentId cho COMMENT/COMMENT_LIKE/REPLY/MENTION)
+    @Column(name = "ref_id", length = 50)
+    private String refId;
+
     @Column(name = "message", length = 255)
     private String message;
 
@@ -48,6 +52,9 @@ public class Notifications {
 
     public String getTargetId() { return targetId; }
     public void setTargetId(String targetId) { this.targetId = targetId; }
+
+    public String getRefId() { return refId; }
+    public void setRefId(String refId) { this.refId = refId; }
 
     public String getMessage() { return message; }
     public void setMessage(String message) { this.message = message; }

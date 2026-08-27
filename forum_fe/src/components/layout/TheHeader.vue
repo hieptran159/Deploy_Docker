@@ -186,7 +186,11 @@ let seenIds = new Set();
 let firstPoll = true;
 
 const POST_TYPES = ['COMMENT', 'COMMENT_LIKE', 'POST_LIKE', 'MENTION', 'REPLY'];
+const COMMENT_ANCHOR_TYPES = ['COMMENT', 'COMMENT_LIKE', 'MENTION', 'REPLY'];
 const targetOf = (n) => {
+    if (COMMENT_ANCHOR_TYPES.includes(n.type) && n.targetId && n.refId) {
+        return () => route.push({ path: `/post/${n.targetId}`, query: { comment: n.refId } });
+    }
     if (POST_TYPES.includes(n.type) && n.targetId) return () => route.push(`/post/${n.targetId}`);
     if (n.type === 'MESSAGE' && n.targetId) return () => route.push({ path: '/chat', query: { c: n.targetId, name: n.actorName || '' } });
     if (n.type === 'FRIEND_REQUEST') return () => route.push({ path: '/follow', query: { tab: 'incoming' } });

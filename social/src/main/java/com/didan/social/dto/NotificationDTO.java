@@ -7,6 +7,7 @@ public class NotificationDTO {
     private String actorAvatar;
     private String type;
     private String targetId;
+    private String refId;
     private String message;
     private boolean read;
     private String createdAt;
@@ -30,6 +31,9 @@ public class NotificationDTO {
 
     public String getTargetId() { return targetId; }
     public void setTargetId(String targetId) { this.targetId = targetId; }
+
+    public String getRefId() { return refId; }
+    public void setRefId(String refId) { this.refId = refId; }
 
     public String getMessage() { return message; }
     public void setMessage(String message) { this.message = message; }
