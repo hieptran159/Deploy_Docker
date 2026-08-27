@@ -183,6 +183,7 @@ const onNotifClick = async (n) => {
         unread.value = Math.max(unread.value - 1, 0);
     }
     if (n.type === 'COMMENT' && n.targetId) route.push(`/post/${n.targetId}`);
+    else if (n.type === 'MESSAGE' && n.targetId) route.push({ path: '/chat', query: { c: n.targetId, name: n.actorName || '' } });
     else if (n.actorId) route.push(`/user/${n.actorId}`);
 }
 

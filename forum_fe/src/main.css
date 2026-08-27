@@ -134,7 +134,10 @@ html, body {
 
 /* auth screens share .form-login */
 .form-login {
-    padding: 40px 16px;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 48px 16px;
 }
 .form-login > div {
     width: 100%;
