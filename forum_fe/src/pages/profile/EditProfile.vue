@@ -11,12 +11,16 @@
                     <label class="text-sm font-semibold w-32 flex-none">{{ f.label }}</label>
                     <DxTextArea v-if="f.area" v-model="profile[f.key]" class="flex-1" :height="60" />
                     <DxTextBox v-else v-model="profile[f.key]" class="flex-1" :placeholder="f.ph" />
-                    <div class="flex items-center gap-2 flex-none">
-                        <DxSwitch v-model="visible[f.key]" />
-                        <span class="text-xs" :class="visible[f.key] ? 'text-green-600' : 'muted'">
-                            {{ visible[f.key] ? 'Công khai' : 'Riêng tư' }}
-                        </span>
-                    </div>
+                    <button
+                        type="button"
+                        class="flex-none px-3 py-1.5 rounded-full text-xs font-semibold border transition w-32 text-center"
+                        :class="visible[f.key]
+                            ? 'bg-green-50 border-green-300 text-green-700'
+                            : 'bg-gray-100 border-gray-300 muted'"
+                        @click="visible[f.key] = !visible[f.key]"
+                    >
+                        {{ visible[f.key] ? '🌐 Công khai' : '🔒 Riêng tư' }}
+                    </button>
                 </div>
                 <div class="flex justify-end">
                     <DxButton type="default" text="Lưu thông tin" @click="saveProfile" />
@@ -57,7 +61,7 @@
 </template>
 
 <script setup>
-import { DxButton, DxTextBox, DxTextArea, DxSwitch } from 'devextreme-vue';
+import { DxButton, DxTextBox, DxTextArea } from 'devextreme-vue';
 import { useRouter } from 'vue-router';
 import { inject, onMounted, ref } from 'vue';
 import { editUser, updateProfile, getUserInfo } from '@/apis/user';
@@ -124,6 +128,7 @@ const saveProfile = async () => {
             hobbiesPublic: visible.value.hobbies ? 1 : 0,
             sloganPublic: visible.value.slogan ? 1 : 0,
         });
+        await loadProfile();   // nạp lại từ server để chắc chắn đã lưu
         toast?.('Đã lưu thông tin cá nhân');
     } catch (e) {
         showDialog("Thông báo", e?.description || "Lưu thông tin thất bại");
