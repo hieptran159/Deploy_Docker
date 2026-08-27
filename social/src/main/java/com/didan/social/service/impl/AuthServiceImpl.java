@@ -69,6 +69,10 @@ public class AuthServiceImpl implements AuthService {
             throw new Exception("User is blocked");
         }
         if (passwordEncoder.matches(password, user.getPassword())){
+            if (user.getEmailVerified() != null && user.getEmailVerified() == 0) {
+                logger.error("Email not verified");
+                throw new Exception("Email chưa được xác thực. Vui lòng nhập mã đã gửi tới hộp thư của bạn.");
+            }
             if (StringUtils.hasText(user.getAccessToken())){
                 BlacklistToken blacklistToken = new BlacklistToken(user.getAccessToken());
                 blacklistRepository.save(blacklistToken);
@@ -116,8 +120,16 @@ public class AuthServiceImpl implements AuthService {
             java.sql.Date sqlDate = new java.sql.Date(utilDate.getTime());
             userSave.setDob(sqlDate);
             userSave.setAccessToken(jwtUtils.generateAccessToken(id.toString()));
+            String code = randomCode();
+            userSave.setEmailVerified(0);
+            userSave.setVerifyCode(code);
             userRepository.save(userSave);
-            mailService.sendTextEmail(signupRequest.getEmail(), "WELCOME", "<h1>You signup successfully. Welcome to our service</h1>");
+            try {
+                mailService.sendTextEmail(signupRequest.getEmail(), "Xác thực email",
+                        "<h2>Chào mừng bạn!</h2><p>Mã xác thực email của bạn là: <b style='font-size:20px'>" + code + "</b></p>");
+            } catch (Exception mailEx) {
+                logger.error("send verify email failed: " + mailEx.getMessage());
+            }
             return userSave;
         }
     }
@@ -209,5 +221,54 @@ public class AuthServiceImpl implements AuthService {
             logger.error("Cannot update password");
             return false;
         }
+    }
+
+    private String randomCode() {
+        String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        StringBuilder sb = new StringBuilder(6);
+        Random random = new Random();
+        for (int i = 0; i < 6; i++) sb.append(chars.charAt(random.nextInt(chars.length())));
+        return sb.toString();
+    }
+
+    @Override
+    public Users verifyEmail(String email, String code) throws Exception {
+        Users user = userRepository.findFirstByEmail(email);
+        if (user == null) {
+            throw new Exception("Không tìm thấy tài khoản");
+        }
+        if (user.getEmailVerified() != null && user.getEmailVerified() == 1) {
+            // đã xác thực rồi -> cấp token luôn cho tiện đăng nhập
+        } else {
+            if (!StringUtils.hasText(user.getVerifyCode()) || code == null
+                    || !user.getVerifyCode().equalsIgnoreCase(code.trim())) {
+                throw new Exception("Mã xác thực không đúng");
+            }
+            user.setEmailVerified(1);
+            user.setVerifyCode(null);
+        }
+        if (StringUtils.hasText(user.getAccessToken())) {
+            blacklistRepository.save(new BlacklistToken(user.getAccessToken()));
+        }
+        user.setAccessToken(jwtUtils.generateAccessToken(user.getUserId()));
+        userRepository.save(user);
+        return user;
+    }
+
+    @Override
+    public void resendVerify(String email) throws Exception {
+        Users user = userRepository.findFirstByEmail(email);
+        if (user == null) {
+            throw new Exception("Không tìm thấy tài khoản");
+        }
+        if (user.getEmailVerified() != null && user.getEmailVerified() == 1) {
+            throw new Exception("Email đã được xác thực");
+        }
+        String code = randomCode();
+        user.setEmailVerified(0);
+        user.setVerifyCode(code);
+        userRepository.save(user);
+        mailService.sendTextEmail(email, "Xác thực email",
+                "<h2>Mã xác thực mới</h2><p>Mã xác thực email của bạn là: <b style='font-size:20px'>" + code + "</b></p>");
     }
 }

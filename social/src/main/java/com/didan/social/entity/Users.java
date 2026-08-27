@@ -40,6 +40,12 @@ public class Users {
     @Column(name = "access_token", nullable = true, length = 255)
     private String accessToken;
 
+    // Xác thực email khi đăng ký. null = tài khoản cũ (coi như đã xác thực), 0 = chưa, 1 = đã.
+    @Column(name = "email_verified")
+    private Integer emailVerified;
+    @Column(name = "verify_code", length = 12)
+    private String verifyCode;
+
     // ---- Thông tin hồ sơ mở rộng (tự thêm qua ddl-auto=update) ----
     @Column(name = "nickname", length = 100)
     private String nickname;
@@ -215,6 +221,22 @@ public class Users {
 
     public void setAccessToken(String accessToken) {
         this.accessToken = accessToken;
+    }
+
+    public Integer getEmailVerified() {
+        return emailVerified;
+    }
+
+    public void setEmailVerified(Integer emailVerified) {
+        this.emailVerified = emailVerified;
+    }
+
+    public String getVerifyCode() {
+        return verifyCode;
+    }
+
+    public void setVerifyCode(String verifyCode) {
+        this.verifyCode = verifyCode;
     }
 
     public Set<Followers> getFollowers() {

@@ -65,9 +65,10 @@ public class AuthController {
         try {
             Users user = authService.signup(signupRequest);
             if (user != null){
-                payload.setDescription("SignUp Successful");
+                payload.setDescription("Đăng ký thành công. Vui lòng nhập mã xác thực đã gửi tới email.");
                 response.put("userId", user.getUserId());
-                response.put("accessToken", user.getAccessToken());
+                response.put("email", user.getEmail());
+                response.put("needVerification", "1");
                 payload.setData(response);
             }
             return new ResponseEntity<>(payload, HttpStatus.OK);
@@ -93,6 +94,46 @@ public class AuthController {
             payload.setDescription(e.getMessage());
             payload.setStatusCode(500);
             payload.setSuccess(false);
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
+    @Operation(summary = "Xác thực email bằng mã", description = "Nhập email + mã 6 ký tự đã nhận; thành công sẽ trả token đăng nhập")
+    @PostMapping("/verify")
+    public ResponseEntity<?> verifyEmail(@RequestParam String email, @RequestParam String code){
+        ResponseData payload = new ResponseData();
+        Map<String, String> response = new HashMap<>();
+        try {
+            Users user = authService.verifyEmail(email, code);
+            payload.setDescription("Xác thực email thành công");
+            response.put("userId", user.getUserId());
+            response.put("fullName", user.getFullName());
+            response.put("email", user.getEmail());
+            response.put("avatar", user.getAvtUrl());
+            response.put("accessToken", user.getAccessToken());
+            response.put("isAdmin", String.valueOf(user.getIsAdmin()));
+            payload.setData(response);
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e){
+            payload.setStatusCode(500);
+            payload.setSuccess(false);
+            payload.setDescription(e.getMessage());
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
+    @Operation(summary = "Gửi lại mã xác thực email")
+    @PostMapping("/resend-verify")
+    public ResponseEntity<?> resendVerify(@RequestParam String email){
+        ResponseData payload = new ResponseData();
+        try {
+            authService.resendVerify(email);
+            payload.setDescription("Đã gửi lại mã xác thực, kiểm tra hộp thư");
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e){
+            payload.setStatusCode(500);
+            payload.setSuccess(false);
+            payload.setDescription(e.getMessage());
             return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
         }
     }

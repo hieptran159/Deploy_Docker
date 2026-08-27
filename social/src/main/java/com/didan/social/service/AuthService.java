@@ -22,4 +22,10 @@ public interface AuthService {
 
     // Update Password
     boolean updatePassword(String token, String newPassword) throws Exception;
+
+    // Xác thực email bằng mã đã gửi (đăng nhập luôn sau khi xác thực)
+    Users verifyEmail(String email, String code) throws Exception;
+
+    // Gửi lại mã xác thực email
+    void resendVerify(String email) throws Exception;
 }

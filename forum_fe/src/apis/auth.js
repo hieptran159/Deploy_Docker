@@ -19,3 +19,11 @@ export const requestResetToken = (email) => {
 export const resetPassword = (token, newPassword) => {
     return api.patch(`/auth/reset?token=${encodeURIComponent(token)}&newPassword=${encodeURIComponent(newPassword)}`);
 }
+
+export const verifyEmail = (email, code) => {
+    return api.post(`/auth/verify?email=${encodeURIComponent(email)}&code=${encodeURIComponent(code)}`);
+}
+
+export const resendVerify = (email) => {
+    return api.post(`/auth/resend-verify?email=${encodeURIComponent(email)}`);
+}

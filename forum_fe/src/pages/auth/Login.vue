@@ -56,9 +56,14 @@ const loginHandler = async() => {
         setItemLocal(LOCALKEYS.IS_ADMIN, String(d.isAdmin) === '1');
         await getDataUser(d.userId);
         route.push('/');
-    }   
-    catch{
-        showDialog("Đăng nhập thất bại", "Tài khoản hoặc mật khẩu không chính xác!")
+    }
+    catch (e) {
+        const msg = e?.description || '';
+        if (msg.includes('xác thực')) {
+            route.push({ path: '/signup', query: { verify: formData.value.email } });
+            return;
+        }
+        showDialog("Đăng nhập thất bại", msg || "Tài khoản hoặc mật khẩu không chính xác!");
     }
 }
 

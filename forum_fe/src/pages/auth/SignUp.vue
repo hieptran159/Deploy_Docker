@@ -1,6 +1,7 @@
 <template>
     <div class="form-login">
-        <div class="flex flex-col gap-2">
+        <!-- Bước 1: nhập thông tin -->
+        <div v-if="step === 'form'" class="flex flex-col gap-2">
             <div class="section-title">Đăng ký thành viên</div>
             <p class="muted text-sm text-center -mt-2 mb-1">Nhập đầy đủ thông tin để tạo tài khoản</p>
             <div class="form-sign-up flex flex-col">
@@ -31,17 +32,43 @@
                 </div>
             </div>
         </div>
+
+        <!-- Bước 2: xác thực email -->
+        <div v-else class="flex flex-col gap-3">
+            <div class="section-title">Xác thực email</div>
+            <p class="muted text-sm text-center -mt-2">
+                Mã xác thực đã được gửi tới <b>{{ pendingEmail }}</b>. Nhập mã 6 ký tự để hoàn tất.
+            </p>
+            <div>
+                <label class="text-sm muted">Mã xác thực</label>
+                <DxTextBox v-model="code" @enter-key="handleVerify" />
+            </div>
+            <DxButton width="100%" text="Xác thực & đăng nhập" type="default" @click="handleVerify" />
+            <div class="text-sm text-center">
+                <span class="link" @click="handleResend">Gửi lại mã</span>
+                <span class="muted"> · </span>
+                <span class="link" @click="() => route.push('/login')">Về đăng nhập</span>
+            </div>
+        </div>
     </div>
 </template>
 
 <script setup>
 import { DxButton, DxTextBox, DxDateBox } from 'devextreme-vue';
 import { useRouter } from 'vue-router';
-import { inject, ref } from 'vue';
-import { signup } from "@/apis/auth";
+import { inject, onMounted, ref } from 'vue';
+import { signup, verifyEmail, resendVerify } from "@/apis/auth";
+import { getUserInfo } from '@/apis/user';
+import { LOCALKEYS, setItemLocal } from '@/storages/localStorage';
+import { IMAGE_BASE } from '@/config';
 
 const route = useRouter();
 const showDialog = inject("openDialogError");
+const toast = inject("toast");
+
+const step = ref('form');           // 'form' | 'verify'
+const pendingEmail = ref('');
+const code = ref('');
 
 const dataForm = ref({
     fullName: "",
@@ -77,12 +104,45 @@ const handleSignUp = async () => {
         const payload = { fullName, email, password, birthday: formatDate(birthday) };
         if (avatar) payload.avatar = avatar;
         await signup(payload);
-        showDialog("Thông báo", "Đăng ký thành công, hãy đăng nhập");
-        route.push("/login");
+        pendingEmail.value = email;
+        step.value = 'verify';
     } catch (error) {
         showDialog("Thông báo", error?.description || "Đăng ký thất bại");
     }
 };
+
+const handleVerify = async () => {
+    if (!code.value.trim()) { showDialog("Thông báo", "Nhập mã xác thực"); return; }
+    try {
+        const res = await verifyEmail(pendingEmail.value, code.value.trim());
+        const d = res?.data?.data || {};
+        setItemLocal(LOCALKEYS.ACCESS_TOKEN, d.accessToken);
+        setItemLocal(LOCALKEYS.USER_ID, d.userId);
+        setItemLocal(LOCALKEYS.IS_ADMIN, String(d.isAdmin) === '1');
+        try {
+            const u = await getUserInfo(d.userId);
+            setItemLocal(LOCALKEYS.USER_NAME, u?.data?.data?.fullName);
+            setItemLocal(LOCALKEYS.LINK_AVT, IMAGE_BASE + u?.data?.data?.avtUrl);
+        } catch (e) { /* ignore */ }
+        route.push('/');
+    } catch (error) {
+        showDialog("Thông báo", error?.description || "Xác thực thất bại");
+    }
+};
+
+const handleResend = async () => {
+    try {
+        await resendVerify(pendingEmail.value);
+        toast?.('Đã gửi lại mã xác thực');
+    } catch (error) {
+        showDialog("Thông báo", error?.description || "Gửi lại mã thất bại");
+    }
+};
+
+onMounted(() => {
+    const v = route.currentRoute.value.query.verify;
+    if (v) { pendingEmail.value = String(v); step.value = 'verify'; }
+});
 </script>
 
 <style scoped>
