@@ -25,11 +25,14 @@ Hướng dẫn chi tiết (biến môi trường, SendGrid, migrate DB…): xem 
 
 ### Bài viết & bảng tin
 - Đăng bài kèm ảnh; sửa / xoá bài của mình.
+- **Quyền xem bài**: *công khai* hoặc *chỉ bạn bè* (bài "chỉ bạn bè" không lên feed người lạ, không tìm thấy, không chia sẻ được).
 - **Bản nháp**: lưu bài chưa hoàn thiện (không lên feed), quản lý ở trang *Bản nháp*, đăng khi sẵn sàng.
-- **Chia sẻ (repost)** bài của người khác — feed hiển thị *"X đã chia sẻ"*, đếm lượt chia sẻ, mục *"Đã chia sẻ"* trên trang cá nhân.
+- **Hashtag `#chủ_đề`**: gõ thẳng trong tiêu đề / nội dung — hiện chip dưới bài, bấm mở trang `/tag/<tag>`, có card *"Hashtag nổi bật"* ở trang chủ.
+- **Chia sẻ (repost)** bài của người khác — feed hiển thị *"X đã chia sẻ"*, đếm lượt chia sẻ, mục *"Đã chia sẻ"* (phân trang) trên trang cá nhân.
 - Bảng tin trộn chung bài gốc + lượt chia sẻ theo dòng thời gian, **phân trang** kèm nút *đi tới trang X*.
+- Tab **"Tất cả" / "Bạn bè"** ở trang chủ — bảng tin riêng chỉ gồm bài & lượt chia sẻ của bạn bè.
 - **Tìm kiếm** bài viết theo tiêu đề / nội dung (không phân biệt hoa thường), phân trang *"xem thêm"*.
-- **Khách chưa đăng nhập** xem được trang chủ + chi tiết bài + bình luận; muốn tương tác (thích, bình luận, lưu…) thì đăng nhập.
+- **Khách chưa đăng nhập** xem được trang chủ, chi tiết bài, bình luận, trang hashtag; muốn tương tác (thích, bình luận, lưu…) thì đăng nhập.
 
 ### Bình luận
 - Bình luận kèm ảnh, emoji, **nhắc tên** `@Tên` (gợi ý khi gõ).
@@ -38,7 +41,9 @@ Hướng dẫn chi tiết (biến môi trường, SendGrid, migrate DB…): xem 
 
 ### Nhắn tin (realtime)
 - Chat 1-1 và nhóm; đổi tên nhóm, thêm/xoá thành viên (chỉ trong danh sách bạn bè).
+- **Ảnh đại diện nhóm** (đổi realtime); tin nhắn riêng hiển thị avatar của người kia.
 - Sửa / thu hồi tin nhắn, emoji, nhắc tên `@`, ảnh đính kèm.
+- **Thả cảm xúc cho từng tin nhắn** (👍 ❤️ 😆 😮 😢 😡), hiện chip đếm dưới bong bóng, realtime.
 - Hiển thị *đang soạn*, *đã xem*, chấm **online** của bạn bè (heartbeat + sweep).
 - Xem trước tin nhắn cuối + badge chưa đọc ở thanh bên.
 
@@ -53,9 +58,11 @@ Hướng dẫn chi tiết (biến môi trường, SendGrid, migrate DB…): xem 
 - Loại: kết bạn, chấp nhận kết bạn, bình luận, trả lời, nhắc tên, thích bài/bình luận, tin nhắn (kể cả nhóm), **chia sẻ bài**.
 
 ### Hồ sơ & tài khoản
+- Trang cá nhân có **thẻ xem trước hồ sơ công khai** + lịch sử **"Bài viết"** và **"Đã chia sẻ"** (phân trang); phần chỉnh sửa tách riêng vào *Cài đặt tài khoản*.
 - Avatar, **ảnh bìa**, đổi tên hiển thị, các trường mở rộng (nickname / SĐT / địa chỉ / sở thích / slogan) với cờ **công khai / riêng tư**.
+- **Đổi avatar cập nhật realtime** cho mình và bạn bè đang online (không cần tải lại trang).
 - **Xác thực email khi đăng ký** (mã OTP, email HTML có thương hiệu; không có SendGrid key thì mã in ra log).
-- Đổi mật khẩu trong hồ sơ.
+- Đổi mật khẩu trong hồ sơ; hỏi lại xác nhận khi đăng xuất.
 - **Vô hiệu hoá tài khoản tạm thời**: ẩn tài khoản + nội dung khỏi người khác, đăng nhập lại để kích hoạt.
 - Xoá tài khoản vĩnh viễn.
 - **Lưu bài viết** (bookmark) → trang *Đã lưu*.
@@ -69,10 +76,12 @@ Hướng dẫn chi tiết (biến môi trường, SendGrid, migrate DB…): xem 
 
 ### Bảo mật & hiệu năng
 - JWT (custom filter, stateless); blacklist token khi đăng xuất / đổi mật khẩu / khoá.
+- **Refresh token** (xoay vòng): access token hết hạn thì tự gia hạn ngầm, không đá người dùng ra trang đăng nhập.
+- **Xác thực 2 bước (2FA)** tuỳ chọn: bật trong hồ sơ → mỗi lần đăng nhập cần thêm mã 6 ký tự gửi qua email.
 - **Giới hạn tần suất** `/auth/**` chống brute-force mật khẩu và spam OTP.
 - Upload ảnh: chỉ png/jpg/jpeg, chặn quá kích thước, **tự thu nhỏ ≤1600px + nén** phía server.
-- Truy vấn DB tối ưu: index feed `(posted_at DESC, post_id ASC)`, nạp theo lô chống N+1, bỏ `COUNT` thừa khi phân trang, tìm kiếm không dựng cây bình luận thừa.
-- Bộ **unit test** (`social/` — `./mvnw test`) cho rate-limit, xử lý ảnh, và các helper; không cần DB/Docker.
+- Truy vấn DB tối ưu: index feed `(posted_at DESC, post_id ASC)`, bảng tin / bài-theo-tag nạp theo lô chống N+1, bỏ `COUNT` thừa khi phân trang, tìm kiếm không dựng cây bình luận thừa.
+- Bộ **unit test** (`social/` — `./mvnw test`, 68 test) cho rate-limit, xử lý ảnh, quyền chặn/kết bạn, luật bài viết & repost, tự ẩn bài, phân trang thông báo, hashtag, refresh token, 2FA; không cần DB/Docker.
 
 ## Cấu trúc repo
 
@@ -83,4 +92,5 @@ Hướng dẫn chi tiết (biến môi trường, SendGrid, migrate DB…): xem 
 | `docker-compose.yml` | Điểm khởi chạy duy nhất được hỗ trợ |
 | `.env.example` | Mẫu biến môi trường |
 | `scripts/db-export.sh`, `scripts/db-import.sh` | Xuất / nhập DB khi chuyển hạ tầng |
+| `scripts/backfill-hashtags.sh` | Quét hashtag cho bài viết cũ (chạy 1 lần khi bật tính năng) |
 | `socialdata.sql`, `social/db.sql`, `social/db1.sql` | Dump / seed dữ liệu |
