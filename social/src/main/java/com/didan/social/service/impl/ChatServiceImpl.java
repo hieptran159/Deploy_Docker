@@ -36,6 +36,7 @@ public class ChatServiceImpl implements ChatService {
     private final com.didan.social.service.FollowService followService;
     private final RealtimeGateway realtimeGateway;
     private final com.didan.social.repository.MessageReactionRepository messageReactionRepository;
+    private final com.didan.social.utils.MessageCrypto messageCrypto;
     @Autowired
     public ChatServiceImpl(ConversationRepository conversationRepository,
                            UserRepository userRepository,
@@ -46,7 +47,8 @@ public class ChatServiceImpl implements ChatService {
                            com.didan.social.service.MessageNotifier messageNotifier,
                            com.didan.social.service.FollowService followService,
                            RealtimeGateway realtimeGateway,
-                           com.didan.social.repository.MessageReactionRepository messageReactionRepository){
+                           com.didan.social.repository.MessageReactionRepository messageReactionRepository,
+                           com.didan.social.utils.MessageCrypto messageCrypto){
         this.conversationRepository = conversationRepository;
         this.userRepository = userRepository;
         this.participantRepository = participantRepository;
@@ -57,6 +59,7 @@ public class ChatServiceImpl implements ChatService {
         this.followService = followService;
         this.realtimeGateway = realtimeGateway;
         this.messageReactionRepository = messageReactionRepository;
+        this.messageCrypto = messageCrypto;
     }
 
     @Override
@@ -261,7 +264,7 @@ public class ChatServiceImpl implements ChatService {
         Messages message = new Messages();
         String messageId = UUID.randomUUID().toString();
         message.setMessageId(messageId);
-        message.setContent(sendMessageRequest.getContent());
+        message.setContent(messageCrypto.encrypt(sendMessageRequest.getContent()));
         String fileName = null;
         if (sendMessageRequest.getMessageImg() != null && !sendMessageRequest.getMessageImg().isEmpty()){
             fileName = fileUploadsService.storeFile(sendMessageRequest.getMessageImg(), "message", messageId);
@@ -320,7 +323,7 @@ public class ChatServiceImpl implements ChatService {
             conversationDTO.setCreatedAt(conversation.getCreatedAt().toString());
             Messages last = lastByConv.get(conversation.getConversationId());
             if (last != null) {
-                conversationDTO.setLastMessage(last.getContent());
+                conversationDTO.setLastMessage(messageCrypto.decrypt(last.getContent()));
                 conversationDTO.setLastMessageImg(last.getMessageImg());
                 conversationDTO.setLastMessageAt(last.getSentAt() != null ? last.getSentAt().toString() : null);
                 conversationDTO.setLastSenderId(last.getUsers() != null ? last.getUsers().getUserId() : null);
@@ -443,7 +446,7 @@ public class ChatServiceImpl implements ChatService {
         boolean recalled = Boolean.TRUE.equals(message.getRecalled());
         MessageDTO messageDTO = new MessageDTO();
         messageDTO.setMessageId(message.getMessageId());
-        messageDTO.setContent(recalled ? "" : message.getContent());
+        messageDTO.setContent(recalled ? "" : messageCrypto.decrypt(message.getContent()));
         messageDTO.setMessageImg(recalled ? null : message.getMessageImg());
         messageDTO.setSentAt(message.getSentAt() != null ? message.getSentAt().toString() : null);
         messageDTO.setSenderId(message.getUsers() != null ? message.getUsers().getUserId() : null);
@@ -468,7 +471,7 @@ public class ChatServiceImpl implements ChatService {
         if (Boolean.TRUE.equals(message.getRecalled())) {
             throw new Exception("Tin nhắn đã thu hồi, không thể sửa");
         }
-        message.setContent(content.trim());
+        message.setContent(messageCrypto.encrypt(content.trim()));
         messageRepository.save(message);
         String conversationId = message.getConversations() != null ? message.getConversations().getConversationId() : null;
         MessageDTO dto = toDTO(message, conversationId);

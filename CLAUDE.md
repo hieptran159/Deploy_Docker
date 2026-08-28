@@ -222,6 +222,15 @@ uses `./mvnw install -DskipTests`. No frontend tests.
   `ConversationDTO` carries `avatarUrl`; FE shows it in sidebar rows + chat header (✎ overlay
   to change; uploader also calls `loadConversations()`). DM rows/header show the **other
   user's avatar** (`dmAvatars`, resolved alongside `dmNames`), not the 💬 icon.
+- Message content at-rest encryption: `utils/MessageCrypto` (AES-256-GCM, `@Component`).
+  Key from `app.message.crypto-key` / `MESSAGE_CRYPTO_KEY` (base64 32 bytes); **blank = no
+  encryption** (plaintext, legacy behaviour). `encrypt` prepends `enc1:` + base64(iv‖ct);
+  `decrypt` returns any non-`enc1:` value untouched (so old plaintext rows keep working — no
+  migration). Wired into `ChatServiceImpl` (`sendMessage` / `editMessage` encrypt;
+  `toDTO` / conversation-list `lastMessage` decrypt) and `socket/SocketService` (encrypt on
+  save). `MessageNotifier` and the socket `get_message` broadcast use the **plaintext request**
+  string, so `@mention` parsing / previews are unaffected. Not E2EE — the server still holds
+  plaintext in memory. Losing/rotating the key makes existing ciphertext unreadable.
 - Mute conversation: `Participants.muted` (`ddl-auto`, `null`/`0` = notify, `1` = muted, per
   user per conversation). `PATCH /chat/conversation/{id}/mute?muted=` (`ChatServiceImpl.setConversationMuted`,
   participant-only). `MessageNotifier.notifyMessage` skips a muted participant **unless** they
@@ -250,11 +259,16 @@ uses `./mvnw install -DskipTests`. No frontend tests.
   default 30d) with a `typ=refresh` claim; `generateAccessToken` uses `jwt.access-expiration-ms`
   (default 1d). `validateAccessToken` now rejects a `typ=refresh` token and `validateRefreshToken`
   rejects a plain access token, so the two are not interchangeable. `Users.refresh_token`
-  (`ddl-auto`, 512) stores the user's **current** refresh token — `POST /auth/refresh?refreshToken=`
-  (`AuthServiceImpl.refreshAccess`, in the `/auth/**` permit list) checks it matches that column,
-  blacklists the old refresh token, and returns a **rotated** `{accessToken, refreshToken, isAdmin}`.
-  `login` / `verifyEmail` issue a refresh token alongside the access token (and blacklist any
-  prior one); `logout` blacklists it and nulls the column. FE: `LOCALKEYS.REFRESH_TOKEN`
+  (`ddl-auto`, 512) stores the **SHA-256 hex** (`JwtUtils.sha256Hex`) of the user's current
+  refresh token — never the raw value. `AuthServiceImpl.issueRefreshToken` sets the column to
+  the hash and stashes the raw token in the `@Transient Users.plainRefreshToken` (returned to
+  the client that one request; `AuthController` reads `getPlainRefreshToken()`).
+  `POST /auth/refresh?refreshToken=` (`refreshAccess`, `/auth/**` permit list) hashes the
+  incoming token and compares to the column, blacklists the raw token just used, and returns a
+  **rotated** `{accessToken, refreshToken, isAdmin}`. `login` / `verifyEmail` re-issue (overwrite
+  the hash — that alone revokes the previous one); `logout` just nulls the column. **Deploy
+  note**: existing rows hold plaintext → those users' next refresh fails once and they re-login.
+  FE: `LOCALKEYS.REFRESH_TOKEN`
   (`"RefreshToken"`); `src/storages/api.js` response interceptor, on a 401 for a request that
   had a token, calls `/auth/refresh` **once** (single-flight `refreshPromise` shared across
   concurrent 401s), updates `Token`/`RefreshToken`/`isAdmin`, and replays the original request;
@@ -403,6 +417,11 @@ uses `./mvnw install -DskipTests`. No frontend tests.
   `ReportServiceImpl.requireAdmin`), not by a Spring `hasRole` — the JWT principal carries
   no authorities. Chat reads/writes check participant membership; post/comment edits check
   authorship. Report auto-hide needs 3 distinct reporter accounts (signup is rate-limited).
+- `deletePost` requires the author (via `UserPostRepository`) or `isAdmin == 1` — was an
+  unauthenticated-delete IDOR before. `RateLimitFilter` keys on `request.getRemoteAddr()` by
+  default; set `app.ratelimit.trust-forwarded=true` (`RATELIMIT_TRUST_FORWARDED`) only behind
+  a proxy — otherwise `X-Forwarded-For` spoofing bypasses every per-IP limit. `login` runs a
+  dummy bcrypt when the email is missing so timing can't enumerate users.
 - Known residual risks (not fixed): committed JWT/DB secrets, min password length 5,
-  refresh tokens stored plaintext in `users.refresh_token`, `GET /user/{id}` exposes email
-  to any logged-in user (by design — profile shows it), `POST /report` is not rate-limited.
+  `GET /user/{id}` exposes email to any logged-in user (by design — profile shows it),
+  `POST /report` is not rate-limited.

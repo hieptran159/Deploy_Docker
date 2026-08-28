@@ -37,6 +37,7 @@ public class SocketService { // Khai báo một service để xử lý logic
     private final MessageRepository messageRepository;
     private final FileUploadsService fileUploadsService;
     private final MessageNotifier messageNotifier;
+    private final com.didan.social.utils.MessageCrypto messageCrypto;
     @Autowired // Đánh dấu đây là một dependency và Spring sẽ tự động inject vào
     public SocketService(ChatService chatService,
                          UserRepository userRepository,
@@ -44,7 +45,8 @@ public class SocketService { // Khai báo một service để xử lý logic
                          ParticipantRepository participantRepository,
                          FileUploadsService fileUploadsService,
                          MessageRepository messageRepository,
-                         MessageNotifier messageNotifier){ // Inject service vào
+                         MessageNotifier messageNotifier,
+                         com.didan.social.utils.MessageCrypto messageCrypto){ // Inject service vào
         this.chatService = chatService; // Gán service
         this.userRepository = userRepository;
         this.conversationRepository = conversationRepository;
@@ -52,6 +54,7 @@ public class SocketService { // Khai báo một service để xử lý logic
         this.fileUploadsService = fileUploadsService;
         this.messageRepository = messageRepository;
         this.messageNotifier = messageNotifier;
+        this.messageCrypto = messageCrypto;
     }
 
     public void sendSocketMessage(String conversationId, String eventName, SocketIOClient senderClient, MessageDTO message){ // Hàm gửi tin nhắn qua socket cho tất cả client trong phòng
@@ -92,7 +95,7 @@ public class SocketService { // Khai báo một service để xử lý logic
         Messages message = new Messages();
         String messageId = UUID.randomUUID().toString();
         message.setMessageId(messageId);
-        message.setContent(sendMessageRequest.getContent());
+        message.setContent(messageCrypto.encrypt(sendMessageRequest.getContent()));
         String fileName = null;
         if (sendMessageRequest.getMessageImg() != null && !sendMessageRequest.getMessageImg().isEmpty()){
             fileName = fileUploadsService.storeFile(sendMessageRequest.getMessageImg(), "message", messageId);

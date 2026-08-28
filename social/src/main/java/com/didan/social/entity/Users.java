@@ -40,9 +40,13 @@ public class Users {
     @Column(name = "access_token", nullable = true, length = 255)
     private String accessToken;
 
-    // Refresh token hiện hành của người dùng (đối chiếu 1-1 -> thu hồi tức thì khi đăng nhập lại / đăng xuất)
+    // SHA-256 (hex) của refresh token hiện hành. Đối chiếu 1-1 -> thu hồi tức thì khi đăng nhập lại / đăng xuất.
     @Column(name = "refresh_token", nullable = true, length = 512)
     private String refreshToken;
+
+    // Refresh token dạng gốc, CHỈ để trả về client trong 1 request (không lưu DB).
+    @Transient
+    private String plainRefreshToken;
 
     // Xác thực 2 bước qua email. null/0 = tắt, 1 = bật.
     @Column(name = "twofa_enabled")
@@ -252,6 +256,14 @@ public class Users {
 
     public void setRefreshToken(String refreshToken) {
         this.refreshToken = refreshToken;
+    }
+
+    public String getPlainRefreshToken() {
+        return plainRefreshToken;
+    }
+
+    public void setPlainRefreshToken(String plainRefreshToken) {
+        this.plainRefreshToken = plainRefreshToken;
     }
 
     public Integer getTwofaEnabled() { return twofaEnabled; }

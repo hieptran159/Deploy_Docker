@@ -69,7 +69,8 @@ class AuthServiceImplTest {
 
         assertFalse(out.isTwofaRequired());
         assertEquals("AT", out.getAccessToken());
-        assertEquals("RT", out.getRefreshToken());
+        assertEquals("RT", out.getPlainRefreshToken());
+        assertEquals(com.didan.social.utils.JwtUtils.sha256Hex("RT"), out.getRefreshToken());
     }
 
     @Test
@@ -126,7 +127,8 @@ class AuthServiceImplTest {
         Users out = svc.verifyTwoFactor(EMAIL, "ABC123"); // so khớp không phân biệt hoa thường
 
         assertEquals("AT", out.getAccessToken());
-        assertEquals("RT", out.getRefreshToken());
+        assertEquals("RT", out.getPlainRefreshToken());
+        assertEquals(com.didan.social.utils.JwtUtils.sha256Hex("RT"), out.getRefreshToken());
         assertNull(u.getTwofaCode());
         assertNull(u.getTwofaExpires());
         verify(userRepository).save(u);

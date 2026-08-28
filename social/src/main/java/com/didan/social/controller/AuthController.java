@@ -51,7 +51,7 @@ public class AuthController {
                 response.put("email", user.getEmail());
                 response.put("avatar", user.getAvtUrl());
                 response.put("accessToken", user.getAccessToken());
-                response.put("refreshToken", user.getRefreshToken());
+                response.put("refreshToken", user.getPlainRefreshToken());
                 response.put("isAdmin", String.valueOf(user.getIsAdmin()));
                 payload.setData(response);
             }
@@ -74,7 +74,7 @@ public class AuthController {
             Users user = authService.refreshAccess(refreshToken);
             response.put("userId", user.getUserId());
             response.put("accessToken", user.getAccessToken());
-            response.put("refreshToken", user.getRefreshToken());
+            response.put("refreshToken", user.getPlainRefreshToken());
             response.put("isAdmin", String.valueOf(user.getIsAdmin()));
             payload.setDescription("OK");
             payload.setData(response);
@@ -101,7 +101,7 @@ public class AuthController {
             response.put("email", user.getEmail());
             response.put("avatar", user.getAvtUrl());
             response.put("accessToken", user.getAccessToken());
-            response.put("refreshToken", user.getRefreshToken());
+            response.put("refreshToken", user.getPlainRefreshToken());
             response.put("isAdmin", String.valueOf(user.getIsAdmin()));
             payload.setData(response);
             return new ResponseEntity<>(payload, HttpStatus.OK);
@@ -168,7 +168,7 @@ public class AuthController {
             response.put("email", user.getEmail());
             response.put("avatar", user.getAvtUrl());
             response.put("accessToken", user.getAccessToken());
-            response.put("refreshToken", user.getRefreshToken());
+            response.put("refreshToken", user.getPlainRefreshToken());
             response.put("isAdmin", String.valueOf(user.getIsAdmin()));
             payload.setData(response);
             return new ResponseEntity<>(payload, HttpStatus.OK);

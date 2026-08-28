@@ -18,11 +18,27 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.Date;
 
 @Component
 public class JwtUtils {
     private static Logger logger = LoggerFactory.getLogger(JwtUtils.class);
+
+    // Băm token trước khi lưu DB (token vốn ngẫu nhiên entropy cao -> SHA-256 là đủ, không cần salt/bcrypt).
+    public static String sha256Hex(String s) {
+        if (s == null) return null;
+        try {
+            byte[] d = MessageDigest.getInstance("SHA-256").digest(s.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder(64);
+            for (byte b : d) sb.append(Character.forDigit((b >> 4) & 0xF, 16)).append(Character.forDigit(b & 0xF, 16));
+            return sb.toString();
+        } catch (Exception e) {
+            throw new IllegalStateException("SHA-256 không khả dụng", e);
+        }
+    }
+
     private final BlacklistRepository blacklistRepository;
     @Autowired
     public JwtUtils(BlacklistRepository blacklistRepository){
