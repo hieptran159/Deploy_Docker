@@ -154,32 +154,41 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
             return Collections.emptyList();
         }
         java.util.List<String> pidOrder = new ArrayList<>();
-        java.util.List<String> reposterOrder = new ArrayList<>();
-        java.util.List<String> timeOrder = new ArrayList<>();
+        java.util.Set<String> repostPids = new java.util.HashSet<>();
         for (Object[] r : rows) {
-            pidOrder.add((String) r[0]);
-            timeOrder.add(r[1] == null ? null : r[1].toString());
-            reposterOrder.add(r[2] == null ? null : (String) r[2]);
+            String pid = (String) r[0];
+            pidOrder.add(pid);
+            if (r[2] != null && ((Number) r[2]).intValue() == 1) repostPids.add(pid);
         }
         java.util.Map<String, Posts> byId = new java.util.HashMap<>();
         for (Posts p : postRepository.findAllById(new java.util.LinkedHashSet<>(pidOrder))) byId.put(p.getPostId(), p);
-        java.util.Set<String> reposterIds = reposterOrder.stream().filter(java.util.Objects::nonNull)
-                .collect(Collectors.toSet());
+
+        // Với các bài xuất hiện dạng "đã chia sẻ": lấy lượt repost mới nhất (ai chia sẻ + ghi chú)
+        java.util.Map<String, com.didan.social.entity.Reposts> latestRepost = new java.util.HashMap<>();
+        if (!repostPids.isEmpty()) {
+            for (com.didan.social.entity.Reposts rp : repostRepository.findByPostIdsOrderByCreatedAtDesc(repostPids)) {
+                latestRepost.putIfAbsent(rp.getRepostId().getPostId(), rp); // dòng đầu = mới nhất
+            }
+        }
+        java.util.Set<String> reposterIds = latestRepost.values().stream()
+                .map(rp -> rp.getRepostId().getUserId()).collect(Collectors.toSet());
         java.util.Map<String, Users> reposters = new java.util.HashMap<>();
         if (!reposterIds.isEmpty()) {
             for (Users u : userRepository.findAllById(reposterIds)) reposters.put(u.getUserId(), u);
         }
+
         List<PostDTO> out = new ArrayList<>();
-        for (int i = 0; i < rows.size(); i++) {
-            Posts p = byId.get(pidOrder.get(i));
+        for (String pid : pidOrder) {
+            Posts p = byId.get(pid);
             if (p == null) continue;
             PostDTO d = toListDTO(p, meId);
-            String rid = reposterOrder.get(i);
-            if (rid != null) {
-                Users ru = reposters.get(rid);
-                d.setRepostedBy(ru != null ? ru.getFullName() : rid);
-                d.setRepostedById(rid);
-                d.setRepostedAt(timeOrder.get(i));
+            com.didan.social.entity.Reposts rp = latestRepost.get(pid);
+            if (rp != null) {
+                Users ru = reposters.get(rp.getRepostId().getUserId());
+                d.setRepostedBy(ru != null ? ru.getFullName() : rp.getRepostId().getUserId());
+                d.setRepostedById(rp.getRepostId().getUserId());
+                d.setRepostedAt(rp.getCreatedAt() == null ? null : rp.getCreatedAt().toString());
+                d.setRepostNote(rp.getNote());
             }
             out.add(d);
         }

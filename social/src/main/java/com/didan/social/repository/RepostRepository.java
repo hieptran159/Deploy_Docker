@@ -30,4 +30,8 @@ public interface RepostRepository extends JpaRepository<Reposts, RepostId> {
     // Các bài mà user hiện tại đã repost, trong tập ids
     @Query("SELECT r.repostId.postId FROM reposts r WHERE r.repostId.userId = :uid AND r.repostId.postId IN :ids")
     List<String> repostedByUserIn(@Param("uid") String uid, @Param("ids") Collection<String> ids);
+
+    // Tất cả lượt repost của các bài trong ids, mới nhất trước (service lấy dòng đầu / mỗi post)
+    @Query("SELECT r FROM reposts r WHERE r.repostId.postId IN :ids ORDER BY r.createdAt DESC")
+    List<Reposts> findByPostIdsOrderByCreatedAtDesc(@Param("ids") Collection<String> ids);
 }

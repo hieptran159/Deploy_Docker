@@ -47,24 +47,26 @@ public interface PostRepository extends JpaRepository<Posts, String> {
          + "ORDER BY p.postedAt DESC, p.postId ASC")
     List<Posts> findDraftsOfAuthor(@Param("uid") String uid);
 
-    // Feed hợp nhất: bài gốc (theo posted_at) + lượt chia sẻ (theo created_at của repost).
+    // Feed hợp nhất: bài gốc (posted_at, is_repost=0) + lượt chia sẻ (created_at, is_repost=1).
+    // Gộp theo post_id -> mỗi bài chỉ 1 dòng. Vì thời điểm repost luôn > posted_at,
+    // MAX(t) = thời điểm repost mới nhất nếu có repost, ngược lại là posted_at.
     // :ex phải KHÁC RỖNG (native NOT IN) -> service truyền sentinel khi không loại trừ ai.
     String FEED_UNION =
-        "SELECT p.post_id AS pid, p.posted_at AS t, NULL AS reposter " +
+        "SELECT p.post_id AS pid, p.posted_at AS t, 0 AS is_repost " +
         "FROM posts p JOIN user_posts up ON up.post_id = p.post_id " +
         "WHERE (p.status IS NULL OR p.status = 'published') AND up.user_id NOT IN (:ex) " +
         "UNION ALL " +
-        "SELECT rp.post_id AS pid, rp.created_at AS t, rp.user_id AS reposter " +
+        "SELECT rp.post_id AS pid, rp.created_at AS t, 1 AS is_repost " +
         "FROM reposts rp JOIN posts p2 ON p2.post_id = rp.post_id " +
         "JOIN user_posts up2 ON up2.post_id = rp.post_id " +
         "WHERE (p2.status IS NULL OR p2.status = 'published') " +
         "AND up2.user_id NOT IN (:ex) AND rp.user_id NOT IN (:ex)";
 
-    @Query(value = "SELECT src.pid, src.t, src.reposter FROM (" + FEED_UNION
-                 + ") src ORDER BY src.t DESC, src.pid ASC LIMIT :lim OFFSET :off", nativeQuery = true)
+    @Query(value = "SELECT u.pid, MAX(u.t) AS sort_t, MAX(u.is_repost) AS is_repost FROM (" + FEED_UNION
+                 + ") u GROUP BY u.pid ORDER BY sort_t DESC, u.pid ASC LIMIT :lim OFFSET :off", nativeQuery = true)
     List<Object[]> feedPage(@Param("ex") Collection<String> ex, @Param("lim") int lim, @Param("off") int off);
 
-    @Query(value = "SELECT COUNT(*) FROM (" + FEED_UNION + ") src", nativeQuery = true)
+    @Query(value = "SELECT COUNT(DISTINCT u.pid) FROM (" + FEED_UNION + ") u", nativeQuery = true)
     long feedCount(@Param("ex") Collection<String> ex);
 
     // Join all the tables to get the post, user, likes, comments and sub-comments

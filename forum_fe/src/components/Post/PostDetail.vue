@@ -400,10 +400,12 @@ const toggleBookmarkBtn = async () => {
 
 const toggleRepost = async () => {
     if (needLogin()) return;
+    const wasReposted = !!post.value?.reposted;
     try {
-        if (post.value?.reposted) await unrepostPost(id.value);
+        if (wasReposted) await unrepostPost(id.value);
         else await repostPost(id.value);
         await getDataPostById();
+        toast?.(wasReposted ? 'Đã bỏ chia sẻ' : 'Đã chia sẻ bài viết');
     } catch (e) {
         showDialog?.('Thông báo', e?.description || 'Thao tác thất bại');
     }

@@ -115,10 +115,15 @@ uses `./mvnw install -DskipTests`. No frontend tests.
   danger zone (redirects to `/login`).
 - Repost / share: `entity/Reposts` (table `reposts`, key `user_id`+`post_id`, `ddl-auto`).
   `POST /post/{id}/repost?note=` / `DELETE /post/{id}/repost` / `GET /post/reposts/{userId}`.
-  The home feed is now a **native UNION** (`PostRepository.FEED_UNION` → `feedPage` /
-  `feedCount`): original posts keyed on `posted_at` + repost entries keyed on the repost's
-  `created_at`, ordered together; `getAllPostsByPage` hydrates `Posts` by id and attaches
-  `repostedBy`/`repostedAt` for repost rows. `:ex` (block-exclude set) must be non-empty for
+  The home feed is a **native UNION grouped by `post_id`** (`PostRepository.FEED_UNION` →
+  `feedPage` = `SELECT pid, MAX(t) sort_t, MAX(is_repost) FROM (union) GROUP BY pid`; a
+  repost's `created_at` is always > the post's `posted_at`, so `MAX(t)` is the repost time
+  when any repost exists — bumping the post up **once**, never showing it twice).
+  `feedCount` = `COUNT(DISTINCT pid)`. `getAllPostsByPage` hydrates `Posts` by id and, for
+  `is_repost=1` pids, attaches the latest reposter's `repostedBy`/`repostedById`/
+  `repostedAt`/`repostNote` (`RepostRepository.findByPostIdsOrderByCreatedAtDesc`, first
+  row per pid). FE `Post.vue` shows "Bạn đã chia sẻ" when `repostedById` is me and has an
+  inline 🔁 toggle button (optimistic). `:ex` (block-exclude set) must be non-empty for
   the native `NOT IN`, so the service passes `["-"]` when nobody is excluded. `PostDTO`
   gains `repostCount`/`reposted`/`repostedBy`/`repostedById`/`repostedAt`/`repostNote`,
   filled by `applyRepostInfo` (2 batch queries, no N+1) on feed/search/detail/reposts-list.
