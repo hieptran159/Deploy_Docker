@@ -59,7 +59,7 @@ const users = ref([]);
 const searchText = ref("");
 const loading = ref(false);
 
-const PAGE = 20;
+const PAGE = 10;
 const shown = ref(PAGE);
 const visibleUsers = computed(() => users.value.slice(0, shown.value));
 

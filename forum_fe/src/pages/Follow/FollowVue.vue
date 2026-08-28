@@ -92,7 +92,7 @@ const tabs = computed(() => (isMe.value ? allTabs : [allTabs[0]]));
 const validTab = (t) => tabs.value.some((x) => x.key === t);
 const tab = ref(validTab(router.currentRoute.value.query.tab) ? router.currentRoute.value.query.tab : 'friends');
 
-const PAGE = 20;
+const PAGE = 10;
 const list = ref([]);
 const allIds = ref([]);
 const loading = ref(false);
