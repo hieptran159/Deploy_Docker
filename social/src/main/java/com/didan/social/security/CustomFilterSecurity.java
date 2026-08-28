@@ -47,6 +47,9 @@ public class CustomFilterSecurity {
         http.authorizeHttpRequests(authorize -> authorize
                 .requestMatchers("/auth/**", "/images/**", "/api-docs**/**", "swagger-ui/**")
                 .permitAll()
+                // Các GET dưới /post/* cần đăng nhập (khớp trước rule permit bên dưới)
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/post/drafts")
+                .authenticated()
                 // Khách xem được: feed + chi tiết bài + bình luận (chỉ GET). Mọi thao tác
                 // (react/comment/report/bookmark) và /user/** vẫn cần đăng nhập.
                 .requestMatchers(org.springframework.http.HttpMethod.GET,
