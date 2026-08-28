@@ -96,6 +96,9 @@ public class ChatServiceImpl implements ChatService {
         if (followService.isBlockedEither(myId, otherUserId)) {
             throw new Exception("Không thể nhắn tin với người này");
         }
+        if (other.getDeactivated() != null && other.getDeactivated() == 1) {
+            throw new Exception("Người dùng này hiện không khả dụng");
+        }
         // Tên tất định cho cặp người dùng -> cả hai phía luôn ra cùng một phòng
         String first = myId.compareTo(otherUserId) <= 0 ? myId : otherUserId;
         String second = myId.compareTo(otherUserId) <= 0 ? otherUserId : myId;

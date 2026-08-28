@@ -74,10 +74,18 @@
         <div class="card border border-[var(--danger)]/40">
             <div class="section-title text-[var(--danger)]">Vùng nguy hiểm</div>
             <p class="muted text-sm mb-2">
-                Xoá tài khoản là <b>vĩnh viễn</b>: bài viết, bình luận, tin nhắn, bạn bè của bạn sẽ bị xoá.
-                Nhập mật khẩu hiện tại ở thẻ “Xác thực” phía trên rồi bấm nút dưới.
+                Nhập mật khẩu hiện tại ở thẻ “Xác thực” phía trên rồi chọn:
             </p>
-            <DxButton type="danger" text="Xoá tài khoản của tôi" @click="deleteMe" />
+            <div class="flex flex-col gap-2 items-start">
+                <div>
+                    <DxButton type="normal" stylingMode="outlined" text="Vô hiệu hoá tạm thời" @click="deactivateMe" />
+                    <span class="muted text-xs ml-2">Ẩn tài khoản + nội dung khỏi người khác. Đăng nhập lại để kích hoạt.</span>
+                </div>
+                <div>
+                    <DxButton type="danger" text="Xoá tài khoản của tôi" @click="deleteMe" />
+                    <span class="muted text-xs ml-2">Xoá <b>vĩnh viễn</b> bài viết, bình luận, tin nhắn, bạn bè.</span>
+                </div>
+            </div>
         </div>
     </div>
 </template>
@@ -86,7 +94,7 @@
 import { DxButton, DxTextBox, DxTextArea } from 'devextreme-vue';
 import { useRouter } from 'vue-router';
 import { inject, onMounted, ref } from 'vue';
-import { editUser, updateProfile, getUserInfo, deleteAccount, updateCover } from '@/apis/user';
+import { editUser, updateProfile, getUserInfo, deleteAccount, deactivateAccount, updateCover } from '@/apis/user';
 import { LOCALKEYS, getItemLocal, setItemLocal, delItemLocal } from '@/storages/localStorage';
 import { IMAGE_BASE } from '@/config';
 
@@ -229,6 +237,25 @@ const saveCover = async () => {
         showDialog('Thông báo', e?.description || 'Cập nhật ảnh bìa thất bại');
     }
 };
+
+const deactivateMe = () => {
+    if (!requirePassword()) return;
+    openConfirm?.(
+        'Vô hiệu hoá tài khoản',
+        'Tài khoản và nội dung của bạn sẽ bị ẩn khỏi người khác. Bạn sẽ bị đăng xuất; đăng nhập lại bất cứ lúc nào để kích hoạt lại. Tiếp tục?',
+        async () => {
+            try {
+                await deactivateAccount(currentPassword.value);
+                [LOCALKEYS.ACCESS_TOKEN, LOCALKEYS.USER_ID, LOCALKEYS.USER_NAME, LOCALKEYS.LINK_AVT, LOCALKEYS.IS_ADMIN]
+                    .forEach(delItemLocal);
+                window.location.assign('/login');
+            } catch (e) {
+                showDialog('Thông báo', e?.description || 'Vô hiệu hoá thất bại');
+            }
+        },
+        { confirmText: 'Vô hiệu hoá' }
+    );
+}
 
 const deleteMe = () => {
     if (!requirePassword()) return;

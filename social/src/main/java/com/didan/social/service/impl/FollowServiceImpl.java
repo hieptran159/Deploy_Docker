@@ -98,6 +98,9 @@ public class FollowServiceImpl implements FollowService {
         if (me.equals(userId)) throw new Exception("Không thể tự kết bạn với chính mình");
         if (isBlockedEither(me, userId)) throw new Exception("Không thể gửi lời mời tới người này");
         Users other = requireUser(userId, "The user isnt existed");
+        if (other.getDeactivated() != null && other.getDeactivated() == 1) {
+            throw new Exception("Người dùng này hiện không khả dụng");
+        }
         Users meUser = userRepository.findFirstByUserId(me);
 
         Followers out = row(me, userId);

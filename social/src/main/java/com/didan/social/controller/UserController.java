@@ -40,6 +40,23 @@ public class UserController {
         }
     }
 
+    @Operation(summary = "Tự vô hiệu hoá tài khoản tạm thời", description = "Cần mật khẩu; đăng nhập lại để kích hoạt",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @PostMapping("/deactivate")
+    public ResponseEntity<?> deactivateMyAccount(@RequestParam String password){
+        ResponseData payload = new ResponseData();
+        try {
+            userService.deactivateMyAccount(password);
+            payload.setDescription("Đã vô hiệu hoá tài khoản");
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e){
+            payload.setSuccess(false);
+            payload.setStatusCode(500);
+            payload.setDescription(e.getMessage());
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
     @Operation(summary = "Get all users",
             description = "Get all users",
             security = @SecurityRequirement(name = "bearerAuth"))

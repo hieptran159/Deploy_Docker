@@ -49,6 +49,10 @@ public class Users {
     @Column(name = "cover_url", length = 255)
     private String coverUrl;
 
+    // null / 0 = đang hoạt động; 1 = tự vô hiệu hoá tạm thời (đăng nhập lại để kích hoạt)
+    @Column(name = "deactivated")
+    private Integer deactivated;
+
     // ---- Thông tin hồ sơ mở rộng (tự thêm qua ddl-auto=update) ----
     @Column(name = "nickname", length = 100)
     private String nickname;
@@ -244,6 +248,14 @@ public class Users {
 
     public String getCoverUrl() {
         return coverUrl;
+    }
+
+    public Integer getDeactivated() {
+        return deactivated;
+    }
+
+    public void setDeactivated(Integer deactivated) {
+        this.deactivated = deactivated;
     }
 
     public void setCoverUrl(String coverUrl) {

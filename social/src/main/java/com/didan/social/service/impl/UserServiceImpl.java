@@ -63,6 +63,7 @@ public class UserServiceImpl extends ConvertDTO implements UserService {
         }
         List<UserDTO> userDTOS = new ArrayList<>();
         for (Users user : users){
+            if (user.getDeactivated() != null && user.getDeactivated() == 1) continue;
             UserDTO userDTO = (UserDTO) convertToDTO(user);
             userDTOS.add(userDTO);
         }
@@ -77,11 +78,15 @@ public class UserServiceImpl extends ConvertDTO implements UserService {
             logger.info("No user to found");
             return null;
         }
-        UserDTO dto = (UserDTO) convertToDTO(user);
         boolean isOwner = false;
         try {
             isOwner = userId.equals(authorizePathService.getUserIdAuthoried());
         } catch (Exception ignored) {}
+        // Tài khoản đang tự vô hiệu hoá -> chỉ chính chủ xem được
+        if (!isOwner && user.getDeactivated() != null && user.getDeactivated() == 1) {
+            return null;
+        }
+        UserDTO dto = (UserDTO) convertToDTO(user);
         if (!isOwner) {
             hidePrivate(dto);
         }
@@ -132,6 +137,7 @@ public class UserServiceImpl extends ConvertDTO implements UserService {
         }
         List<UserDTO> userDTOS = new ArrayList<>();
         for (Users user : users){
+            if (user.getDeactivated() != null && user.getDeactivated() == 1) continue;
             UserDTO userDTO = (UserDTO) convertToDTO(user);
             userDTOS.add(userDTO);
         }
@@ -224,6 +230,27 @@ public class UserServiceImpl extends ConvertDTO implements UserService {
         String fileName = fileUploadsService.storeFile(cover, "cover", user.getUserId());
         user.setCoverUrl("cover/" + fileName);
         userRepository.save(user);
+        return true;
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    @Override
+    public boolean deactivateMyAccount(String password) throws Exception {
+        String myId = authorizePathService.getUserIdAuthoried();
+        Users me = userRepository.findFirstByUserId(myId);
+        if (me == null) {
+            throw new Exception("User is not found");
+        }
+        if (!org.springframework.util.StringUtils.hasText(password)
+                || !passwordEncoder.matches(password, me.getPassword())) {
+            throw new Exception("Mật khẩu không đúng");
+        }
+        me.setDeactivated(1);
+        userRepository.save(me);
+        // chặn token đang dùng -> đăng xuất ngay; đăng nhập lại sẽ tự kích hoạt
+        if (org.springframework.util.StringUtils.hasText(me.getAccessToken())) {
+            try { blacklistRepository.save(new com.didan.social.entity.BlacklistToken(me.getAccessToken())); } catch (Exception ignore) { }
+        }
         return true;
     }
 

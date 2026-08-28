@@ -77,6 +77,11 @@ public class AuthServiceImpl implements AuthService {
                 BlacklistToken blacklistToken = new BlacklistToken(user.getAccessToken());
                 blacklistRepository.save(blacklistToken);
             }
+            // Đăng nhập lại = tự kích hoạt tài khoản đã vô hiệu hoá tạm thời
+            if (user.getDeactivated() != null && user.getDeactivated() == 1) {
+                user.setDeactivated(0);
+                logger.info("Reactivated account on login: {}", user.getUserId());
+            }
             user.setAccessToken(jwtUtils.generateAccessToken(user.getUserId()));
             userRepository.save(user);
             return user;

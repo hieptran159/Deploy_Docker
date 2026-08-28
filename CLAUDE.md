@@ -105,6 +105,14 @@ uses `./mvnw install -DskipTests`. No frontend tests.
   post status into the admin queue; `POST /report/admin/{id}/restore-target`
   (`restoreReportedTarget`) sets it back to `published` and resolves that post's OPEN
   reports (shared `resolveOpenFor` helper with `removeReportedTarget`).
+- Deactivate: `Users.deactivated` (`null`/`0` = active, `1` = self-deactivated). `POST
+  /user/deactivate?password=` (`UserServiceImpl.deactivateMyAccount`) sets the flag +
+  blacklists the current token. **`AuthServiceImpl.login` auto-clears it** — logging back in
+  reactivates. While deactivated: `blockRelatedIds` (feed/search exclude set) folds in
+  `userRepository.findDeactivatedIds()`, `getPostById` / `getUserById` return null to
+  non-owners, `getAllUser` / `searchUser` skip them, and `sendRequest` /
+  `openDirectConversation` reject them. FE: EditProfile "Vô hiệu hoá tạm thời" in the
+  danger zone (redirects to `/login`).
 - Repost / share: `entity/Reposts` (table `reposts`, key `user_id`+`post_id`, `ddl-auto`).
   `POST /post/{id}/repost?note=` / `DELETE /post/{id}/repost` / `GET /post/reposts/{userId}`.
   The home feed is now a **native UNION** (`PostRepository.FEED_UNION` → `feedPage` /

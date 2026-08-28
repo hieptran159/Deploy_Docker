@@ -78,11 +78,14 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         }
     }
 
-    // Tập id có quan hệ chặn với tôi (tôi chặn họ HOẶC họ chặn tôi) -> ẩn bài của họ khỏi feed
+    // Tập tác giả bị ẩn khỏi feed/tìm kiếm: (1) quan hệ chặn 2 chiều với tôi,
+    // (2) tài khoản đang tự vô hiệu hoá.
     private java.util.Set<String> blockRelatedIds(String meId) {
-        if (meId == null) return java.util.Collections.emptySet();
-        java.util.Set<String> s = new java.util.HashSet<>(blockRepository.blockedIdsOf(meId));
-        s.addAll(blockRepository.blockerIdsOf(meId));
+        java.util.Set<String> s = new java.util.HashSet<>(userRepository.findDeactivatedIds());
+        if (meId != null) {
+            s.addAll(blockRepository.blockedIdsOf(meId));
+            s.addAll(blockRepository.blockerIdsOf(meId));
+        }
         return s;
     }
     @Transactional
@@ -209,13 +212,19 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
             logger.info("No post is here");
             return null;
         }
+        Users author = post.getUserPost() != null ? post.getUserPost().getUsers() : null;
+        String authorId = author != null ? author.getUserId() : null;
+        String meId = currentUserOrNull();
+        boolean isAuthor = meId != null && meId.equals(authorId);
+
+        // Tác giả đang tự vô hiệu hoá -> chỉ chính chủ xem được
+        if (author != null && author.getDeactivated() != null && author.getDeactivated() == 1 && !isAuthor) {
+            logger.info("Post by deactivated user not visible");
+            return null;
+        }
         // Bản nháp: chỉ chủ bài. Bài bị ẩn (nhiều báo cáo): chủ bài hoặc admin.
         String st = post.getStatus();
         if ("draft".equals(st) || "hidden".equals(st)) {
-            String meId = currentUserOrNull();
-            String authorId = post.getUserPost() != null && post.getUserPost().getUsers() != null
-                    ? post.getUserPost().getUsers().getUserId() : null;
-            boolean isAuthor = meId != null && meId.equals(authorId);
             boolean isAdmin = false;
             if (!isAuthor && meId != null && "hidden".equals(st)) {
                 Users me = userRepository.findFirstByUserId(meId);

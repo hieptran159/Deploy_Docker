@@ -36,3 +36,7 @@ export const reportUser = (userId) => {
 export const deleteAccount = (password) => {
     return authApi.delete(`/user?password=${encodeURIComponent(password)}`);
 }
+
+export const deactivateAccount = (password) => {
+    return authApi.post(`/user/deactivate?password=${encodeURIComponent(password)}`);
+}

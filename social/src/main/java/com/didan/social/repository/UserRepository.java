@@ -27,4 +27,7 @@ public interface UserRepository extends JpaRepository<Users, String> {
     List<Users> findByFullNameContainingOrEmailLike(String name, String email);
 
     long countByIsAdmin(int isAdmin);
+
+    @org.springframework.data.jpa.repository.Query("SELECT u.userId FROM users u WHERE u.deactivated = 1")
+    java.util.List<String> findDeactivatedIds();
 }
