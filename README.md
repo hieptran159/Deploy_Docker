@@ -50,6 +50,7 @@ Hướng dẫn chi tiết (biến môi trường, SendGrid, migrate DB…): xem 
 ### Kết bạn & quan hệ
 - Luồng lời mời kết bạn: gửi / chấp nhận / từ chối / huỷ / huỷ kết bạn.
 - **Chặn người dùng**: hai bên không thấy bài của nhau, không nhắn tin / kết bạn được; tab *"Đã chặn"* để bỏ chặn.
+- Trang *Bạn bè* (`/follow`) và *Tìm người dùng* (`/users`) tải danh sách theo trang, nút *"Xem thêm"*.
 
 ### Thông báo
 - Realtime qua socket + poll dự phòng; toast, badge số chưa đọc, hiện avatar người tạo.

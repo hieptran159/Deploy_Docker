@@ -18,7 +18,7 @@
             <div v-else-if="users.length === 0" class="state">Không có người dùng nào</div>
 
             <div
-                v-for="user in users"
+                v-for="user in visibleUsers"
                 :key="user.userId"
                 class="flex items-center gap-4 py-3 border-b last:border-b-0"
             >
@@ -36,13 +36,19 @@
                 <div class="muted text-sm flex-none">{{ user.followers ?? 0 }} theo dõi</div>
                 <div class="muted text-sm flex-none">{{ user.posts ?? 0 }} bài</div>
             </div>
+
+            <div v-if="!loading && shown < users.length" class="pt-3 text-center">
+                <button class="link text-sm" @click="shown += PAGE">
+                    Xem thêm ({{ users.length - shown }})
+                </button>
+            </div>
         </div>
     </div>
 </template>
 
 <script setup>
 import { DxTextBox, DxButton } from 'devextreme-vue';
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { searchUserApi } from '@/apis/user';
 import { IMAGE_BASE } from '@/config';
@@ -53,12 +59,17 @@ const users = ref([]);
 const searchText = ref("");
 const loading = ref(false);
 
+const PAGE = 20;
+const shown = ref(PAGE);
+const visibleUsers = computed(() => users.value.slice(0, shown.value));
+
 const onInput = (e) => {
     searchText.value = e?.value ?? "";
 }
 
 const doSearch = async () => {
     loading.value = true;
+    shown.value = PAGE;
     try {
         const data = await searchUserApi(searchText.value || "");
         users.value = data?.data?.data || [];

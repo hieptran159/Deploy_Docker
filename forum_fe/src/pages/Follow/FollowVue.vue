@@ -44,6 +44,12 @@
                     <DxButton type="normal" stylingMode="outlined" text="Huỷ lời mời" @click="() => cancel(item)" />
                 </template>
             </div>
+
+            <div v-if="!loading && list.length < allIds.length" class="pt-3 text-center">
+                <button class="link text-sm" :disabled="loadingMore" @click="loadMore">
+                    {{ loadingMore ? 'Đang tải…' : `Xem thêm (${allIds.length - list.length})` }}
+                </button>
+            </div>
         </div>
     </div>
 </template>
@@ -86,8 +92,11 @@ const tabs = computed(() => (isMe.value ? allTabs : [allTabs[0]]));
 const validTab = (t) => tabs.value.some((x) => x.key === t);
 const tab = ref(validTab(router.currentRoute.value.query.tab) ? router.currentRoute.value.query.tab : 'friends');
 
+const PAGE = 20;
 const list = ref([]);
+const allIds = ref([]);
 const loading = ref(false);
+const loadingMore = ref(false);
 const incomingCount = ref(0);
 
 const emptyText = computed(() => ({
@@ -132,6 +141,7 @@ const loadIncomingCount = async () => {
 const load = async () => {
     loading.value = true;
     list.value = [];
+    allIds.value = [];
     try {
         let ids = [];
         if (tab.value === 'friends') {
@@ -143,13 +153,32 @@ const load = async () => {
         } else {
             ids = (await getOutgoingRequests())?.data?.data?.userId || [];
         }
-        list.value = await hydrate(ids);
+        allIds.value = ids;
+        list.value = await hydrate(ids.slice(0, PAGE));
     } catch (e) {
         list.value = [];
+        allIds.value = [];
     } finally {
         loading.value = false;
     }
     loadIncomingCount();
+}
+
+const loadMore = async () => {
+    if (loadingMore.value) return;
+    loadingMore.value = true;
+    try {
+        const next = allIds.value.slice(list.value.length, list.value.length + PAGE);
+        list.value = [...list.value, ...(await hydrate(next))];
+    } finally {
+        loadingMore.value = false;
+    }
+}
+
+// Bỏ 1 người khỏi danh sách đang hiển thị + danh sách id gốc (sau khi chấp nhận/từ chối/…)
+const removeItem = (id) => {
+    list.value = list.value.filter((u) => u.id !== id);
+    allIds.value = allIds.value.filter((x) => x !== id);
 }
 
 const messageUser = async (item) => {
@@ -167,7 +196,7 @@ const messageUser = async (item) => {
 const accept = async (item) => {
     try {
         await acceptFriendRequest(item.id);
-        list.value = list.value.filter((u) => u.id !== item.id);
+        removeItem(item.id);
         toast?.(`Đã kết bạn với ${item.name}`);
         bumpNotifRefresh();
         loadIncomingCount();
@@ -178,7 +207,7 @@ const accept = async (item) => {
 const decline = async (item) => {
     try {
         await declineFriendRequest(item.id);
-        list.value = list.value.filter((u) => u.id !== item.id);
+        removeItem(item.id);
         toast?.('Đã từ chối');
         loadIncomingCount();
     } catch (e) {
@@ -188,7 +217,7 @@ const decline = async (item) => {
 const cancel = async (item) => {
     try {
         await cancelFriendRequest(item.id);
-        list.value = list.value.filter((u) => u.id !== item.id);
+        removeItem(item.id);
         toast?.('Đã huỷ lời mời');
     } catch (e) {
         showDialog?.('Thông báo', e?.description || 'Huỷ thất bại');
@@ -197,7 +226,7 @@ const cancel = async (item) => {
 const doUnblock = async (item) => {
     try {
         await unblockUser(item.id);
-        list.value = list.value.filter((u) => u.id !== item.id);
+        removeItem(item.id);
         toast?.('Đã bỏ chặn');
     } catch (e) {
         showDialog?.('Thông báo', e?.description || 'Bỏ chặn thất bại');
@@ -208,7 +237,7 @@ const confirmUnfriend = (item) => {
     openConfirm?.('Huỷ kết bạn', `Huỷ kết bạn với ${item.name}?`, async () => {
         try {
             await unfriend(item.id);
-            list.value = list.value.filter((u) => u.id !== item.id);
+            removeItem(item.id);
             toast?.('Đã huỷ kết bạn');
         } catch (e) {
             showDialog?.('Thông báo', e?.description || 'Huỷ kết bạn thất bại');
