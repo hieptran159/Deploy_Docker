@@ -131,6 +131,15 @@ html, body {
     white-space: nowrap;
     letter-spacing: .3px;
 }
+.app-header__sub {
+    border-top: 1px solid var(--border);
+    background: var(--bg, var(--surface));
+}
+.app-header__sub-inner {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 2px 16px;
+}
 
 /* auth screens share .form-login */
 .form-login {

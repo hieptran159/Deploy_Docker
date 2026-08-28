@@ -3,16 +3,10 @@
         <div class="app-header__inner">
             <span class="app-brand" @click="goHomeReload">HIPDN-EA&nbsp;Forum</span>
 
-            <div v-if="isLogin" class="flex-1 min-w-0 flex flex-col gap-0.5">
+            <div v-if="isLogin" class="flex-1 min-w-0">
                 <DxTabs
                     :selected-index="primaryIndex"
                     :dataSource="primaryTabs"
-                    styling-mode="secondary"
-                    @item-click="selectChange"
-                />
-                <DxTabs
-                    :selected-index="moreIndex"
-                    :dataSource="moreTabs"
                     styling-mode="secondary"
                     @item-click="selectChange"
                 />
@@ -106,6 +100,18 @@
             <div v-else class="row-actions">
                 <DxButton type="success" stylingMode="contained" @click="signUp">Đăng ký</DxButton>
                 <DxButton type="default" stylingMode="contained" @click="() => route.push('/login')">Đăng nhập</DxButton>
+            </div>
+        </div>
+
+        <!-- Hàng phụ, tách hẳn xuống dưới thanh header -->
+        <div v-if="isLogin" class="app-header__sub">
+            <div class="app-header__sub-inner">
+                <DxTabs
+                    :selected-index="moreIndex"
+                    :dataSource="moreTabs"
+                    styling-mode="secondary"
+                    @item-click="selectChange"
+                />
             </div>
         </div>
     </header>
