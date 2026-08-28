@@ -38,6 +38,8 @@ volume (`/app/uploads` in the backend container). Overridable env vars live in `
 (`*_PORT`, `MYSQL_*`, `JWT_SECRET`, `SENDGRID_*`, and `PUBLIC_API_URL`/`PUBLIC_SOCKET_URL`
 which are **baked into the frontend build** as `VITE_API_URL`/`VITE_SOCKET_URL`).
 DB export/import for infra migration: `scripts/db-export.sh` / `scripts/db-import.sh`.
+`scripts/backfill-hashtags.sh` is a one-off to index `#tags` in pre-existing posts (see
+the Hashtags note under backend architecture).
 
 **Backend alone:**
 ```
@@ -180,7 +182,11 @@ uses `./mvnw install -DskipTests`. No frontend tests.
   via `:vids`) and `GET /post/hashtags/trending?limit=` (`getTrendingHashtags` →
   `[{tag,count}]`, counts **public+published** only) are both in the guest permit list. FE:
   route `/tag/:tag` (no guard) → `pages/tag/TagPage.vue`; tag chips in `Post.vue` /
-  `PostDetail.vue` link to it; "Hashtag nổi bật" card on `Home.vue`.
+  `PostDetail.vue` link to it; "Hashtag nổi bật" card on `Home.vue`. Posts that predate
+  the feature have no index rows (`#text` sits in the body as plain text) — run
+  `scripts/backfill-hashtags.sh` **once** to populate `post_hashtags` for existing posts
+  (idempotent `INSERT IGNORE`, regex mirrors `HashtagUtils`; needs a `mysql` client, reads
+  `.env` / `MYSQL_*` like the other scripts).
 - Notifications: `entity/Notifications` (plain columns, no JPA relations; table
   auto-created by `ddl-auto=update`). `NotificationService.push(...)` is fire-and-forget
   and swallows its own errors so it never breaks the caller. `pushUnique` dedups on
