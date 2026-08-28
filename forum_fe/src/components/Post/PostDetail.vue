@@ -1,5 +1,5 @@
 <template>
-    <div class="page">
+    <div class="page page--wide">
         <div class="card">
             <!-- dòng tác giả -->
             <div class="flex items-center gap-2">

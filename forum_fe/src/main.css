@@ -54,14 +54,14 @@ html, body {
 
 /* ---- layout primitives ---- */
 .page {
-    max-width: 1120px;
+    max-width: 960px;
     margin: 0 auto;
     padding: 24px 16px 64px;
     display: flex;
     flex-direction: column;
     gap: 16px;
 }
-.page--wide { max-width: 1120px; } /* giữ lại cho tương thích; giờ bằng .page */
+.page--wide { max-width: 1120px; }
 
 .card {
     background: var(--surface);
