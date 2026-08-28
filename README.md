@@ -19,7 +19,11 @@ docker compose up -d --build
 | Socket.IO (chat, thông báo, presence) | http://localhost:8082 |
 | MySQL | localhost:3307 (db `socialapp`) |
 
-Hướng dẫn chi tiết (biến môi trường, SendGrid, migrate DB…): xem [`DEPLOY.md`](DEPLOY.md).
+Hướng dẫn chi tiết (biến môi trường, SendGrid, Cloudflare Tunnel, migrate DB…): xem [`DEPLOY.md`](DEPLOY.md).
+
+> Deploy thật nên đặt: `APP_CORS_ALLOWED_ORIGINS` (giới hạn origin FE), `MESSAGE_CRYPTO_KEY`
+> (bật mã hoá tin nhắn), `RATELIMIT_TRUST_FORWARDED=true` (chỉ khi có nginx/Cloudflare phía trước),
+> và **rotate** `JWT_SECRET` / mật khẩu DB khỏi giá trị mặc định.
 
 ## Tính năng
 
@@ -77,12 +81,17 @@ Hướng dẫn chi tiết (biến môi trường, SendGrid, migrate DB…): xem 
 
 ### Bảo mật & hiệu năng
 - JWT (custom filter, stateless); blacklist token khi đăng xuất / đổi mật khẩu / khoá.
-- **Refresh token** (xoay vòng): access token hết hạn thì tự gia hạn ngầm, không đá người dùng ra trang đăng nhập.
+- **Refresh token** (xoay vòng): access token hết hạn thì tự gia hạn ngầm, không đá người dùng ra trang đăng nhập. Lưu DB dạng **băm SHA‑256**, không phải bản gốc.
 - **Xác thực 2 bước (2FA)** tuỳ chọn: bật trong hồ sơ → mỗi lần đăng nhập cần thêm mã 6 ký tự gửi qua email.
-- **Giới hạn tần suất** `/auth/**` chống brute-force mật khẩu và spam OTP.
-- Upload ảnh: chỉ png/jpg/jpeg, chặn quá kích thước, **tự thu nhỏ ≤1600px + nén** phía server.
+- **Mã hoá tin nhắn chat khi lưu DB** (AES‑256‑GCM, tuỳ chọn qua `MESSAGE_CRYPTO_KEY`): dump database không đọc được nội dung tin nhắn. Không phải E2EE.
+- **Chống XSS**: nội dung do người dùng nhập luôn render dạng text (không `v-html`); tên hiển thị / tên nhóm lọc `<` `>` khi ghi.
+- **Giới hạn tần suất** `/auth/**` chống brute-force mật khẩu và spam OTP — khoá theo IP TCP thật (không tin `X‑Forwarded‑For` trừ khi bật `RATELIMIT_TRUST_FORWARDED` sau proxy tin cậy).
+- Đăng nhập **không tiết lộ email có tồn tại hay không** (thông báo lỗi + thời gian phản hồi đồng đều).
+- Kiểm soát quyền: sửa/xoá bài & bình luận yêu cầu đúng tác giả (hoặc admin); đọc/ghi hội thoại yêu cầu là thành viên; endpoint `/admin/**` tự kiểm tra quyền admin.
+- CORS mặc định mở (`*`); đặt `APP_CORS_ALLOWED_ORIGINS` khi deploy thật.
+- Upload ảnh: chỉ png/jpg/jpeg (kiểm tra cả đuôi lẫn mime Tika), chặn quá kích thước, **tự thu nhỏ ≤1600px + nén** phía server; tên file do server sinh.
 - Truy vấn DB tối ưu: index feed `(posted_at DESC, post_id ASC)`, bảng tin / bài-theo-tag nạp theo lô chống N+1, bỏ `COUNT` thừa khi phân trang, tìm kiếm không dựng cây bình luận thừa.
-- Bộ **unit test** (`social/` — `./mvnw test`, 68 test) cho rate-limit, xử lý ảnh, quyền chặn/kết bạn, luật bài viết & repost, tự ẩn bài, phân trang thông báo, hashtag, refresh token, 2FA; không cần DB/Docker.
+- Bộ **unit test** (`social/` — `./mvnw test`, 72 test) cho rate-limit (kể cả chống giả `X‑Forwarded‑For`), xử lý ảnh, quyền chặn/kết bạn, luật bài viết & repost (kể cả quyền xoá), quyền xem bài, tự ẩn bài, phân trang thông báo, hashtag, refresh token, 2FA; không cần DB/Docker.
 
 ## Cấu trúc repo
 
