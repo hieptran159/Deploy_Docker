@@ -314,6 +314,7 @@ public class ChatServiceImpl implements ChatService {
             conversationDTO.setConversationId(conversation.getConversationId());
             conversationDTO.setConversationName(conversation.getConversationName());
             conversationDTO.setAvatarUrl(conversation.getAvatarUrl());
+            conversationDTO.setMuted(participant.getMuted() != null && participant.getMuted() == 1);
             conversationDTO.setCreatedAt(conversation.getCreatedAt().toString());
             Messages last = lastByConv.get(conversation.getConversationId());
             if (last != null) {
@@ -500,6 +501,19 @@ public class ChatServiceImpl implements ChatService {
         p.put("conversationId", conversationId);
         p.put("conversationName", newName.trim());
         realtimeGateway.toRoom(conversationId, "conversation_renamed", p);
+        return true;
+    }
+
+    @Override
+    public boolean setConversationMuted(String conversationId, boolean muted) throws Exception {
+        String me = authorizePathService.getUserIdAuthoried();
+        com.didan.social.entity.Participants p =
+                participantRepository.findFirstByConversations_ConversationIdAndUsers_UserId(conversationId, me);
+        if (p == null) {
+            throw new Exception("Bạn không ở trong hội thoại này");
+        }
+        p.setMuted(muted ? 1 : 0);
+        participantRepository.save(p);
         return true;
     }
 

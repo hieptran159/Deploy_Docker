@@ -156,6 +156,15 @@ uses `./mvnw install -DskipTests`. No frontend tests.
   renders the "Bài viết" and "Đã chia sẻ" sections with the shared `<Post>` card (was N
   individual `getPostById` calls) + "Xem thêm". The repost glyph is an inline Feather
   "repeat" SVG (not the 🔁 emoji) in `Post.vue` / `PostDetail.vue`.
+- `Post.vue` shows a ✏️ button for the author that opens an inline `EditPost` popup
+  (`<DxPopup v-if="editing">`) and emits `@refresh`; every parent that lists `<Post>` wires
+  `@refresh` to reload. `CreatePost.vue` / `EditPost.vue` show live hashtag chips parsed by
+  `helper.js#extractHashtags` (mirrors backend `HashtagUtils`).
+- Reporting: `components/ReportDialog.vue` (singleton in `App.vue`, `provide('openReport')`
+  `(targetType, targetId, label)`), a reason radio list (`spam`/`harassment`/`hate`/`nsfw`/
+  `misinfo`/`other`) + optional detail → `sendReport(type, id, "<label>: <detail>")`.
+  `PostDetail.vue` / `Comment.vue` / `UserProfile.vue` call `openReport` instead of the old
+  plain confirm.
 - Post visibility: `Posts.visibility` (`null`/`"public"` = everyone, `"friends"` = author +
   author's friends, `"private"` = author only). `PostServiceImpl.normVisibility` maps the
   request value to one of those three. Every feed/search/profile/by-tag query carries
@@ -213,6 +222,15 @@ uses `./mvnw install -DskipTests`. No frontend tests.
   `ConversationDTO` carries `avatarUrl`; FE shows it in sidebar rows + chat header (✎ overlay
   to change; uploader also calls `loadConversations()`). DM rows/header show the **other
   user's avatar** (`dmAvatars`, resolved alongside `dmNames`), not the 💬 icon.
+- Mute conversation: `Participants.muted` (`ddl-auto`, `null`/`0` = notify, `1` = muted, per
+  user per conversation). `PATCH /chat/conversation/{id}/mute?muted=` (`ChatServiceImpl.setConversationMuted`,
+  participant-only). `MessageNotifier.notifyMessage` skips a muted participant **unless** they
+  are `@`-mentioned. `ConversationDTO.muted` (the caller's flag) → FE `Chat.vue` header 🔔/🔕
+  toggle + 🔕 in sidebar rows.
+- "Đã chỉnh sửa" marker: `Posts.editedAt` / `Comments.editedAt` (`ddl-auto`, nullable). Set to
+  now in `PostServiceImpl.updatePost` / `CommentServiceImpl.updateComment` (not on publish).
+  `PostDTO.editedAt` / `CommentDTO.editedAt` carry it; FE shows "· đã chỉnh sửa" (post) /
+  "· đã sửa" (comment) next to the timestamp.
 - Realtime avatar change: `UserServiceImpl.updateUser` (and `updateCover`) name the file
   `"<userId>-<ts>"` so the URL always changes; on avatar change it broadcasts `user_avatar`
   `{userId, avtUrl}` via `RealtimeGateway.toUser` to the user + every `friendIdsOf`. FE:
@@ -260,8 +278,11 @@ uses `./mvnw install -DskipTests`. No frontend tests.
   `/post/hashtags/trending` (guest can
   browse the home feed without an account — the SPA's `/` route has no guard; every
   other route/endpoint still needs a valid JWT, incl. `/post/{id}` and `/user/**`).
-  Session is STATELESS, CSRF off. The feed `PostDTO` carries `authorName`/`authorAvatar`
-  so `Post.vue` cards don't call `/user/{id}` per row.
+  Session is STATELESS, CSRF off. Its `authenticationEntryPoint` writes a valid
+  `{"success":false,"statusCode":401,"description":...}` JSON body (`application/json;charset=UTF-8`).
+  `ResourceWebConfig.extendMessageConverters` also pins the Jackson converter to
+  `application/json;charset=UTF-8` (Spring 6 drops the charset by default). The feed `PostDTO`
+  carries `authorName`/`authorAvatar` so `Post.vue` cards don't call `/user/{id}` per row.
 - `security/RateLimitFilter` (plain servlet filter, order `HIGHEST_PRECEDENCE+5`, runs
   before the JWT filter) throttles POST/PATCH on `/auth/**` per client IP with in-memory
   fixed-window counters (single-instance deploy). Buckets: `signin` 20/5min, `signup`

@@ -52,6 +52,8 @@ public class MessageNotifier {
                 if (p.getUsers() == null) continue;
                 String pid = p.getUsers().getUserId();
                 if (pid.equals(sender.getUserId())) continue;
+                boolean muted = p.getMuted() != null && p.getMuted() == 1;
+                if (muted && !mentioned.contains(pid)) continue; // tắt thông báo hội thoại (vẫn báo khi bị @nhắc)
                 if (mentioned.contains(pid)) {
                     notificationService.push(pid, sender.getUserId(), "MESSAGE", conv.getConversationId(),
                             senderName + " đã nhắc đến bạn trong " + (dm ? "một tin nhắn" : "nhóm " + name));

@@ -304,6 +304,7 @@ public class CommentServiceImpl extends ConvertDTO implements CommentService {
             String fileName = fileUploadsService.storeFile(editCommentRequest.getCommentImg(), "comment", commentId);
             comment.setCommentImg("comment/"+fileName);
         }
+        comment.setEditedAt(new java.util.Date());
         commentRepository.save(comment);
         CommentDTO commentDTO = new CommentDTO();
         commentDTO.setCommentId(comment.getCommentId());
@@ -311,6 +312,7 @@ public class CommentServiceImpl extends ConvertDTO implements CommentService {
         commentDTO.setContent(comment.getContent());
         commentDTO.setCommentImg(comment.getCommentImg());
         commentDTO.setCommentAt(comment.getCommentAt().toString());
+        commentDTO.setEditedAt(comment.getEditedAt().toString());
         commentDTO.setParentId(comment.getParentId());
         List<CommentLikes> commentLikes = commentLikeRepository.findAllByComments_CommentId(comment.getCommentId());
         commentDTO.setCommentLikes(commentLikes.size());
@@ -371,6 +373,8 @@ public class CommentServiceImpl extends ConvertDTO implements CommentService {
         commentDTO.setContent(userComment.getComments().getContent());
         commentDTO.setCommentImg(userComment.getComments().getCommentImg());
         commentDTO.setCommentAt(userComment.getComments().getCommentAt().toString());
+        commentDTO.setEditedAt(userComment.getComments().getEditedAt() == null ? null
+                : userComment.getComments().getEditedAt().toString());
         commentDTO.setParentId(userComment.getComments().getParentId());
         List<CommentLikes> commentLikes = commentLikeRepository.findAllByComments_CommentId(userComment.getComments().getCommentId());
         commentDTO.setCommentLikes(commentLikes.size());

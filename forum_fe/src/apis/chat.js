@@ -67,3 +67,7 @@ export const unreactMessage = (messageId) => {
 export const setConversationAvatar = (conversationId, file) => {
     return authApiFormData.patch(`/chat/conversation/${conversationId}/avatar`, { avatar: file });
 }
+
+export const muteConversation = (conversationId, muted) => {
+    return authApi.patch(`/chat/conversation/${conversationId}/mute?muted=${muted ? 'true' : 'false'}`);
+}

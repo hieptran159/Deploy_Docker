@@ -34,12 +34,21 @@
         <img :src="lightbox" class="lightbox__img" @click.stop />
         <button class="lightbox__x" @click="lightbox = ''">×</button>
     </div>
+
+    <ReportDialog
+        v-if="report.show"
+        :target-type="report.targetType"
+        :target-id="report.targetId"
+        :label="report.label"
+        @close="report.show = false"
+    />
 </template>
 
 <script setup>
 import TheHeader from '@/components/layout/TheHeader.vue';
 import TheFooter from '@/components/layout/TheFooter.vue';
 import MDialog from './components/Dialog/MDialog.vue';
+import ReportDialog from '@/components/ReportDialog.vue';
 import { provide, ref, onMounted, onBeforeUnmount } from 'vue';
 
 /* ---------- modal (lỗi + xác nhận) ---------- */
@@ -110,6 +119,12 @@ const toast = (msg, opts = {}) => {
     setTimeout(() => dismissToast(id), opts.duration || 3200);
 };
 
+/* ---------- báo cáo nội dung ---------- */
+const report = ref({ show: false, targetType: '', targetId: '', label: '' });
+const openReport = (targetType, targetId, label = '') => {
+    report.value = { show: true, targetType, targetId, label };
+};
+
 /* ---------- lightbox xem ảnh phóng to ---------- */
 const lightbox = ref('');
 const openLightbox = (url) => { if (url) lightbox.value = url; };
@@ -119,6 +134,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onEsc));
 
 provide('openDialogError', openDialogError);
 provide('openConfirm', openConfirm);
+provide('openReport', openReport);
 provide('toast', toast);
 provide('openLightbox', openLightbox);
 </script>

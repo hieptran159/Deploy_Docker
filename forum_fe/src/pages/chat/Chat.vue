@@ -73,6 +73,7 @@
                             </span>
                             <span class="font-semibold text-sm truncate flex-1"
                                 :class="{ 'font-bold': unreadByConv[c.conversationId] }">{{ displayName(c) }}</span>
+                            <span v-if="c.muted" class="flex-none text-[11px] muted" title="Đã tắt thông báo">🔕</span>
                             <span v-if="unreadByConv[c.conversationId]"
                                 class="flex-none text-[11px] font-bold text-white bg-[var(--danger)] rounded-full min-w-[18px] h-[18px] px-1 text-center leading-[18px]">
                                 {{ unreadByConv[c.conversationId] > 9 ? '9+' : unreadByConv[c.conversationId] }}
@@ -124,6 +125,10 @@
                             @click="toggleMembers" />
                         <DxButton v-if="!isDm(active.conversationName)" icon="plus" stylingMode="text"
                             hint="Thêm thành viên" @click="openAddMember" />
+                        <button class="text-base px-1 self-center"
+                            :title="active.muted ? 'Bật lại thông báo' : 'Tắt thông báo'" @click="toggleMute">
+                            {{ active.muted ? '🔕' : '🔔' }}
+                        </button>
                         <DxButton text="Rời" type="danger" stylingMode="text" @click="handleLeave" />
                     </div>
 
@@ -273,7 +278,7 @@ import {
     getMyConversations, searchConversations, getMessages,
     createConversation, joinConversation, leaveConversation, sendMessageRest, addMember, getMembers,
     editMessage, recallMessage, renameConversation, removeMember,
-    reactMessage, unreactMessage, setConversationAvatar,
+    reactMessage, unreactMessage, setConversationAvatar, muteConversation,
 } from '@/apis/chat';
 import { getUserInfo } from '@/apis/user';
 import { getFriends } from '@/apis/friend';
@@ -351,6 +356,20 @@ const toggleMsgReaction = async (m, emoji) => {
 const renaming = ref(false);
 const renameText = ref('');
 const groupAvatarInput = ref(null);
+
+const toggleMute = async () => {
+    if (!active.value?.conversationId) return;
+    const next = !active.value.muted;
+    try {
+        await muteConversation(active.value.conversationId, next);
+        active.value = { ...active.value, muted: next };
+        const i = conversations.value.findIndex((c) => c.conversationId === active.value.conversationId);
+        if (i >= 0) conversations.value[i] = { ...conversations.value[i], muted: next };
+        toast?.(next ? 'Đã tắt thông báo hội thoại' : 'Đã bật lại thông báo');
+    } catch (err) {
+        showDialog?.('Thông báo', err?.description || 'Không đổi được cài đặt thông báo');
+    }
+};
 
 const onGroupAvatar = async (e) => {
     const f = e.target.files[0];

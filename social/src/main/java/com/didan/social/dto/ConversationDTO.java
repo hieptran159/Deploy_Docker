@@ -10,8 +10,17 @@ public class ConversationDTO {
     private String lastMessageImg;
     private String lastMessageAt;
     private String lastSenderId;
+    private boolean muted;
 
     public ConversationDTO() {
+    }
+
+    public boolean isMuted() {
+        return muted;
+    }
+
+    public void setMuted(boolean muted) {
+        this.muted = muted;
     }
 
     public ConversationDTO(String conversationId, String conversationName, String createdAt) {

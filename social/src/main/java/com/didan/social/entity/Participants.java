@@ -16,6 +16,10 @@ public class Participants {
     @JoinColumn(name = "user_id", insertable = false, updatable = false)
     private Users users;
 
+    // null/0 = nhận thông báo; 1 = đã tắt thông báo cho hội thoại này (vẫn báo khi bị @nhắc)
+    @Column(name = "muted")
+    private Integer muted;
+
     public Participants() {}
 
     public Participants(ParticipantId participantId, Conversations conversations, Users users) {
@@ -46,5 +50,13 @@ public class Participants {
 
     public void setUsers(Users users) {
         this.users = users;
+    }
+
+    public Integer getMuted() {
+        return muted;
+    }
+
+    public void setMuted(Integer muted) {
+        this.muted = muted;
     }
 }

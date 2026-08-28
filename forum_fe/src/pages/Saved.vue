@@ -5,7 +5,7 @@
             <div v-if="loading" class="state">Đang tải…</div>
             <div v-else-if="!posts.length" class="state">Bạn chưa lưu bài viết nào</div>
             <div v-for="post in posts" :key="post.postId" class="border-b last:border-b-0">
-                <Post :post="post" />
+                <Post :post="post" @refresh="load" />
             </div>
         </div>
     </div>

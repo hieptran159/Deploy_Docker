@@ -21,6 +21,11 @@ public class Comments {
     @Temporal(TemporalType.TIMESTAMP)
     private Date commentAt;
 
+    // null = chưa sửa; có giá trị = thời điểm sửa gần nhất (ddl-auto)
+    @Column(name = "edited_at")
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date editedAt;
+
     // id bình luận cha (null = bình luận gốc); lồng tối đa 1 cấp
     @Column(name = "parent_id", length = 36)
     private String parentId;
@@ -73,6 +78,14 @@ public class Comments {
 
     public void setCommentAt(Date commentAt) {
         this.commentAt = commentAt;
+    }
+
+    public Date getEditedAt() {
+        return editedAt;
+    }
+
+    public void setEditedAt(Date editedAt) {
+        this.editedAt = editedAt;
     }
 
     public Set<UserComment> getUserComments() {

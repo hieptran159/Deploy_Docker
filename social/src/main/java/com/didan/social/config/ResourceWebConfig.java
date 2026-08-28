@@ -1,11 +1,31 @@
 package com.didan.social.config;
 
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.MediaType;
+import org.springframework.http.converter.HttpMessageConverter;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+
 @Configuration
 public class ResourceWebConfig implements WebMvcConfigurer {
+
+    // Spring 6 bỏ charset khỏi Content-Type của application/json (mặc định vẫn UTF-8).
+    // Khai báo lại tường minh -> "application/json;charset=UTF-8".
+    @Override
+    public void extendMessageConverters(List<HttpMessageConverter<?>> converters) {
+        for (HttpMessageConverter<?> c : converters) {
+            if (c instanceof MappingJackson2HttpMessageConverter jackson) {
+                jackson.setDefaultCharset(StandardCharsets.UTF_8);
+                jackson.setSupportedMediaTypes(List.of(
+                        new MediaType("application", "json", StandardCharsets.UTF_8),
+                        new MediaType("application", "*+json", StandardCharsets.UTF_8)));
+            }
+        }
+    }
     private static final String[] CLASSPATH_RESOURCE_LOCATIONS = {"classpath:/static/uploads/","classpath:/templates/"}; // Khai báo đường dẫn tĩnh của các file resource
     @Override
     public void addResourceHandlers(final ResourceHandlerRegistry registry){ // Hàm này sẽ cấu hình resource cho Spring Boot

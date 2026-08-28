@@ -13,7 +13,7 @@
             <div v-else-if="!posts.length" class="state">Chưa có bài viết nào với hashtag này</div>
 
             <div v-for="post in posts" :key="post.postId" class="border-b last:border-b-0">
-                <Post :post="post" />
+                <Post :post="post" @refresh="() => load(true)" />
             </div>
 
             <div v-if="page < totalPages" class="pt-3 text-center">

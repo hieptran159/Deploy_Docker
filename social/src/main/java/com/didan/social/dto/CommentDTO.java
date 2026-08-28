@@ -11,6 +11,7 @@ public class CommentDTO {
     private String content;
     private String commentImg;
     private String commentAt;
+    private String editedAt;
     private int commentLikes;
     private List<String> userLikes;
     private String parentId;
@@ -76,6 +77,14 @@ public class CommentDTO {
 
     public void setCommentAt(String commentAt) {
         this.commentAt = commentAt;
+    }
+
+    public String getEditedAt() {
+        return editedAt;
+    }
+
+    public void setEditedAt(String editedAt) {
+        this.editedAt = editedAt;
     }
 
     public String getUserComments() {

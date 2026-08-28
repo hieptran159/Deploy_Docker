@@ -28,6 +28,11 @@ public class Posts {
     @Temporal(TemporalType.TIMESTAMP)
     private Date postedAt;
 
+    // null = chưa sửa; có giá trị = thời điểm sửa gần nhất (ddl-auto)
+    @Column(name = "edited_at")
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date editedAt;
+
     // NULL / "published" = đã đăng (hiện trên feed). "draft" = bản nháp (chỉ chủ bài thấy).
     @Column(name = "status", length = 20)
     private String status;
@@ -96,6 +101,14 @@ public class Posts {
 
     public void setPostedAt(Date postedAt) {
         this.postedAt = postedAt;
+    }
+
+    public Date getEditedAt() {
+        return editedAt;
+    }
+
+    public void setEditedAt(Date editedAt) {
+        this.editedAt = editedAt;
     }
 
     public String getStatus() {

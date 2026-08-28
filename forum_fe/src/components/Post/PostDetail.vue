@@ -39,6 +39,7 @@
 
                     <div class="text-sm muted mt-0.5">
                         {{ calculateTimeDifference(post?.postedAt) }} trước
+                        <span v-if="post?.editedAt" class="muted">· đã chỉnh sửa</span>
                         <span v-if="post?.visibility === 'friends'" class="ml-1 px-1.5 py-0.5 rounded bg-gray-100 text-[11px] font-semibold">👥 Chỉ bạn bè</span>
                         <span v-else-if="post?.visibility === 'private'" class="ml-1 px-1.5 py-0.5 rounded bg-gray-100 text-[11px] font-semibold">🔒 Chỉ mình tôi</span>
                     </div>
@@ -178,7 +179,6 @@ import { getPostById } from '@/apis/post';
 import { createComment, getCommentsPage } from '@/apis/comment';
 import { likePostApi, unLikePostApi, deletePost, repostPost, unrepostPost } from '@/apis/post';
 import { checkBookmark, toggleBookmark } from '@/apis/bookmark';
-import { sendReport } from '@/apis/report';
 import { getAllUsers } from '@/apis/user';
 import { markReadByTarget } from '@/apis/notification';
 import { useRouter } from 'vue-router';
@@ -211,6 +211,7 @@ const needLogin = () => {
 };
 const showDialog = inject("openDialogError");
 const openConfirm = inject("openConfirm");
+const openReport = inject("openReport");
 const toast = inject("toast");
 const openLightbox = inject("openLightbox", () => {});
 const isShowSetting = ref(false);
@@ -373,14 +374,7 @@ const unreactPost = async () => {
 }
 
 const reportPost = () => {
-    openConfirm?.('Báo cáo bài viết', 'Gửi báo cáo bài viết này tới quản trị viên?', async () => {
-        try {
-            await sendReport('POST', id.value);
-            toast?.('Đã gửi báo cáo');
-        } catch (e) {
-            showDialog?.('Thông báo', e?.description || 'Báo cáo thất bại');
-        }
-    }, { danger: true, confirmText: 'Báo cáo' });
+    openReport?.('POST', id.value, 'bài viết');
 }
 
 const handleDeletePost = () => {

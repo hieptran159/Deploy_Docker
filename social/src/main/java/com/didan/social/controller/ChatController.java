@@ -179,6 +179,24 @@ public class ChatController {
         }
     }
 
+    // Bật/tắt thông báo cho một hội thoại (theo từng người dùng)
+    @Operation(summary = "Tắt/bật thông báo cho hội thoại", security = @SecurityRequirement(name = "bearerAuth"))
+    @PatchMapping("/conversation/{conversation_id}/mute")
+    public ResponseEntity<?> muteConversation(@PathVariable("conversation_id") String conversationId,
+                                              @RequestParam("muted") boolean muted){
+        ResponseData payload = new ResponseData();
+        try {
+            chatService.setConversationMuted(conversationId, muted);
+            payload.setDescription(muted ? "Đã tắt thông báo hội thoại" : "Đã bật lại thông báo hội thoại");
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e){
+            payload.setSuccess(false);
+            payload.setStatusCode(500);
+            payload.setDescription(e.getMessage());
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
     // Join Conversation
     @Operation(summary = "Join conversation to chat",
             description = "Enter the id conversation to join",

@@ -634,6 +634,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
             String fileName = fileUploadsService.storeFile(editPostRequest.getPostImg(), "post", postId);
             post.setPostImg("post/"+fileName);
         }
+        post.setEditedAt(Timestamp.valueOf(LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"))));
         postRepository.save(post);
         syncHashtags(post.getPostId(), post.getTitle(), post.getBody());
         return (PostDTO) convertToDTO(post);
@@ -702,6 +703,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         dto.setPostImg(post.getPostImg());
         dto.setBody(post.getBody());
         dto.setPostedAt(post.getPostedAt().toString());
+        dto.setEditedAt(post.getEditedAt() == null ? null : post.getEditedAt().toString());
         Set<PostLikes> postLikes = post.getPostLikes();
         dto.setUserLikedPost(postLikes.stream().map(pl -> pl.getUsers().getUserId()).collect(Collectors.toList()));
         dto.setLikesQuantity(postLikes.size());
@@ -746,6 +748,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
             commentDTO.setContent(comment.getContent());
             commentDTO.setCommentImg(comment.getCommentImg());
             commentDTO.setCommentAt(comment.getCommentAt().toString());
+            commentDTO.setEditedAt(comment.getEditedAt() == null ? null : comment.getEditedAt().toString());
             commentDTO.setParentId(comment.getParentId());
             Set<CommentLikes> commentLikes = comment.getCommentLikes();
             commentDTO.setCommentLikes(commentLikes.size());

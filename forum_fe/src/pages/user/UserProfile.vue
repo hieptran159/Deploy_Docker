@@ -70,7 +70,7 @@
             <div v-if="loading && !posts.length" class="state">Đang tải…</div>
             <div v-else-if="!posts.length" class="state">Chưa có bài viết</div>
             <div v-for="post in posts" :key="post.postId" class="border-b last:border-b-0">
-                <Post :post="post" />
+                <Post :post="post" @refresh="() => loadPosts(true)" />
             </div>
             <div v-if="postsPage < postsTotalPages" class="pt-3 text-center">
                 <button class="link text-sm" :disabled="loading" @click="loadPosts(false)">
@@ -82,7 +82,7 @@
         <div v-if="reposts.length" class="card">
             <div class="section-title">Đã chia sẻ {{ repostsTotal ? `(${repostsTotal})` : '' }}</div>
             <div v-for="post in reposts" :key="'rp-' + post.postId" class="border-b last:border-b-0">
-                <Post :post="post" />
+                <Post :post="post" @refresh="() => loadReposts(true)" />
             </div>
             <div v-if="repostsPage < repostsTotalPages" class="pt-3 text-center">
                 <button class="link text-sm" :disabled="repostsLoading" @click="loadReposts(false)">
@@ -98,7 +98,6 @@ import { DxButton } from 'devextreme-vue';
 import { onMounted, ref, computed, watch, inject } from 'vue';
 import { useRouter } from 'vue-router';
 import { getUserInfo } from '@/apis/user';
-import { sendReport } from '@/apis/report';
 import { getPostsByUser, getRepostsOf } from '@/apis/post';
 import Post from '@/components/Post/Post.vue';
 import {
@@ -113,6 +112,7 @@ import { IMAGE_BASE } from '@/config';
 
 const showDialog = inject('openDialogError');
 const openConfirm = inject('openConfirm');
+const openReport = inject('openReport');
 const toast = inject('toast');
 
 const route = useRouter();
@@ -254,14 +254,7 @@ const doUnblock = async () => {
 };
 
 const report = () => {
-    openConfirm?.('Báo cáo người dùng', `Báo cáo ${user.value?.fullName || 'người dùng này'}?`, async () => {
-        try {
-            await sendReport('USER', userId.value);
-            toast?.('Đã gửi báo cáo');
-        } catch (e) {
-            showDialog?.('Thông báo', e?.description || 'Báo cáo thất bại');
-        }
-    }, { danger: true, confirmText: 'Báo cáo' });
+    openReport?.('USER', userId.value, user.value?.fullName || 'người dùng này');
 };
 
 const goFriends = () => {

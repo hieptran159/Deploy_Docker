@@ -63,11 +63,11 @@ public class CustomFilterSecurity {
         http.exceptionHandling(except -> except
                 .authenticationEntryPoint((request, response, authException) -> {
                     response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                    response.setContentType("application/json");
+                    response.setContentType("application/json;charset=UTF-8");
                     response.setCharacterEncoding("UTF-8");
-                    String jsonMessage = "{\n\t\"statusCode\": 404\n\t\"success\": \"false\"\n\t\"description\": \"UNAUTHORIZED OR THE ROUTE IS NOT FOUND\"\n}";
-                    response.getWriter().write(jsonMessage);
-                    logger.error("UNAUTHORIZED OR THE ROUTE IS NOT FOUND");
+                    response.getWriter().write(
+                        "{\"success\":false,\"statusCode\":401,\"description\":\"Bạn cần đăng nhập để truy cập tài nguyên này\",\"data\":null}");
+                    logger.error("UNAUTHORIZED: {} {}", request.getMethod(), request.getRequestURI());
                 })
         ); // Bắt lỗi nếu không authorized được thì trả về message
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

@@ -20,6 +20,10 @@
                 <option value="private">🔒 Chỉ mình tôi</option>
             </select>
         </div>
+        <div v-if="tags.length" class="flex flex-wrap items-center gap-1.5 text-xs">
+            <span class="muted">Hashtag:</span>
+            <span v-for="t in tags" :key="t" class="font-semibold text-[var(--brand)] bg-[var(--brand-soft)] rounded-full px-2 py-0.5">#{{ t }}</span>
+        </div>
         <div class="flex justify-end gap-2">
             <DxButton stylingMode="outlined" text="Lưu nháp" :disabled="busy" @click="() => submit(true)" />
             <DxButton type="default" text="Đăng bài" :disabled="busy" @click="() => submit(false)" />
@@ -30,7 +34,8 @@
 <script setup>
 import { DxTextBox, DxTextArea, DxButton } from 'devextreme-vue';
 import { createdPost } from '@/apis/post';
-import { ref, inject } from 'vue';
+import { ref, computed, inject } from 'vue';
+import { extractHashtags } from '@/js/helper';
 
 const emits = defineEmits(['close', 'post-fail']);
 const showDialog = inject('openDialogError', null);
@@ -43,6 +48,8 @@ const data = ref({
     postImg: null,
     visibility: "public",
 });
+
+const tags = computed(() => extractHashtags(data.value.title, data.value.body));
 
 const onFile = (e) => {
     data.value.postImg = e.target.files[0] || null;

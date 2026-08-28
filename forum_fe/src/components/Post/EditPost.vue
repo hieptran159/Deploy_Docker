@@ -20,6 +20,10 @@
                 <option value="private">🔒 Chỉ mình tôi</option>
             </select>
         </div>
+        <div v-if="tags.length" class="flex flex-wrap items-center gap-1.5 text-xs">
+            <span class="muted">Hashtag:</span>
+            <span v-for="t in tags" :key="t" class="font-semibold text-[var(--brand)] bg-[var(--brand-soft)] rounded-full px-2 py-0.5">#{{ t }}</span>
+        </div>
         <div class="flex justify-end">
             <DxButton type="default" text="Cập nhật" @click="submitEdit" />
         </div>
@@ -29,7 +33,8 @@
 <script setup>
 import { DxTextBox, DxTextArea, DxButton } from 'devextreme-vue';
 import { updatePost } from '@/apis/post';
-import { ref, watch } from 'vue';
+import { ref, computed, watch } from 'vue';
+import { extractHashtags } from '@/js/helper';
 
 const emits = defineEmits(['close', 'post-fail']);
 const props = defineProps({
@@ -56,6 +61,8 @@ watch(
         data.value.postImg = null;
     }
 );
+
+const tags = computed(() => extractHashtags(data.value.title, data.value.body));
 
 const onFile = (e) => {
     data.value.postImg = e.target.files[0] || null;

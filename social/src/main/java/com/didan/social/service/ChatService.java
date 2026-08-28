@@ -42,6 +42,9 @@ public interface ChatService {
     MessageDTO recallMessage(String messageId) throws Exception;
     // Đổi tên nhóm (người gọi phải là thành viên, không áp dụng cho DM)
     boolean renameConversation(String conversationId, String newName) throws Exception;
+
+    // Bật/tắt thông báo hội thoại cho người dùng hiện tại
+    boolean setConversationMuted(String conversationId, boolean muted) throws Exception;
     // Xoá 1 thành viên khỏi nhóm (người gọi phải là thành viên, không áp dụng cho DM)
     boolean removeMember(String conversationId, String userId) throws Exception;
 }

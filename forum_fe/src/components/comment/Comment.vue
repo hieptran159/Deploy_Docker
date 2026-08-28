@@ -17,6 +17,7 @@
                 <span v-if="comment?.commentAt" class="text-xs muted" :title="formatDateTime(comment.commentAt)">
                     · {{ timeAgo(comment.commentAt) }}
                 </span>
+                <span v-if="comment?.editedAt" class="text-xs muted" :title="formatDateTime(comment.editedAt)">· đã sửa</span>
             </div>
             <div v-if="comment.content" class="mt-0.5 whitespace-pre-wrap">
                 <template v-for="(p, i) in contentParts" :key="i"><span
@@ -95,7 +96,6 @@ import { useRouter } from 'vue-router';
 import { timeAgo, formatDateTime } from '@/js/helper';
 import { DxPopup, DxTextBox, DxButton } from 'devextreme-vue';
 import { likeCommentApi, unLikeCommentApi, deleteComment, createComment } from '@/apis/comment';
-import { sendReport } from '@/apis/report';
 import { LOCALKEYS, getItemLocal } from '@/storages/localStorage';
 import { IMAGE_BASE } from '@/config';
 import BaseAvatar from '../BaseAvatar.vue';
@@ -122,6 +122,7 @@ const showReply = ref(false);
 const replyText = ref('');
 const showDialog = inject("openDialogError");
 const openConfirm = inject("openConfirm");
+const openReport = inject("openReport");
 const toast = inject("toast");
 const openLightbox = inject("openLightbox", () => {});
 
@@ -189,14 +190,7 @@ const sendReply = async () => {
 }
 
 const confirmReport = () => {
-    openConfirm?.('Báo cáo bình luận', 'Gửi báo cáo bình luận này tới quản trị viên?', async () => {
-        try {
-            await sendReport('COMMENT', comment.value.commentId);
-            toast?.('Đã gửi báo cáo');
-        } catch (e) {
-            showDialog?.('Thông báo', e?.description || 'Báo cáo thất bại');
-        }
-    }, { danger: true, confirmText: 'Báo cáo' });
+    openReport?.('COMMENT', comment.value.commentId, 'bình luận');
 }
 
 const confirmDelete = () => {

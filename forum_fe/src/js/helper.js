@@ -57,3 +57,19 @@ export function convertName(name){
     const names = name.split(" ");
     return names[0][0] + names[names.length-1][0];
 }
+// Trích hashtag (#tag) từ văn bản — khớp luật backend HashtagUtils:
+// chữ/số/gạch dưới (Unicode), 1..50 ký tự, viết thường, bỏ tag toàn số, tối đa 20, không lặp.
+export function extractHashtags(...texts) {
+    const re = /#([\p{L}\p{N}_]{1,50})/gu;
+    const out = [];
+    for (const text of texts) {
+        if (!text) continue;
+        for (const m of String(text).matchAll(re)) {
+            const t = m[1].toLowerCase();
+            if (/^\d+$/.test(t)) continue;
+            if (!out.includes(t)) out.push(t);
+            if (out.length >= 20) return out;
+        }
+    }
+    return out;
+}

@@ -94,7 +94,7 @@
             </div>
 
             <div v-for="post in posts" :key="post.postId" class="border-b last:border-b-0">
-                <Post :post="post" />
+                <Post :post="post" @refresh="getListPost" />
             </div>
 
             <div v-if="searchMode" class="text-center mt-4">

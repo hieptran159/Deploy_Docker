@@ -28,6 +28,7 @@
                 bởi
                 <span class="link" @click.stop="goProfile">{{ userCreatedPost || '—' }}</span>
                 · {{ calculateTimeDifference(post?.postedAt) }} trước
+                <span v-if="post?.editedAt" class="muted">· đã chỉnh sửa</span>
                 <span v-if="post?.visibility === 'friends'" class="ml-1 px-1.5 py-0.5 rounded bg-gray-100 text-[11px] font-semibold">👥 Bạn bè</span>
                 <span v-else-if="post?.visibility === 'private'" class="ml-1 px-1.5 py-0.5 rounded bg-gray-100 text-[11px] font-semibold">🔒 Chỉ mình tôi</span>
             </div>
@@ -35,6 +36,16 @@
         </div>
 
         <div class="flex items-center gap-2 flex-none self-center text-xs">
+            <button
+                v-if="isMyPost"
+                class="px-2 py-1 rounded-full font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 inline-flex items-center gap-1"
+                title="Sửa bài viết"
+                @click.stop="editing = true"
+            >
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                </svg>
+            </button>
             <span class="px-2 py-1 rounded-full bg-rose-50 text-rose-600 font-semibold inline-flex items-center gap-1">
                 <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z" />
@@ -78,25 +89,48 @@
             @click.stop="goTag(t)"
         >#{{ t }}</button>
     </div>
+
+    <DxPopup
+        v-if="editing"
+        title="Sửa bài viết"
+        v-model:visible="editing"
+        :width="700"
+        :height="420"
+        :hide-on-outside-click="true"
+    >
+        <EditPost
+            :postId="post.postId"
+            :title="post.title"
+            :body="post.body"
+            :visibility="post.visibility || 'public'"
+            @close="() => { editing = false; emit('refresh') }"
+            @post-fail="showDialog?.('Thông báo', 'Cập nhật bài viết thất bại')"
+        />
+    </DxPopup>
   </div>
 </template>
 
 <script setup>
 import { computed, ref, inject } from "vue";
+import { DxPopup } from 'devextreme-vue';
 import { calculateTimeDifference } from '../../js/helper';
 import { IMAGE_BASE } from '@/config';
 import { useRouter } from 'vue-router';
 import { LOCALKEYS, getItemLocal } from '@/storages/localStorage';
 import { repostPost, unrepostPost } from '@/apis/post';
 import { avatarUpdates } from '@/storages/appState';
+import EditPost from '@/components/Post/EditPost.vue';
 
 const route = useRouter();
 const toast = inject('toast', null);
 const showDialog = inject('openDialogError', null);
 
+const emit = defineEmits(['refresh']);
 const props = defineProps({
     post: { type: Object }
 });
+
+const editing = ref(false);
 
 const post = computed(() => props.post);
 const myId = getItemLocal(LOCALKEYS.USER_ID);
@@ -111,6 +145,7 @@ const linkAvt = computed(() => {
 const avatarErrored = ref(false);
 const busy = ref(false);
 
+const isMyPost = computed(() => isLogin.value && post.value?.userCreatedPost && post.value.userCreatedPost === myId);
 const isMyRepost = computed(() => post.value?.repostedById && post.value.repostedById === myId);
 const canRepost = computed(() => isLogin.value && post.value?.userCreatedPost && post.value.userCreatedPost !== myId);
 
