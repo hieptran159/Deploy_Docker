@@ -161,6 +161,7 @@
             :hide-on-outside-click="true"
         >
             <EditPost
+                v-if="ishowEditPost && post"
                 :postId="id"
                 :body="post?.body"
                 :title="post?.title"

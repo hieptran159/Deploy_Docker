@@ -29,7 +29,7 @@
 <script setup>
 import { DxTextBox, DxTextArea, DxButton } from 'devextreme-vue';
 import { updatePost } from '@/apis/post';
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 
 const emits = defineEmits(['close', 'post-fail']);
 const props = defineProps({
@@ -40,11 +40,22 @@ const props = defineProps({
 });
 
 const data = ref({
-    title: props.title,
-    body: props.body,
+    title: props.title ?? '',
+    body: props.body ?? '',
     postImg: null,
     visibility: props.visibility || 'public',
 });
+
+// Đồng bộ lại khi props tới sau (popup mount trước lúc bài viết tải xong / đổi bài khác)
+watch(
+    () => [props.postId, props.title, props.body, props.visibility],
+    () => {
+        data.value.title = props.title ?? '';
+        data.value.body = props.body ?? '';
+        data.value.visibility = props.visibility || 'public';
+        data.value.postImg = null;
+    }
+);
 
 const onFile = (e) => {
     data.value.postImg = e.target.files[0] || null;
