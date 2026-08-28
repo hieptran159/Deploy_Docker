@@ -29,6 +29,9 @@ import java.util.*;
 @Service
 public class AuthServiceImpl implements AuthService {
     private final Logger logger = LoggerFactory.getLogger(AuthServiceImpl.class);
+    // Hash bcrypt "mồi" để so sánh giả khi email không tồn tại -> thời gian phản hồi đồng đều
+    // (chống dò email bằng timing). Không phải mật khẩu của ai.
+    private static final String DUMMY_BCRYPT = "$2a$10$T/nNYi4V1d6OO0o7yXOG3uXTQznoQ/1pNEb19wCF8HBFqNceyxb1O";
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final BlacklistRepository blacklistRepository;
@@ -60,7 +63,8 @@ public class AuthServiceImpl implements AuthService {
     public Users login(String email, String password) throws Exception{
         Users user = userRepository.findFirstByEmail(email);
         if(user == null) {
-            // Không tiết lộ email có tồn tại hay không (chống dò email) -> cùng thông báo với sai mật khẩu
+            // So sánh bcrypt giả để thời gian phản hồi ~ bằng lúc email có thật (chống dò email bằng timing)
+            passwordEncoder.matches(password == null ? "" : password, DUMMY_BCRYPT);
             logger.error("Login: email not found {}", email);
             throw new Exception("Email and Password does not match");
         }

@@ -70,17 +70,33 @@ class RateLimitFilterTest {
     }
 
     @Test
-    void honorsXForwardedFor() throws Exception {
+    void ignoresXForwardedForByDefault() throws Exception {
+        // trustForwarded = false (mặc định): header giả KHÔNG tách được bucket -> vẫn dính rate limit
         for (int i = 0; i < 3; i++) {
             MockHttpServletRequest r = post("/auth/signin", "127.0.0.1");
-            r.addHeader("X-Forwarded-For", "9.9.9.9, 127.0.0.1");
+            r.addHeader("X-Forwarded-For", "9.9.9." + i); // mỗi lần một IP giả
             call(r);
         }
         MockHttpServletRequest r = post("/auth/signin", "127.0.0.1");
-        r.addHeader("X-Forwarded-For", "9.9.9.9, 127.0.0.1");
+        r.addHeader("X-Forwarded-For", "9.9.9.99");
+        assertEquals(429, call(r)); // vẫn 429 vì key theo getRemoteAddr, không theo XFF
+    }
+
+    @Test
+    void honorsForwardedHeadersWhenTrusted() throws Exception {
+        ReflectionTestUtils.setField(filter, "trustForwarded", true);
+        for (int i = 0; i < 3; i++) {
+            MockHttpServletRequest r = post("/auth/signin", "127.0.0.1");
+            r.addHeader("X-Real-IP", "9.9.9.9");
+            call(r);
+        }
+        MockHttpServletRequest r = post("/auth/signin", "127.0.0.1");
+        r.addHeader("X-Real-IP", "9.9.9.9");
         assertEquals(429, call(r));
-        // client IP khác (không có XFF) -> không bị chặn
-        assertEquals(200, call(post("/auth/signin", "8.8.8.8")));
+        // client khác (X-Real-IP khác) -> bucket riêng, vẫn qua
+        MockHttpServletRequest ok = post("/auth/signin", "127.0.0.1");
+        ok.addHeader("X-Real-IP", "8.8.8.8");
+        assertEquals(200, call(ok));
     }
 
     @Test

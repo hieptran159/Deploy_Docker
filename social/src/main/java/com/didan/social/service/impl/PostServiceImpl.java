@@ -658,6 +658,12 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
                 logger.info("There is not post to delete");
                 throw new Exception("There is not post to delete");
             }
+            // Chỉ tác giả bài viết hoặc admin mới được xoá
+            boolean isAdmin = user.getIsAdmin() == 1;
+            if (!isAdmin && userPostRepository.findFirstByPosts_PostIdAndUsers_UserId(postId, user.getUserId()) == null) {
+                logger.error("User {} tried to delete post {} without permission", user.getUserId(), postId);
+                throw new Exception("Bạn không có quyền xoá bài viết này");
+            }
             postHashtagRepository.deleteByPostHashtagId_PostId(postId);
             postRepository.delete(post);
             if(StringUtils.hasText(post.getPostImg())){

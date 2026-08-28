@@ -41,6 +41,9 @@ public class RateLimitFilter extends OncePerRequestFilter implements Ordered {
     @Value("${app.ratelimit.otp-check-window:600}") private int otpCheckWindow;
     @Value("${app.ratelimit.default:40}")        private int defaultLimit;
     @Value("${app.ratelimit.default-window:300}") private int defaultWindow;
+    // Chỉ tin X-Forwarded-For / X-Real-IP khi CHẮC CHẮN có reverse proxy tin cậy phía trước
+    // (nginx / Cloudflare). Nếu backend lộ trực tiếp, để false -> dùng IP TCP thật (không giả được).
+    @Value("${app.ratelimit.trust-forwarded:false}") private boolean trustForwarded;
 
     private final ConcurrentHashMap<String, Window> buckets = new ConcurrentHashMap<>();
     private final AtomicInteger sinceSweep = new AtomicInteger();
@@ -122,14 +125,22 @@ public class RateLimitFilter extends OncePerRequestFilter implements Ordered {
         buckets.entrySet().removeIf(e -> now - e.getValue().start > maxWindow);
     }
 
-    private static String clientIp(HttpServletRequest request) {
-        String xff = request.getHeader("X-Forwarded-For");
-        if (StringUtils.hasText(xff)) {
-            int comma = xff.indexOf(',');
-            return (comma > 0 ? xff.substring(0, comma) : xff).trim();
+    private String clientIp(HttpServletRequest request) {
+        if (trustForwarded) {
+            // Header do proxy ghi đè (1 giá trị) -> đáng tin hơn X-Forwarded-For
+            String cf = request.getHeader("CF-Connecting-IP");
+            if (StringUtils.hasText(cf)) return cf.trim();
+            String real = request.getHeader("X-Real-IP");
+            if (StringUtils.hasText(real)) return real.trim();
+            // X-Forwarded-For: lấy entry CUỐI (hop tin cậy gần nhất thêm vào),
+            // tránh phần đầu do client tự bịa để giả IP.
+            String xff = request.getHeader("X-Forwarded-For");
+            if (StringUtils.hasText(xff)) {
+                String[] parts = xff.split(",");
+                return parts[parts.length - 1].trim();
+            }
         }
-        String real = request.getHeader("X-Real-IP");
-        if (StringUtils.hasText(real)) return real.trim();
+        // Mặc định: IP TCP thật, không thể giả bằng header
         return request.getRemoteAddr();
     }
 

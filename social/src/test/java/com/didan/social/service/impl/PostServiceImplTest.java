@@ -122,6 +122,15 @@ class PostServiceImplTest {
     // ---------- publishPost ----------
 
     @Test
+    void deleteByNonAuthorRejected() {
+        when(postRepository.findFirstByPostId("p-1")).thenReturn(post(OTHER, "published", "public", "T", "B"));
+        when(userPostRepository.findFirstByPosts_PostIdAndUsers_UserId("p-1", ME)).thenReturn(null);
+        Exception e = assertThrows(Exception.class, () -> svc.deletePost("p-1"));
+        assertTrue(e.getMessage().contains("không có quyền"));
+        verify(postRepository, never()).delete(any());
+    }
+
+    @Test
     void publishByNonAuthorRejected() {
         when(postRepository.findFirstByPostId("p-1")).thenReturn(post(OTHER, "draft", "public", "T", "B"));
         Exception e = assertThrows(Exception.class, () -> svc.publishPost("p-1"));

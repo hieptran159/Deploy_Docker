@@ -61,7 +61,7 @@ npm run build     # → dist/, served by nginx in the Docker image
 
 ## Tests
 
-JUnit 5 unit-test suite (70 tests) under `social/src/test/java` — **no DB / Docker / Spring
+JUnit 5 unit-test suite (72 tests) under `social/src/test/java` — **no DB / Docker / Spring
 context**, runs on plain `./mvnw test` (deps already in `spring-boot-starter-test` +
 `spring-security-test`). Service tests use `@ExtendWith(MockitoExtension.class)` +
 `@MockitoSettings(strictness = LENIENT)`, mock every constructor dep, and instantiate the
@@ -69,7 +69,7 @@ impl directly in `@BeforeEach`:
 
 | Test | Covers |
 |------|--------|
-| `security/RateLimitFilterTest` | `RateLimitFilter` window counter (per-IP, per-bucket, XFF, GET/non-auth bypass, disabled flag) via `MockHttpServletRequest`/`MockFilterChain` |
+| `security/RateLimitFilterTest` | `RateLimitFilter` window counter (per-IP, per-bucket, GET/non-auth bypass, disabled flag); XFF **ignored** by default (spoof-proof) and honored only when `trustForwarded` — via `MockHttpServletRequest`/`MockFilterChain` |
 | `service/impl/FileUploadsServiceImplTest` | upload validation + downscale/recompress + small-image passthrough + non-image reject, `MockEnvironment` + `@TempDir` |
 | `service/impl/NormReactionTest` | `PostServiceImpl.normReaction` (static pkg-private) |
 | `service/impl/FollowServiceImplTest` | block/unblock guards (self, already-blocked no-op, not-blocked reject), `friendStatus` block direction (`blocked_out`/`blocked_in`/`self`/`none`), `isBlockedEither`, `sendRequest` guards (blocked, deactivated target, self) — Mockito, no context |
@@ -382,8 +382,19 @@ uses `./mvnw install -DskipTests`. No frontend tests.
   `UserServiceImpl.clean` (profile), `AuthServiceImpl.signup` (fullName),
   `ChatServiceImpl.createConversation` / `renameConversation` (group name).
 - `AuthServiceImpl.login` returns the **same** "Email and Password does not match" whether
-  the email exists or not (anti-enumeration). `/auth/2fa/verify`, `/auth/token-reset`,
-  `/auth/verify` still reveal existence — lower priority, `otp-*` rate-limited.
+  the email exists or not, **and** runs a dummy `passwordEncoder.matches(pw, DUMMY_BCRYPT)`
+  when the email is missing so response time is constant (no timing oracle). `/auth/2fa/verify`,
+  `/auth/token-reset`, `/auth/verify` still reveal existence — lower priority, `otp-*` rate-limited.
+- **`deletePost` IDOR (fixed)**: previously deleted any post by id with no ownership check —
+  any logged-in user could wipe anyone's post. Now requires author (`userPostRepository
+  .findFirstByPosts_PostIdAndUsers_UserId`) or `isAdmin == 1`. `updatePost` / `publishPost`
+  / `deleteComment` already checked authorship.
+- **Rate-limit IP spoofing (fixed)**: `RateLimitFilter.clientIp` used to trust
+  `X-Forwarded-For` unconditionally → an attacker rotating the header bypassed every
+  per-IP limit. Now `app.ratelimit.trust-forwarded` (`RATELIMIT_TRUST_FORWARDED`, default
+  **false**) gates it: default uses `request.getRemoteAddr()` (unspoofable); set `true`
+  only behind a trusted proxy that sets `CF-Connecting-IP` / `X-Real-IP` / appends to XFF
+  (then the **last** XFF entry is used, not the client-controlled first).
 - CORS: `config/CorsConfig` now reads `app.cors.allowed-origins` (`APP_CORS_ALLOWED_ORIGINS`,
   comma list, default `*`) via `allowedOriginPatterns`; no `allowCredentials` (header-based
   auth). **Set it to the real frontend origins in production.**
