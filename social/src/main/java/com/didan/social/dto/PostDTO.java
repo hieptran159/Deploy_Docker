@@ -19,9 +19,29 @@ public class PostDTO {
     private List<CommentDTO> comments;
     private Map<String, Long> reactionCounts;
     private String myReaction;
+    // Chia sẻ (repost)
+    private long repostCount;
+    private boolean reposted;        // người dùng hiện tại đã chia sẻ bài này chưa
+    private String repostedBy;       // tên người chia sẻ (chỉ có ở mục feed dạng "X đã chia sẻ")
+    private String repostedById;
+    private String repostedAt;
+    private String repostNote;
 
     public PostDTO() {
     }
+
+    public long getRepostCount() { return repostCount; }
+    public void setRepostCount(long repostCount) { this.repostCount = repostCount; }
+    public boolean isReposted() { return reposted; }
+    public void setReposted(boolean reposted) { this.reposted = reposted; }
+    public String getRepostedBy() { return repostedBy; }
+    public void setRepostedBy(String repostedBy) { this.repostedBy = repostedBy; }
+    public String getRepostedById() { return repostedById; }
+    public void setRepostedById(String repostedById) { this.repostedById = repostedById; }
+    public String getRepostedAt() { return repostedAt; }
+    public void setRepostedAt(String repostedAt) { this.repostedAt = repostedAt; }
+    public String getRepostNote() { return repostNote; }
+    public void setRepostNote(String repostNote) { this.repostNote = repostNote; }
 
     public PostDTO(String postId, String userCreatedPost, String title, String postImg, String body, String postedAt, int likesQuantity, List<String> userLikedPost, int commentsQuantity, List<CommentDTO> comments) {
         this.postId = postId;

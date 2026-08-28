@@ -37,6 +37,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
     private final AuthorizePathService authorizePathService;
     private final com.didan.social.service.NotificationService notificationService;
     private final com.didan.social.repository.BlockRepository blockRepository;
+    private final com.didan.social.repository.RepostRepository repostRepository;
     @Autowired
     public PostServiceImpl(PostRepository postRepository,
                        UserPostRepository userPostRepository,
@@ -46,7 +47,8 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
                        CommentRepository commentRepository,
                        AuthorizePathService authorizePathService,
                        com.didan.social.service.NotificationService notificationService,
-                       com.didan.social.repository.BlockRepository blockRepository
+                       com.didan.social.repository.BlockRepository blockRepository,
+                       com.didan.social.repository.RepostRepository repostRepository
     ){
         this.postRepository = postRepository;
         this.userPostRepository = userPostRepository;
@@ -57,6 +59,23 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         this.authorizePathService = authorizePathService;
         this.notificationService = notificationService;
         this.blockRepository = blockRepository;
+        this.repostRepository = repostRepository;
+    }
+
+    // Điền repostCount + reposted cho danh sách DTO bằng 2 truy vấn gộp (không N+1)
+    private void applyRepostInfo(List<PostDTO> dtos, String meId) {
+        if (dtos == null || dtos.isEmpty()) return;
+        java.util.List<String> pids = dtos.stream().map(PostDTO::getPostId).distinct().collect(Collectors.toList());
+        java.util.Map<String, Long> counts = new java.util.HashMap<>();
+        for (Object[] row : repostRepository.countForPosts(pids)) {
+            counts.put((String) row[0], ((Number) row[1]).longValue());
+        }
+        java.util.Set<String> mine = meId == null ? java.util.Collections.emptySet()
+                : new java.util.HashSet<>(repostRepository.repostedByUserIn(meId, pids));
+        for (PostDTO d : dtos) {
+            d.setRepostCount(counts.getOrDefault(d.getPostId(), 0L));
+            d.setReposted(mine.contains(d.getPostId()));
+        }
     }
 
     // Tập id có quan hệ chặn với tôi (tôi chặn họ HOẶC họ chặn tôi) -> ẩn bài của họ khỏi feed
@@ -124,24 +143,57 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
     @Override
     public List<PostDTO> getAllPostsByPage(int index) throws Exception {
         if (index < 1) index = 1;
-        PageRequest pageRequest = PageRequest.of(index - 1, 10);
         String meId = currentUserOrNull();
-        java.util.Set<String> ex = blockRelatedIds(meId);
-        List<Posts> posts = ex.isEmpty()
-                ? postRepository.findAllPostByCommentAtOrPostAt(pageRequest)
-                : postRepository.findFeedExcludingAuthors(ex, pageRequest);
-        if (posts == null || posts.isEmpty()) {
+        java.util.Collection<String> ex = feedExcludeParam(meId);
+        List<Object[]> rows = postRepository.feedPage(ex, 10, (index - 1) * 10);
+        if (rows.isEmpty()) {
             logger.info("No posts are here");
             return Collections.emptyList();
         }
-        return posts.stream().map(post -> toListDTO(post, meId)).collect(Collectors.toList());
+        java.util.List<String> pidOrder = new ArrayList<>();
+        java.util.List<String> reposterOrder = new ArrayList<>();
+        java.util.List<String> timeOrder = new ArrayList<>();
+        for (Object[] r : rows) {
+            pidOrder.add((String) r[0]);
+            timeOrder.add(r[1] == null ? null : r[1].toString());
+            reposterOrder.add(r[2] == null ? null : (String) r[2]);
+        }
+        java.util.Map<String, Posts> byId = new java.util.HashMap<>();
+        for (Posts p : postRepository.findAllById(new java.util.LinkedHashSet<>(pidOrder))) byId.put(p.getPostId(), p);
+        java.util.Set<String> reposterIds = reposterOrder.stream().filter(java.util.Objects::nonNull)
+                .collect(Collectors.toSet());
+        java.util.Map<String, Users> reposters = new java.util.HashMap<>();
+        if (!reposterIds.isEmpty()) {
+            for (Users u : userRepository.findAllById(reposterIds)) reposters.put(u.getUserId(), u);
+        }
+        List<PostDTO> out = new ArrayList<>();
+        for (int i = 0; i < rows.size(); i++) {
+            Posts p = byId.get(pidOrder.get(i));
+            if (p == null) continue;
+            PostDTO d = toListDTO(p, meId);
+            String rid = reposterOrder.get(i);
+            if (rid != null) {
+                Users ru = reposters.get(rid);
+                d.setRepostedBy(ru != null ? ru.getFullName() : rid);
+                d.setRepostedById(rid);
+                d.setRepostedAt(timeOrder.get(i));
+            }
+            out.add(d);
+        }
+        applyRepostInfo(out, meId);
+        return out;
+    }
+
+    // Tập user id loại khỏi feed cho native NOT IN (phải khác rỗng -> sentinel "-")
+    private java.util.Collection<String> feedExcludeParam(String meId) {
+        java.util.Set<String> ex = blockRelatedIds(meId);
+        return ex.isEmpty() ? java.util.List.of("-") : ex;
     }
 
     @Override
     public java.util.Map<String, Object> feedPageInfo() throws Exception {
         int pageSize = 10;
-        java.util.Set<String> ex = blockRelatedIds(currentUserOrNull());
-        long total = ex.isEmpty() ? postRepository.countPublished() : postRepository.countFeedExcludingAuthors(ex);
+        long total = postRepository.feedCount(feedExcludeParam(currentUserOrNull()));
         int totalPages = (int) Math.max(1, Math.ceil(total / (double) pageSize));
         java.util.Map<String, Object> m = new java.util.HashMap<>();
         m.put("total", total);
@@ -174,7 +226,9 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
                 return null;
             }
         }
-        return (PostDTO) convertToDTO(post);
+        PostDTO dto = (PostDTO) convertToDTO(post);
+        applyRepostInfo(java.util.Collections.singletonList(dto), currentUserOrNull());
+        return dto;
     }
 
     @Override
@@ -182,6 +236,68 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         String meId = authorizePathService.getUserIdAuthoried();
         List<Posts> drafts = postRepository.findDraftsOfAuthor(meId);
         return drafts.stream().map(p -> toListDTO(p, meId)).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<PostDTO> getRepostsOf(String userId) throws Exception {
+        java.util.List<com.didan.social.entity.Reposts> rows = repostRepository.findByRepostId_UserIdOrderByCreatedAtDesc(userId);
+        if (rows.isEmpty()) return Collections.emptyList();
+        String meId = currentUserOrNull();
+        Users sharer = userRepository.findFirstByUserId(userId);
+        java.util.List<String> pids = rows.stream().map(r -> r.getRepostId().getPostId()).collect(Collectors.toList());
+        java.util.Map<String, Posts> byId = new java.util.HashMap<>();
+        for (Posts p : postRepository.findAllById(pids)) byId.put(p.getPostId(), p);
+        List<PostDTO> out = new ArrayList<>();
+        for (com.didan.social.entity.Reposts r : rows) {
+            Posts p = byId.get(r.getRepostId().getPostId());
+            if (p == null) continue;
+            String st = p.getStatus();
+            if (st != null && !"published".equals(st)) continue; // bỏ bài nháp/ẩn
+            PostDTO d = toListDTO(p, meId);
+            d.setRepostedBy(sharer != null ? sharer.getFullName() : userId);
+            d.setRepostedById(userId);
+            d.setRepostedAt(r.getCreatedAt() == null ? null : r.getCreatedAt().toString());
+            d.setRepostNote(r.getNote());
+            out.add(d);
+        }
+        applyRepostInfo(out, meId);
+        return out;
+    }
+
+    @Transactional
+    @Override
+    public boolean repost(String postId, String note) throws Exception {
+        String meId = authorizePathService.getUserIdAuthoried();
+        Posts post = postRepository.findFirstByPostId(postId);
+        if (post == null) throw new Exception("Không tìm thấy bài viết");
+        String st = post.getStatus();
+        if (st != null && !"published".equals(st)) throw new Exception("Không thể chia sẻ bài viết này");
+        String authorId = post.getUserPost() != null && post.getUserPost().getUsers() != null
+                ? post.getUserPost().getUsers().getUserId() : null;
+        if (meId.equals(authorId)) throw new Exception("Không thể tự chia sẻ bài của mình");
+        if (repostRepository.existsByRepostId_UserIdAndRepostId_PostId(meId, postId)) return true;
+        com.didan.social.entity.Reposts r = new com.didan.social.entity.Reposts();
+        r.setRepostId(new com.didan.social.entity.keys.RepostId(meId, postId));
+        r.setNote(note == null ? null : note.trim());
+        r.setCreatedAt(Timestamp.valueOf(LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"))));
+        repostRepository.save(r);
+        if (authorId != null) {
+            Users me = userRepository.findFirstByUserId(meId);
+            notificationService.pushUniquePerActor(authorId, meId, "REPOST", postId,
+                    (me != null ? me.getFullName() : "Ai đó") + " đã chia sẻ bài viết của bạn");
+        }
+        return true;
+    }
+
+    @Transactional
+    @Override
+    public boolean unrepost(String postId) throws Exception {
+        String meId = authorizePathService.getUserIdAuthoried();
+        if (!repostRepository.existsByRepostId_UserIdAndRepostId_PostId(meId, postId)) {
+            throw new Exception("Bạn chưa chia sẻ bài viết này");
+        }
+        repostRepository.deleteByRepostId_UserIdAndRepostId_PostId(meId, postId);
+        return true;
     }
 
     @Transactional
@@ -221,7 +337,9 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
             logger.info("No posts are here");
             return Collections.emptyList();
         }
-        return posts.stream().map(post -> toListDTO(post, meId)).collect(Collectors.toList());
+        List<PostDTO> out = posts.stream().map(post -> toListDTO(post, meId)).collect(Collectors.toList());
+        applyRepostInfo(out, meId);
+        return out;
     }
 
     @Transactional

@@ -105,6 +105,18 @@ uses `./mvnw install -DskipTests`. No frontend tests.
   post status into the admin queue; `POST /report/admin/{id}/restore-target`
   (`restoreReportedTarget`) sets it back to `published` and resolves that post's OPEN
   reports (shared `resolveOpenFor` helper with `removeReportedTarget`).
+- Repost / share: `entity/Reposts` (table `reposts`, key `user_id`+`post_id`, `ddl-auto`).
+  `POST /post/{id}/repost?note=` / `DELETE /post/{id}/repost` / `GET /post/reposts/{userId}`.
+  The home feed is now a **native UNION** (`PostRepository.FEED_UNION` → `feedPage` /
+  `feedCount`): original posts keyed on `posted_at` + repost entries keyed on the repost's
+  `created_at`, ordered together; `getAllPostsByPage` hydrates `Posts` by id and attaches
+  `repostedBy`/`repostedAt` for repost rows. `:ex` (block-exclude set) must be non-empty for
+  the native `NOT IN`, so the service passes `["-"]` when nobody is excluded. `PostDTO`
+  gains `repostCount`/`reposted`/`repostedBy`/`repostedById`/`repostedAt`/`repostNote`,
+  filled by `applyRepostInfo` (2 batch queries, no N+1) on feed/search/detail/reposts-list.
+  Notification type `REPOST` (added to FE `notifTarget.POST_TYPES`). The old
+  `findAllPostByCommentAtOrPostAt` / `findFeedExcludingAuthors` / `countFeedExcludingAuthors`
+  / `countPublished` JPQL methods are now unused by the feed but kept.
 - Draft posts: `Posts.status` (`null`/`"published"` = live, `"draft"` = draft). Every feed
   and search query carries `PostRepository.PUBLISHED` (`p.status IS NULL OR p.status =
   'published'`) so drafts never leak; `countPublished()` backs `feedPageInfo`. `createPost`

@@ -76,6 +76,21 @@
                 <div class="muted text-sm line-clamp-2">{{ post.body }}</div>
             </div>
         </div>
+
+        <div v-if="reposts.length" class="card">
+            <div class="section-title">Đã chia sẻ</div>
+            <div
+                v-for="post in reposts"
+                :key="'rp-' + post.postId"
+                class="border rounded-xl p-3 my-2 cursor-pointer hover:bg-gray-50 transition"
+                @click="() => route.push('/post/' + post.postId)"
+            >
+                <div class="text-xs muted mb-1">🔁 chia sẻ · {{ timeAgo(post.repostedAt) }}</div>
+                <div v-if="post.repostNote" class="text-sm mb-1">{{ post.repostNote }}</div>
+                <div class="font-semibold text-[#2577b1]">{{ post.title }}</div>
+                <div class="muted text-sm line-clamp-2">{{ post.body }}</div>
+            </div>
+        </div>
     </div>
 </template>
 
@@ -85,7 +100,8 @@ import { onMounted, ref, computed, watch, inject } from 'vue';
 import { useRouter } from 'vue-router';
 import { getUserInfo } from '@/apis/user';
 import { sendReport } from '@/apis/report';
-import { getPostById } from '@/apis/post';
+import { getPostById, getRepostsOf } from '@/apis/post';
+import { timeAgo } from '@/js/helper';
 import {
     friendStatus, getFriends, sendFriendRequest, cancelFriendRequest,
     acceptFriendRequest, declineFriendRequest, unfriend,
@@ -106,6 +122,7 @@ const userId = computed(() => route.currentRoute.value.params.id);
 
 const user = ref(null);
 const posts = ref([]);
+const reposts = ref([]);
 const avatarOk = ref(true);
 const loading = ref(false);
 const fStatus = ref('none');       // none|pending_out|pending_in|friends|self
@@ -131,8 +148,10 @@ const refreshStatus = async () => {
 const load = async () => {
     user.value = null;
     posts.value = [];
+    reposts.value = [];
     avatarOk.value = true;
     loading.value = true;
+    getRepostsOf(userId.value).then((r) => { reposts.value = r?.data?.data || []; }).catch(() => { reposts.value = []; });
     try {
         const res = await getUserInfo(userId.value);
         user.value = res?.data?.data || null;

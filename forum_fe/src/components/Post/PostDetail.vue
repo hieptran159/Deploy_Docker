@@ -60,6 +60,14 @@
                             :text="bookmarked ? 'Đã lưu' : 'Lưu'"
                             @click="toggleBookmarkBtn"
                         />
+                        <DxButton
+                            v-if="isLogin && post?.userCreatedPost !== getItemLocal(LOCALKEYS.USER_ID)"
+                            icon="refresh"
+                            :type="post?.reposted ? 'success' : 'normal'"
+                            :styling-mode="post?.reposted ? 'contained' : 'outlined'"
+                            :text="(post?.reposted ? 'Đã chia sẻ' : 'Chia sẻ') + (post?.repostCount ? ` (${post.repostCount})` : '')"
+                            @click="toggleRepost"
+                        />
                     </div>
                 </div>
             </div>
@@ -150,7 +158,7 @@
 import { onMounted, onBeforeUnmount, ref, computed, inject, watch, nextTick } from 'vue';
 import { getPostById } from '@/apis/post';
 import { createComment, getCommentsPage } from '@/apis/comment';
-import { likePostApi, unLikePostApi, deletePost } from '@/apis/post';
+import { likePostApi, unLikePostApi, deletePost, repostPost, unrepostPost } from '@/apis/post';
 import { checkBookmark, toggleBookmark } from '@/apis/bookmark';
 import { sendReport } from '@/apis/report';
 import { getAllUsers } from '@/apis/user';
@@ -385,6 +393,17 @@ const toggleBookmarkBtn = async () => {
         const res = await toggleBookmark(id.value);
         bookmarked.value = !!res?.data?.data?.bookmarked;
         toast?.(bookmarked.value ? 'Đã lưu bài viết' : 'Đã bỏ lưu');
+    } catch (e) {
+        showDialog?.('Thông báo', e?.description || 'Thao tác thất bại');
+    }
+}
+
+const toggleRepost = async () => {
+    if (needLogin()) return;
+    try {
+        if (post.value?.reposted) await unrepostPost(id.value);
+        else await repostPost(id.value);
+        await getDataPostById();
     } catch (e) {
         showDialog?.('Thông báo', e?.description || 'Thao tác thất bại');
     }

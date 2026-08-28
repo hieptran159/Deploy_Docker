@@ -27,6 +27,12 @@ public interface PostService {
     // Đăng một bản nháp (đổi status + cập nhật postedAt = bây giờ)
     boolean publishPost(String postId) throws Exception;
 
+    // Chia sẻ (repost) bài viết
+    boolean repost(String postId, String note) throws Exception;
+    boolean unrepost(String postId) throws Exception;
+    // Danh sách bài mà userId đã chia sẻ (mới nhất trước)
+    List<PostDTO> getRepostsOf(String userId) throws Exception;
+
     // Tìm kiếm bài viết theo tiêu đề / nội dung (không phân biệt hoa thường), phân trang.
     // page bắt đầu từ 0, size 1..50.
     List<PostDTO> getPostByTitle(String searchName, int page, int size) throws Exception;

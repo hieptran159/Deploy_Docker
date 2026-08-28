@@ -1,7 +1,7 @@
 // Nguồn duy nhất cho việc điều hướng khi bấm vào một thông báo.
 // Dùng chung bởi chuông thông báo (TheHeader) và trang Thông báo đầy đủ.
 
-export const POST_TYPES = ['COMMENT', 'COMMENT_LIKE', 'POST_LIKE', 'MENTION', 'REPLY'];
+export const POST_TYPES = ['COMMENT', 'COMMENT_LIKE', 'POST_LIKE', 'MENTION', 'REPLY', 'REPOST'];
 const COMMENT_ANCHOR_TYPES = ['COMMENT', 'COMMENT_LIKE', 'MENTION', 'REPLY'];
 
 /**

@@ -205,6 +205,56 @@ public class PostController {
         }
     }
 
+    // Chia sẻ (repost)
+    @Operation(summary = "Chia sẻ bài viết", security = @SecurityRequirement(name = "bearerAuth"))
+    @PostMapping("/{post_id}/repost")
+    public ResponseEntity<?> repost(@PathVariable("post_id") String postId,
+                                    @RequestParam(name = "note", required = false) String note){
+        ResponseData payload = new ResponseData();
+        try {
+            postService.repost(postId, note);
+            payload.setDescription("Đã chia sẻ bài viết");
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e){
+            payload.setSuccess(false);
+            payload.setStatusCode(500);
+            payload.setDescription(e.getMessage());
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
+    @Operation(summary = "Bỏ chia sẻ bài viết", security = @SecurityRequirement(name = "bearerAuth"))
+    @DeleteMapping("/{post_id}/repost")
+    public ResponseEntity<?> unrepost(@PathVariable("post_id") String postId){
+        ResponseData payload = new ResponseData();
+        try {
+            postService.unrepost(postId);
+            payload.setDescription("Đã bỏ chia sẻ");
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e){
+            payload.setSuccess(false);
+            payload.setStatusCode(500);
+            payload.setDescription(e.getMessage());
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
+    @Operation(summary = "Danh sách bài mà một người dùng đã chia sẻ", security = @SecurityRequirement(name = "bearerAuth"))
+    @GetMapping("/reposts/{user_id}")
+    public ResponseEntity<?> repostsOf(@PathVariable("user_id") String userId){
+        ResponseData payload = new ResponseData();
+        try {
+            payload.setData(postService.getRepostsOf(userId));
+            payload.setDescription("OK");
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e){
+            payload.setSuccess(false);
+            payload.setStatusCode(500);
+            payload.setDescription(e.getMessage());
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
     // React Post
     @Operation(summary = "React to a post",
             description = "type: LIKE | LOVE | HAHA | WOW | SAD | ANGRY (mặc định LIKE)",

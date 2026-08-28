@@ -1,4 +1,9 @@
 <template>
+  <div>
+    <div v-if="post?.repostedBy" class="flex items-center gap-1.5 text-xs muted pt-2 pl-1">
+        <span>🔁</span>
+        <span><b class="text-[var(--text)]">{{ post.repostedBy }}</b> đã chia sẻ</span>
+    </div>
     <div class="flex gap-3 py-3 cursor-pointer group" @click="viewDetail">
         <img
             v-show="showAvatar"
@@ -30,8 +35,12 @@
             <span class="px-2 py-1 rounded-full bg-amber-50 text-amber-600 font-semibold">
                 💬 {{ post?.commentsQuantity ?? 0 }}
             </span>
+            <span v-if="post?.repostCount" class="px-2 py-1 rounded-full bg-emerald-50 text-emerald-600 font-semibold">
+                🔁 {{ post.repostCount }}
+            </span>
         </div>
     </div>
+  </div>
 </template>
 
 <script setup>

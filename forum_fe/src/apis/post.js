@@ -32,6 +32,18 @@ export const publishPost = (id) => {
     return authApi.patch(`/post/publish/${id}`);
 }
 
+export const repostPost = (id, note = '') => {
+    return authApi.post(`/post/${id}/repost${note ? `?note=${encodeURIComponent(note)}` : ''}`);
+}
+
+export const unrepostPost = (id) => {
+    return authApi.delete(`/post/${id}/repost`);
+}
+
+export const getRepostsOf = (userId) => {
+    return authApi.get(`/post/reposts/${userId}`);
+}
+
 export const updatePost = (id, data) => {
     return authApiFormData.patch(`/post/update/${id}`, data);
 }
