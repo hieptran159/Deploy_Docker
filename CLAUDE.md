@@ -370,3 +370,28 @@ uses `./mvnw install -DskipTests`. No frontend tests.
   environment blocks together.
 - `social/compose.yml`, `social/docker-compose.yml` are stale earlier drafts. The root
   `docker-compose.yml` is the only supported entrypoint (see `DEPLOY.md`).
+
+## Security notes / hardening done
+
+- **XSS (fixed)**: `components/Dialog/MDialog.vue` used to render `content` via `v-html`.
+  Several callers interpolate user-controlled names (`fullName`, group name) into the
+  message → stored XSS that could exfiltrate `localStorage` tokens. Now rendered as text
+  (`{{ content }}` + `white-space: pre-line`). **Never reintroduce `v-html` for dialog
+  content.** Post/comment bodies are already rendered with `{{ }}` / `whitespace-pre-wrap`.
+- Display strings are sanitized on write (strip `<` `>` + control chars, length cap):
+  `UserServiceImpl.clean` (profile), `AuthServiceImpl.signup` (fullName),
+  `ChatServiceImpl.createConversation` / `renameConversation` (group name).
+- `AuthServiceImpl.login` returns the **same** "Email and Password does not match" whether
+  the email exists or not (anti-enumeration). `/auth/2fa/verify`, `/auth/token-reset`,
+  `/auth/verify` still reveal existence — lower priority, `otp-*` rate-limited.
+- CORS: `config/CorsConfig` now reads `app.cors.allowed-origins` (`APP_CORS_ALLOWED_ORIGINS`,
+  comma list, default `*`) via `allowedOriginPatterns`; no `allowCredentials` (header-based
+  auth). **Set it to the real frontend origins in production.**
+- Auth is a hand-rolled JWT filter; the HS256 signing key is committed (see above). Admin
+  endpoints are gated **in the service layer** (`AdminServiceImpl.authAdmin`,
+  `ReportServiceImpl.requireAdmin`), not by a Spring `hasRole` — the JWT principal carries
+  no authorities. Chat reads/writes check participant membership; post/comment edits check
+  authorship. Report auto-hide needs 3 distinct reporter accounts (signup is rate-limited).
+- Known residual risks (not fixed): committed JWT/DB secrets, min password length 5,
+  refresh tokens stored plaintext in `users.refresh_token`, `GET /user/{id}` exposes email
+  to any logged-in user (by design — profile shows it), `POST /report` is not rate-limited.

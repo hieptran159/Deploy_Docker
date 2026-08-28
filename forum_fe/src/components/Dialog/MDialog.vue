@@ -14,7 +14,7 @@
 				/></div>
 			</div>
 			<div class="m-dialog__body">
-				<span v-html="content"></span>
+				<span style="white-space: pre-line">{{ content }}</span>
 			</div>
 			<div class="m-dialog__footer">
 				<DxButton

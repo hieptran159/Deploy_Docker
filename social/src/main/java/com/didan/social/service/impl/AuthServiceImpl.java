@@ -60,8 +60,9 @@ public class AuthServiceImpl implements AuthService {
     public Users login(String email, String password) throws Exception{
         Users user = userRepository.findFirstByEmail(email);
         if(user == null) {
-            logger.error("Email is not existed");
-            throw new Exception("Email is not existed");
+            // Không tiết lộ email có tồn tại hay không (chống dò email) -> cùng thông báo với sai mật khẩu
+            logger.error("Login: email not found {}", email);
+            throw new Exception("Email and Password does not match");
         }
         BlacklistUser blacklistUser = blacklistUserRepository.findByUserId(user.getUserId());
         if (blacklistUser != null && blacklistUser.getStatus().equals("blocked")){
@@ -142,7 +143,11 @@ public class AuthServiceImpl implements AuthService {
             }
             userSave.setUserId(id.toString());
             userSave.setEmail(signupRequest.getEmail());
-            userSave.setFullName(signupRequest.getFullName());
+            // Làm sạch tên hiển thị (bỏ '<' '>' và ký tự điều khiển, cắt 100 ký tự)
+            String fullName = signupRequest.getFullName() == null ? "" :
+                    signupRequest.getFullName().trim().replaceAll("[<>\\p{Cntrl}]", "");
+            if (fullName.length() > 100) fullName = fullName.substring(0, 100);
+            userSave.setFullName(fullName);
             userSave.setPassword(passwordEncoder.encode(signupRequest.getPassword()));
             String dateString = signupRequest.getBirthday();
             SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");

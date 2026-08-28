@@ -126,6 +126,13 @@ public class UserServiceImpl extends ConvertDTO implements UserService {
         if (!Boolean.TRUE.equals(d.getSloganPublic())) d.setSlogan(null);
     }
 
+    // Làm sạch chuỗi hiển thị do người dùng nhập: bỏ '<' '>' và ký tự điều khiển, cắt độ dài.
+    static String clean(String s, int max) {
+        if (s == null) return null;
+        String out = s.trim().replaceAll("[<>\\p{Cntrl}&&[^\\r\\n\\t]]", "");
+        return out.length() > max ? out.substring(0, max) : out;
+    }
+
     @Override
     public boolean updateProfile(UpdateProfileRequest req) throws Exception {
         String userId = authorizePathService.getUserIdAuthoried();
@@ -134,12 +141,12 @@ public class UserServiceImpl extends ConvertDTO implements UserService {
             logger.error("User is not found");
             throw new Exception("User is not found");
         }
-        if (req.getFullName() != null && !req.getFullName().trim().isEmpty()) user.setFullName(req.getFullName().trim());
-        if (req.getNickname() != null) user.setNickname(req.getNickname().trim());
-        if (req.getPhone() != null) user.setPhone(req.getPhone().trim());
-        if (req.getAddress() != null) user.setAddress(req.getAddress().trim());
-        if (req.getHobbies() != null) user.setHobbies(req.getHobbies().trim());
-        if (req.getSlogan() != null) user.setSlogan(req.getSlogan().trim());
+        if (req.getFullName() != null && !req.getFullName().trim().isEmpty()) user.setFullName(clean(req.getFullName(), 100));
+        if (req.getNickname() != null) user.setNickname(clean(req.getNickname(), 100));
+        if (req.getPhone() != null) user.setPhone(clean(req.getPhone(), 30));
+        if (req.getAddress() != null) user.setAddress(clean(req.getAddress(), 255));
+        if (req.getHobbies() != null) user.setHobbies(clean(req.getHobbies(), 500));
+        if (req.getSlogan() != null) user.setSlogan(clean(req.getSlogan(), 255));
         if (req.getNicknamePublic() != null) user.setNicknamePublic(req.getNicknamePublic());
         if (req.getPhonePublic() != null) user.setPhonePublic(req.getPhonePublic());
         if (req.getAddressPublic() != null) user.setAddressPublic(req.getAddressPublic());

@@ -72,7 +72,9 @@ public class ChatServiceImpl implements ChatService {
         LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
         Date nowSql = Timestamp.valueOf(now);
         conversation.setConversationId(conversationId);
-        conversation.setConversationName(conversationName);
+        String cleanName = conversationName == null ? "" : conversationName.trim().replaceAll("[<>\\p{Cntrl}]", "");
+        if (cleanName.length() > 100) cleanName = cleanName.substring(0, 100);
+        conversation.setConversationName(cleanName);
         conversation.setCreatedAt(nowSql);
         conversationRepository.save(conversation);
         Participants participant = new Participants();
@@ -495,11 +497,14 @@ public class ChatServiceImpl implements ChatService {
         if (participantRepository.findFirstByConversations_ConversationIdAndUsers_UserId(conversationId, me) == null) {
             throw new Exception("Bạn không ở trong nhóm này");
         }
-        conversation.setConversationName(newName.trim());
+        String clean = newName.trim().replaceAll("[<>\\p{Cntrl}]", "");
+        if (clean.isEmpty()) throw new Exception("Tên nhóm không hợp lệ");
+        if (clean.length() > 100) clean = clean.substring(0, 100);
+        conversation.setConversationName(clean);
         conversationRepository.save(conversation);
         Map<String, Object> p = new HashMap<>();
         p.put("conversationId", conversationId);
-        p.put("conversationName", newName.trim());
+        p.put("conversationName", clean);
         realtimeGateway.toRoom(conversationId, "conversation_renamed", p);
         return true;
     }
