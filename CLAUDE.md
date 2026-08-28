@@ -145,6 +145,14 @@ uses `./mvnw install -DskipTests`. No frontend tests.
   renders the "Bài viết" and "Đã chia sẻ" sections with the shared `<Post>` card (was N
   individual `getPostById` calls) + "Xem thêm". The repost glyph is an inline Feather
   "repeat" SVG (not the 🔁 emoji) in `Post.vue` / `PostDetail.vue`.
+- Post visibility: `Posts.visibility` (`null`/`"public"` = everyone, `"friends"` = author +
+  author's friends). Every feed/search/profile query also carries `PostRepository.VISIBLE`
+  (`p.visibility IS NULL OR = 'public' OR p.userPost.users.userId IN :vids`) where `:vids` =
+  `followService.friendIdsOf(viewer) ∪ {viewer}` (or `["-"]` for a guest — non-empty for
+  the native `IN`). `getPostById` gates a `friends` post to author/friend-of-author; a
+  `friends` post cannot be reposted. Friends feed needs no `:vids` filter (already
+  friends-only). `CreatePostRequest`/`EditPostRequest` carry `visibility`; FE `CreatePost`/
+  `EditPost` have a "Ai xem được" select; `Post.vue`/`PostDetail.vue` show a "👥 Bạn bè" badge.
 - Draft posts: `Posts.status` (`null`/`"published"` = live, `"draft"` = draft). Every feed
   and search query carries `PostRepository.PUBLISHED` (`p.status IS NULL OR p.status =
   'published'`) so drafts never leak; `countPublished()` backs `feedPageInfo`. `createPost`

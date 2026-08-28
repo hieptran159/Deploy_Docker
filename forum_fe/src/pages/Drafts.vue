@@ -33,6 +33,7 @@
                 :postId="editTarget.postId"
                 :title="editTarget.title"
                 :body="editTarget.body"
+                :visibility="editTarget.visibility"
                 @close="() => { editing = false; load(); }"
                 @post-fail="() => { editing = false; showDialog?.('Thông báo', 'Cập nhật thất bại'); }"
             />

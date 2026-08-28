@@ -15,6 +15,17 @@ public class CreatePostRequest {
     // "true" -> lưu bản nháp (không lên feed)
     @JsonProperty(required = false)
     private String draft;
+    // "friends" -> chỉ bạn bè xem được; còn lại = công khai
+    @JsonProperty(required = false)
+    private String visibility;
+
+    public String getVisibility() {
+        return visibility;
+    }
+
+    public void setVisibility(String visibility) {
+        this.visibility = visibility;
+    }
 
     public CreatePostRequest() {
     }

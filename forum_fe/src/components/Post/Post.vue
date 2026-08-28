@@ -28,6 +28,7 @@
                 bởi
                 <span class="link" @click.stop="goProfile">{{ userCreatedPost || '—' }}</span>
                 · {{ calculateTimeDifference(post?.postedAt) }} trước
+                <span v-if="post?.visibility === 'friends'" class="ml-1 px-1.5 py-0.5 rounded bg-gray-100 text-[11px] font-semibold">👥 Bạn bè</span>
             </div>
             <div v-if="excerpt" class="text-sm text-[var(--text)] mt-1 line-clamp-2">{{ excerpt }}</div>
         </div>

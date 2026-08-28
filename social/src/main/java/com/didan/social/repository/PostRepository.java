@@ -15,13 +15,11 @@ import java.util.List;
 public interface PostRepository extends JpaRepository<Posts, String> {
     // Điều kiện "đã đăng": status NULL (dữ liệu cũ) hoặc 'published'. Bản nháp ('draft') bị loại.
     String PUBLISHED = "(p.status IS NULL OR p.status = 'published')";
+    // Bài "chỉ bạn bè" chỉ hiện khi tác giả nằm trong :vids (bạn bè của người xem + chính người xem)
+    String VISIBLE = "(p.visibility IS NULL OR p.visibility = 'public' OR p.userPost.users.userId IN :vids)";
 
-    // Bài mới đăng lên trước; p.postId làm tiebreaker để phân trang không bị xáo trộn
-    @Query("SELECT p FROM posts p WHERE " + PUBLISHED + " ORDER BY p.postedAt DESC, p.postId ASC")
-    List<Posts> findAllPost();
-    // Trả List (không phải Page) -> Spring Data chỉ chạy SELECT có LIMIT/OFFSET, bỏ COUNT thừa mỗi lần đổi trang
-    @Query("SELECT p FROM posts p WHERE " + PUBLISHED + " ORDER BY p.postedAt DESC, p.postId ASC")
-    List<Posts> findAllPostByCommentAtOrPostAt(Pageable pageable);
+    @Query("SELECT p FROM posts p WHERE " + PUBLISHED + " AND " + VISIBLE + " ORDER BY p.postedAt DESC, p.postId ASC")
+    List<Posts> findAllPost(@Param("vids") Collection<String> vids);
 
     @Query("SELECT COUNT(p) FROM posts p WHERE " + PUBLISHED)
     long countPublished();
@@ -34,50 +32,46 @@ public interface PostRepository extends JpaRepository<Posts, String> {
                  + "GROUP BY DATE(posted_at) ORDER BY d", nativeQuery = true)
     List<Object[]> countPostsPerDaySince(@Param("since") java.sql.Timestamp since);
 
-    // Feed loại trừ bài của các tác giả bị chặn (2 chiều). Gọi khi tập loại trừ khác rỗng.
-    @Query("SELECT p FROM posts p WHERE " + PUBLISHED + " AND p.userPost.users.userId NOT IN :ex "
-         + "ORDER BY p.postedAt DESC, p.postId ASC")
-    List<Posts> findFeedExcludingAuthors(@Param("ex") Collection<String> ex, Pageable pageable);
-
-    @Query("SELECT COUNT(p) FROM posts p WHERE " + PUBLISHED + " AND p.userPost.users.userId NOT IN :ex")
-    long countFeedExcludingAuthors(@Param("ex") Collection<String> ex);
-
     // Bản nháp của một người dùng (mới nhất trước)
     @Query("SELECT p FROM posts p WHERE p.status = 'draft' AND p.userPost.users.userId = :uid "
          + "ORDER BY p.postedAt DESC, p.postId ASC")
     List<Posts> findDraftsOfAuthor(@Param("uid") String uid);
 
-    // Lịch sử bài đã đăng của 1 người dùng (mới nhất trước), phân trang
-    @Query("SELECT p FROM posts p WHERE " + PUBLISHED + " AND p.userPost.users.userId = :uid "
-         + "ORDER BY p.postedAt DESC, p.postId ASC")
-    List<Posts> findPublishedByAuthor(@Param("uid") String uid, Pageable pageable);
+    // Lịch sử bài đã đăng của 1 người dùng (mới nhất trước), phân trang; lọc theo quyền xem của người xem
+    @Query("SELECT p FROM posts p WHERE " + PUBLISHED + " AND " + VISIBLE
+         + " AND p.userPost.users.userId = :uid ORDER BY p.postedAt DESC, p.postId ASC")
+    List<Posts> findPublishedByAuthor(@Param("uid") String uid, @Param("vids") Collection<String> vids, Pageable pageable);
 
-    @Query("SELECT COUNT(p) FROM posts p WHERE " + PUBLISHED + " AND p.userPost.users.userId = :uid")
-    long countPublishedByAuthor(@Param("uid") String uid);
+    @Query("SELECT COUNT(p) FROM posts p WHERE " + PUBLISHED + " AND " + VISIBLE + " AND p.userPost.users.userId = :uid")
+    long countPublishedByAuthor(@Param("uid") String uid, @Param("vids") Collection<String> vids);
 
     // Feed hợp nhất: bài gốc (posted_at, is_repost=0) + lượt chia sẻ (created_at, is_repost=1).
     // Gộp theo post_id -> mỗi bài chỉ 1 dòng. Vì thời điểm repost luôn > posted_at,
     // MAX(t) = thời điểm repost mới nhất nếu có repost, ngược lại là posted_at.
-    // :ex phải KHÁC RỖNG (native NOT IN) -> service truyền sentinel khi không loại trừ ai.
+    // :ex và :vids phải KHÁC RỖNG (native IN/NOT IN) -> service truyền sentinel "-".
     String FEED_UNION =
         "SELECT p.post_id AS pid, p.posted_at AS t, 0 AS is_repost " +
         "FROM posts p JOIN user_posts up ON up.post_id = p.post_id " +
         "WHERE (p.status IS NULL OR p.status = 'published') AND up.user_id NOT IN (:ex) " +
+        "AND (p.visibility IS NULL OR p.visibility = 'public' OR up.user_id IN (:vids)) " +
         "UNION ALL " +
         "SELECT rp.post_id AS pid, rp.created_at AS t, 1 AS is_repost " +
         "FROM reposts rp JOIN posts p2 ON p2.post_id = rp.post_id " +
         "JOIN user_posts up2 ON up2.post_id = rp.post_id " +
         "WHERE (p2.status IS NULL OR p2.status = 'published') " +
-        "AND up2.user_id NOT IN (:ex) AND rp.user_id NOT IN (:ex)";
+        "AND up2.user_id NOT IN (:ex) AND rp.user_id NOT IN (:ex) " +
+        "AND (p2.visibility IS NULL OR p2.visibility = 'public' OR up2.user_id IN (:vids))";
 
     @Query(value = "SELECT u.pid, MAX(u.t) AS sort_t, MAX(u.is_repost) AS is_repost FROM (" + FEED_UNION
                  + ") u GROUP BY u.pid ORDER BY sort_t DESC, u.pid ASC LIMIT :lim OFFSET :off", nativeQuery = true)
-    List<Object[]> feedPage(@Param("ex") Collection<String> ex, @Param("lim") int lim, @Param("off") int off);
+    List<Object[]> feedPage(@Param("ex") Collection<String> ex, @Param("vids") Collection<String> vids,
+                            @Param("lim") int lim, @Param("off") int off);
 
     @Query(value = "SELECT COUNT(DISTINCT u.pid) FROM (" + FEED_UNION + ") u", nativeQuery = true)
-    long feedCount(@Param("ex") Collection<String> ex);
+    long feedCount(@Param("ex") Collection<String> ex, @Param("vids") Collection<String> vids);
 
     // Bảng tin bạn bè: bài gốc của người trong :ids + lượt chia sẻ do người trong :ids thực hiện.
+    // (Không cần lọc "chỉ bạn bè": mọi bài đều của bạn bè / của mình rồi.)
     String FRIEND_FEED_UNION =
         "SELECT p.post_id AS pid, p.posted_at AS t, 0 AS is_repost " +
         "FROM posts p JOIN user_posts up ON up.post_id = p.post_id " +
@@ -101,14 +95,17 @@ public interface PostRepository extends JpaRepository<Posts, String> {
     // Tìm kiếm không phân biệt hoa thường, phân trang. Bỏ @EntityGraph nặng (fetch-join
     // comments/likes tạo tích Descartes) - toListDTO chỉ cần author + likes, đã có
     // default_batch_fetch_size lo phần nạp theo lô.
-    @Query("SELECT p FROM posts p WHERE " + PUBLISHED + " AND (lower(p.title) LIKE lower(concat('%', :q, '%')) "
+    @Query("SELECT p FROM posts p WHERE " + PUBLISHED + " AND " + VISIBLE
+         + " AND (lower(p.title) LIKE lower(concat('%', :q, '%')) "
          + "OR lower(p.body) LIKE lower(concat('%', :q, '%'))) ORDER BY p.postedAt DESC, p.postId ASC")
-    List<Posts> searchByKeyword(@Param("q") String q, Pageable pageable);
+    List<Posts> searchByKeyword(@Param("q") String q, @Param("vids") Collection<String> vids, Pageable pageable);
 
-    @Query("SELECT p FROM posts p WHERE " + PUBLISHED + " AND (lower(p.title) LIKE lower(concat('%', :q, '%')) "
+    @Query("SELECT p FROM posts p WHERE " + PUBLISHED + " AND " + VISIBLE
+         + " AND (lower(p.title) LIKE lower(concat('%', :q, '%')) "
          + "OR lower(p.body) LIKE lower(concat('%', :q, '%'))) AND p.userPost.users.userId NOT IN :ex "
          + "ORDER BY p.postedAt DESC, p.postId ASC")
     List<Posts> searchByKeywordExcludingAuthors(@Param("q") String q,
                                                 @Param("ex") Collection<String> ex,
+                                                @Param("vids") Collection<String> vids,
                                                 Pageable pageable);
 }

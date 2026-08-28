@@ -12,6 +12,13 @@
             <label class="text-sm muted">Ảnh đính kèm (để trống nếu giữ nguyên)</label>
             <input type="file" accept="image/*" @change="onFile" />
         </div>
+        <div class="flex items-center gap-2">
+            <label class="text-sm muted">Ai xem được</label>
+            <select v-model="data.visibility" class="text-sm border rounded-lg px-2 py-1 bg-[var(--surface)]">
+                <option value="public">🌐 Mọi người</option>
+                <option value="friends">👥 Chỉ bạn bè</option>
+            </select>
+        </div>
         <div class="flex justify-end">
             <DxButton type="default" text="Cập nhật" @click="submitEdit" />
         </div>
@@ -28,12 +35,14 @@ const props = defineProps({
     postId: {},
     title: {},
     body: {},
+    visibility: { default: 'public' },
 });
 
 const data = ref({
     title: props.title,
     body: props.body,
     postImg: null,
+    visibility: props.visibility || 'public',
 });
 
 const onFile = (e) => {
@@ -42,7 +51,7 @@ const onFile = (e) => {
 
 const submitEdit = async () => {
     try {
-        const payload = { title: data.value.title, body: data.value.body };
+        const payload = { title: data.value.title, body: data.value.body, visibility: data.value.visibility };
         if (data.value.postImg) payload.postImg = data.value.postImg;
         await updatePost(props.postId, payload);
         emits("close");

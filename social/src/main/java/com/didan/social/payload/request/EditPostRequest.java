@@ -10,8 +10,18 @@ public class EditPostRequest {
     private MultipartFile postImg = null;
     @JsonProperty(required = false)
     private String body;
+    @JsonProperty(required = false)
+    private String visibility;
 
     public EditPostRequest() {
+    }
+
+    public String getVisibility() {
+        return visibility;
+    }
+
+    public void setVisibility(String visibility) {
+        this.visibility = visibility;
     }
 
     public EditPostRequest(String title, MultipartFile postImg, String body) {

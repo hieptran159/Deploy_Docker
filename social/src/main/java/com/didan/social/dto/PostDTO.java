@@ -13,6 +13,7 @@ public class PostDTO {
     private String body;
     private String postedAt;
     private String status;
+    private String visibility;
     private int likesQuantity;
     private List<String> userLikedPost;
     private int commentsQuantity;
@@ -62,6 +63,14 @@ public class PostDTO {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public String getVisibility() {
+        return visibility;
+    }
+
+    public void setVisibility(String visibility) {
+        this.visibility = visibility;
     }
 
     public String getAuthorName() {

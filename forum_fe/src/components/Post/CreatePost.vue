@@ -12,6 +12,13 @@
             <label class="text-sm muted">Ảnh đính kèm (tuỳ chọn)</label>
             <input type="file" accept="image/*" @change="onFile" />
         </div>
+        <div class="flex items-center gap-2">
+            <label class="text-sm muted">Ai xem được</label>
+            <select v-model="data.visibility" class="text-sm border rounded-lg px-2 py-1 bg-[var(--surface)]">
+                <option value="public">🌐 Mọi người</option>
+                <option value="friends">👥 Chỉ bạn bè</option>
+            </select>
+        </div>
         <div class="flex justify-end gap-2">
             <DxButton stylingMode="outlined" text="Lưu nháp" :disabled="busy" @click="() => submit(true)" />
             <DxButton type="default" text="Đăng bài" :disabled="busy" @click="() => submit(false)" />
@@ -33,6 +40,7 @@ const data = ref({
     title: "",
     body: "",
     postImg: null,
+    visibility: "public",
 });
 
 const onFile = (e) => {

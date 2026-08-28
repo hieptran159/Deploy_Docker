@@ -124,6 +124,7 @@ import BaseAvatar from '../BaseAvatar.vue';
 
 const route = useRouter();
 const toast = inject('toast');
+const openConfirm = inject('openConfirm');
 
 /* ---------- theme ---------- */
 const isDark = ref(document.documentElement.dataset.theme === 'dark');
@@ -175,13 +176,17 @@ const goMyProfile = () => {
     route.push(id ? '/user/' + id : '/profile/edit');
 };
 
-const logout = async () => {
+const doLogout = async () => {
     try { await logoutApi(); } catch (e) { console.log(e); }
     [LOCALKEYS.ACCESS_TOKEN, LOCALKEYS.USER_ID, LOCALKEYS.LINK_AVT, LOCALKEYS.USER_NAME, LOCALKEYS.IS_ADMIN]
         .forEach(delItemLocal);
     isAdmin.value = false;
     stopNotifPoll();
     route.push('/login');
+}
+const logout = () => {
+    if (openConfirm) openConfirm('Đăng xuất', 'Bạn có chắc muốn đăng xuất?', doLogout, { danger: true, confirmText: 'Đăng xuất' });
+    else doLogout();
 }
 
 const refreshAdminFlag = async () => {

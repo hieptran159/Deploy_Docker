@@ -32,6 +32,10 @@ public class Posts {
     @Column(name = "status", length = 20)
     private String status;
 
+    // NULL / "public" = mọi người xem được. "friends" = chỉ tác giả + bạn bè của tác giả.
+    @Column(name = "visibility", length = 20)
+    private String visibility;
+
     @OneToOne(mappedBy = "posts", cascade = CascadeType.ALL, orphanRemoval = true)
     private UserPosts userPost;
 
@@ -100,6 +104,14 @@ public class Posts {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public String getVisibility() {
+        return visibility;
+    }
+
+    public void setVisibility(String visibility) {
+        this.visibility = visibility;
     }
 
     public UserPosts getUserPost() {
