@@ -21,7 +21,7 @@
                 :hide-on-outside-click="true"
             >
                 <CreatePost
-                    @close="() => { ishowCreatePost = false; getListPost() }"
+                    @close="() => { ishowCreatePost = false; getListPost(); loadTrending() }"
                     @post-fail="showDialog('Đăng bài thất bại')"
                 />
             </DxPopup>

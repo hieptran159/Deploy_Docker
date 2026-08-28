@@ -3,7 +3,7 @@
         <div class="site-footer__inner">
             <div class="site-footer__brand">
                 <span class="site-footer__logo">HIPDN·EA</span>
-                <span class="muted text-sm">Diễn đàn mạng xã hội</span>
+                <span class="muted text-sm">Diễn đàn Di Đan</span>
             </div>
 
             <nav class="site-footer__links">

@@ -161,11 +161,10 @@
             :hide-on-outside-click="true"
         >
             <EditPost
-                v-if="ishowEditPost && post"
                 :postId="id"
                 :body="post?.body"
                 :title="post?.title"
-                :visibility="post?.visibility"
+                :visibility="post?.visibility || 'public'"
                 @close="() => { ishowEditPost = false; getDataPostById() }"
                 @post-fail="showDialog('Cập nhật bài viết thất bại')"
             />
