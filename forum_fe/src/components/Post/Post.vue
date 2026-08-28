@@ -32,7 +32,7 @@
         </div>
 
         <!-- nội dung: tiêu đề + trích đoạn, full-width -->
-        <div class="font-semibold text-base text-[#2577b1] mt-2 group-hover:underline">
+        <div class="font-bold text-2xl leading-snug text-[#2577b1] mt-2 group-hover:underline">
             {{ post?.title }}
         </div>
         <div v-if="excerpt" class="text-sm text-[var(--text)] mt-1 line-clamp-3 whitespace-pre-wrap">{{ excerpt }}</div>

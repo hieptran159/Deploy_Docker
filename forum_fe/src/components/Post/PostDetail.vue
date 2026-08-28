@@ -1,93 +1,84 @@
 <template>
     <div class="page">
         <div class="card">
-            <div class="flex gap-4">
-                <div class="flex flex-col items-center gap-1 flex-none w-16">
-                    <BaseAvatar
-                        :linkAvt="linkAvt"
-                        :userCreatedPost="userCreatedPost"
-                        :userId="post?.userCreatedPost"
-                        :is-show="false"
-                    />
-                    <div
-                        class="text-xs font-semibold text-center cursor-pointer hover:underline truncate w-full"
-                        @click="goAuthor"
-                    >
-                        {{ userCreatedPost }}
+            <!-- dòng tác giả -->
+            <div class="flex items-center gap-2">
+                <BaseAvatar
+                    :linkAvt="linkAvt"
+                    :userCreatedPost="userCreatedPost"
+                    :userId="post?.userCreatedPost"
+                    :is-show="false"
+                />
+                <div class="text-sm muted min-w-0 flex-1 truncate">
+                    <span class="link font-medium text-[var(--text)]" @click="goAuthor">{{ userCreatedPost || '—' }}</span>
+                    · {{ calculateTimeDifference(post?.postedAt) }} trước
+                    <span v-if="post?.editedAt">· đã chỉnh sửa</span>
+                    <span v-if="post?.visibility === 'friends'" class="ml-1 px-1.5 py-0.5 rounded bg-gray-100 text-[11px] font-semibold">👥 Chỉ bạn bè</span>
+                    <span v-else-if="post?.visibility === 'private'" class="ml-1 px-1.5 py-0.5 rounded bg-gray-100 text-[11px] font-semibold">🔒 Chỉ mình tôi</span>
+                </div>
+                <div
+                    class="relative flex-none"
+                    v-if="post?.userCreatedPost == getItemLocal(LOCALKEYS.USER_ID)"
+                >
+                    <DxButton icon="overflow" stylingMode="text" @click="isShowSetting = !isShowSetting" />
+                    <div class="absolute right-0 z-20 w-32 flex flex-col bg-white border rounded-lg shadow p-1" v-if="isShowSetting">
+                        <DxButton icon="edit" type="default" stylingMode="text" text="Chỉnh sửa" @click="ishowEditPost = true" />
+                        <DxButton icon="trash" type="danger" stylingMode="text" text="Xoá" @click="handleDeletePost" />
                     </div>
                 </div>
+                <DxButton
+                    v-else-if="post?.userCreatedPost && isLogin"
+                    icon="warning" type="danger" stylingMode="text" hint="Báo cáo bài viết"
+                    @click="reportPost"
+                />
+            </div>
 
-                <div class="min-w-0 flex-1">
-                    <div class="flex items-start gap-2">
-                        <div class="font-bold text-xl text-[var(--accent)] flex-1">{{ post?.title }}</div>
-                        <div
-                            class="relative flex-none"
-                            v-if="post?.userCreatedPost == getItemLocal(LOCALKEYS.USER_ID)"
-                        >
-                            <DxButton icon="overflow" stylingMode="text" @click="isShowSetting = !isShowSetting" />
-                            <div class="absolute right-0 z-20 w-32 flex flex-col bg-white border rounded-lg shadow p-1" v-if="isShowSetting">
-                                <DxButton icon="edit" type="default" stylingMode="text" text="Chỉnh sửa" @click="ishowEditPost = true" />
-                                <DxButton icon="trash" type="danger" stylingMode="text" text="Xoá" @click="handleDeletePost" />
-                            </div>
-                        </div>
-                        <DxButton
-                            v-else-if="post?.userCreatedPost && isLogin"
-                            icon="warning" type="danger" stylingMode="text" hint="Báo cáo bài viết"
-                            @click="reportPost"
-                        />
-                    </div>
+            <!-- tiêu đề -->
+            <div class="font-bold text-3xl leading-snug text-[var(--accent)] mt-2">{{ post?.title }}</div>
 
-                    <div class="text-sm muted mt-0.5">
-                        {{ calculateTimeDifference(post?.postedAt) }} trước
-                        <span v-if="post?.editedAt" class="muted">· đã chỉnh sửa</span>
-                        <span v-if="post?.visibility === 'friends'" class="ml-1 px-1.5 py-0.5 rounded bg-gray-100 text-[11px] font-semibold">👥 Chỉ bạn bè</span>
-                        <span v-else-if="post?.visibility === 'private'" class="ml-1 px-1.5 py-0.5 rounded bg-gray-100 text-[11px] font-semibold">🔒 Chỉ mình tôi</span>
-                    </div>
+            <!-- nội dung -->
+            <div class="my-3 whitespace-pre-wrap">{{ post?.body }}</div>
 
-                    <div class="my-3 whitespace-pre-wrap">{{ post?.body }}</div>
+            <div v-if="post?.hashtags?.length" class="flex flex-wrap gap-1.5 mb-3">
+                <button
+                    v-for="t in post.hashtags"
+                    :key="t"
+                    class="text-xs font-semibold text-[var(--brand)] bg-[var(--brand-soft)] rounded-full px-2 py-0.5 hover:underline"
+                    @click="route.push('/tag/' + encodeURIComponent(t))"
+                >#{{ t }}</button>
+            </div>
 
-                    <div v-if="post?.hashtags?.length" class="flex flex-wrap gap-1.5 mb-3">
-                        <button
-                            v-for="t in post.hashtags"
-                            :key="t"
-                            class="text-xs font-semibold text-[var(--brand)] bg-[var(--brand-soft)] rounded-full px-2 py-0.5 hover:underline"
-                            @click="route.push('/tag/' + encodeURIComponent(t))"
-                        >#{{ t }}</button>
-                    </div>
+            <img :src="linkPostImg" v-if="post?.postImg" class="max-w-md rounded-xl border cursor-zoom-in" @click="openLightbox(linkPostImg)" />
 
-                    <img :src="linkPostImg" v-if="post?.postImg" class="max-w-md rounded-xl border cursor-zoom-in" @click="openLightbox(linkPostImg)" />
-
-                    <div class="row-actions mt-3 items-center">
-                        <ReactionBar
-                            :my-reaction="post?.myReaction"
-                            :counts="post?.reactionCounts || {}"
-                            @react="reactPost"
-                            @unreact="unreactPost"
-                        />
-                        <DxButton
-                            v-if="isLogin"
-                            icon="bookmark"
-                            :type="bookmarked ? 'success' : 'normal'"
-                            :styling-mode="bookmarked ? 'contained' : 'outlined'"
-                            :text="bookmarked ? 'Đã lưu' : 'Lưu'"
-                            @click="toggleBookmarkBtn"
-                        />
-                        <button
-                            v-if="isLogin && post?.userCreatedPost !== getItemLocal(LOCALKEYS.USER_ID)"
-                            class="inline-flex items-center gap-1.5 rounded-lg px-3 h-9 text-sm font-semibold border transition"
-                            :class="post?.reposted
-                                ? 'bg-emerald-600 border-emerald-600 text-white'
-                                : 'border-[var(--border)] hover:bg-gray-50'"
-                            @click="toggleRepost"
-                        >
-                            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" />
-                                <polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 0 1-4 4H3" />
-                            </svg>
-                            {{ (post?.reposted ? 'Đã chia sẻ' : 'Chia sẻ') + (post?.repostCount ? ` (${post.repostCount})` : '') }}
-                        </button>
-                    </div>
-                </div>
+            <div class="row-actions mt-3 items-center">
+                <ReactionBar
+                    :my-reaction="post?.myReaction"
+                    :counts="post?.reactionCounts || {}"
+                    @react="reactPost"
+                    @unreact="unreactPost"
+                />
+                <DxButton
+                    v-if="isLogin"
+                    icon="bookmark"
+                    :type="bookmarked ? 'success' : 'normal'"
+                    :styling-mode="bookmarked ? 'contained' : 'outlined'"
+                    :text="bookmarked ? 'Đã lưu' : 'Lưu'"
+                    @click="toggleBookmarkBtn"
+                />
+                <button
+                    v-if="isLogin && post?.userCreatedPost !== getItemLocal(LOCALKEYS.USER_ID)"
+                    class="inline-flex items-center gap-1.5 rounded-lg px-3 h-9 text-sm font-semibold border transition"
+                    :class="post?.reposted
+                        ? 'bg-emerald-600 border-emerald-600 text-white'
+                        : 'border-[var(--border)] hover:bg-gray-50'"
+                    @click="toggleRepost"
+                >
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" />
+                        <polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 0 1-4 4H3" />
+                    </svg>
+                    {{ (post?.reposted ? 'Đã chia sẻ' : 'Chia sẻ') + (post?.repostCount ? ` (${post.repostCount})` : '') }}
+                </button>
             </div>
         </div>
 
