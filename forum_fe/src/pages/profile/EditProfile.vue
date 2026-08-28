@@ -133,6 +133,7 @@ import { computed, inject, onMounted, ref } from 'vue';
 import { editUser, updateProfile, getUserInfo, deleteAccount, deactivateAccount, updateCover } from '@/apis/user';
 import { LOCALKEYS, getItemLocal, setItemLocal, delItemLocal } from '@/storages/localStorage';
 import { IMAGE_BASE } from '@/config';
+import { applyAvatarUpdate } from '@/storages/appState';
 
 const route = useRouter();
 const showDialog = inject("openDialogError");
@@ -264,6 +265,8 @@ const updateAvatar = async () => {
     try {
         await editUser({ password: currentPassword.value, avatar: avatarFile.value });
         await refreshLocalUser();
+        await loadProfile();
+        if (rawUser.value?.avtUrl) applyAvatarUpdate(getItemLocal(LOCALKEYS.USER_ID), rawUser.value.avtUrl);
         showDialog("Thông báo", "Cập nhật ảnh đại diện thành công");
         avatarFile.value = null;
     } catch (e) {
@@ -277,6 +280,7 @@ const saveCover = async () => {
     if (!coverFile.value) { showDialog('Thông báo', 'Chọn ảnh bìa'); return; }
     try {
         await updateCover(coverFile.value);
+        await loadProfile();
         toast?.('Đã cập nhật ảnh bìa');
         coverFile.value = null;
     } catch (e) {

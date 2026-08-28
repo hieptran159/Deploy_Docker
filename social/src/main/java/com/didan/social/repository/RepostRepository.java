@@ -2,6 +2,8 @@ package com.didan.social.repository;
 
 import com.didan.social.entity.Reposts;
 import com.didan.social.entity.keys.RepostId;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -22,6 +24,10 @@ public interface RepostRepository extends JpaRepository<Reposts, RepostId> {
     void deleteByRepostId_UserIdAndRepostId_PostId(String userId, String postId);
 
     List<Reposts> findByRepostId_UserIdOrderByCreatedAtDesc(String userId);
+
+    Page<Reposts> findByRepostId_UserId(String userId, Pageable pageable);
+
+    long countByRepostId_UserId(String userId);
 
     // Số lượt repost cho nhiều bài (1 truy vấn) -> [postId, count]
     @Query("SELECT r.repostId.postId, COUNT(r) FROM reposts r WHERE r.repostId.postId IN :ids GROUP BY r.repostId.postId")

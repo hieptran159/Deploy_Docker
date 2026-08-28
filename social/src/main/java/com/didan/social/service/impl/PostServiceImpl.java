@@ -14,6 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -330,29 +331,41 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
     }
 
     @Override
-    public List<PostDTO> getRepostsOf(String userId) throws Exception {
-        java.util.List<com.didan.social.entity.Reposts> rows = repostRepository.findByRepostId_UserIdOrderByCreatedAtDesc(userId);
-        if (rows.isEmpty()) return Collections.emptyList();
+    public java.util.Map<String, Object> getRepostsOf(String userId, int page, int size) throws Exception {
+        if (page < 0) page = 0;
+        if (size < 1) size = 10;
+        if (size > 50) size = 50;
         String meId = currentUserOrNull();
-        Users sharer = userRepository.findFirstByUserId(userId);
-        java.util.List<String> pids = rows.stream().map(r -> r.getRepostId().getPostId()).collect(Collectors.toList());
-        java.util.Map<String, Posts> byId = new java.util.HashMap<>();
-        for (Posts p : postRepository.findAllById(pids)) byId.put(p.getPostId(), p);
+        java.util.List<com.didan.social.entity.Reposts> rows = repostRepository
+                .findByRepostId_UserId(userId, PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")))
+                .getContent();
         List<PostDTO> out = new ArrayList<>();
-        for (com.didan.social.entity.Reposts r : rows) {
-            Posts p = byId.get(r.getRepostId().getPostId());
-            if (p == null) continue;
-            String st = p.getStatus();
-            if (st != null && !"published".equals(st)) continue; // bỏ bài nháp/ẩn
-            PostDTO d = toListDTO(p, meId);
-            d.setRepostedBy(sharer != null ? sharer.getFullName() : userId);
-            d.setRepostedById(userId);
-            d.setRepostedAt(r.getCreatedAt() == null ? null : r.getCreatedAt().toString());
-            d.setRepostNote(r.getNote());
-            out.add(d);
+        if (!rows.isEmpty()) {
+            Users sharer = userRepository.findFirstByUserId(userId);
+            java.util.List<String> pids = rows.stream().map(r -> r.getRepostId().getPostId()).collect(Collectors.toList());
+            java.util.Map<String, Posts> byId = new java.util.HashMap<>();
+            for (Posts p : postRepository.findAllById(pids)) byId.put(p.getPostId(), p);
+            for (com.didan.social.entity.Reposts r : rows) {
+                Posts p = byId.get(r.getRepostId().getPostId());
+                if (p == null) continue;
+                String st = p.getStatus();
+                if (st != null && !"published".equals(st)) continue; // bỏ bài nháp/ẩn
+                PostDTO d = toListDTO(p, meId);
+                d.setRepostedBy(sharer != null ? sharer.getFullName() : userId);
+                d.setRepostedById(userId);
+                d.setRepostedAt(r.getCreatedAt() == null ? null : r.getCreatedAt().toString());
+                d.setRepostNote(r.getNote());
+                out.add(d);
+            }
+            applyRepostInfo(out, meId);
         }
-        applyRepostInfo(out, meId);
-        return out;
+        long total = repostRepository.countByRepostId_UserId(userId);
+        java.util.Map<String, Object> m = new java.util.HashMap<>();
+        m.put("items", out);
+        m.put("total", total);
+        m.put("page", page);
+        m.put("totalPages", (int) Math.max(1, Math.ceil(total / (double) size)));
+        return m;
     }
 
     @Transactional

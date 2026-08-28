@@ -6,7 +6,7 @@
                     @error="(e) => e.target.style.display = 'none'" />
             </div>
             <div class="p-5 flex items-center gap-5 -mt-12">
-                <img v-if="avatarOk && avatarUrl" :src="avatarUrl" @error="avatarOk = false" @load="avatarOk = true"
+                <img v-if="avatarOk && avatarUrl" :key="avatarUrl" :src="avatarUrl" @error="avatarOk = false" @load="avatarOk = true"
                     class="size-24 rounded-full object-cover flex-none bg-white ring-4 ring-[var(--surface)]" />
                 <div v-else class="avatar-fallback size-24 text-3xl ring-4 ring-[var(--surface)]">
                     {{ (user?.fullName || '?')[0] }}
@@ -80,9 +80,14 @@
         </div>
 
         <div v-if="reposts.length" class="card">
-            <div class="section-title">Đã chia sẻ ({{ reposts.length }})</div>
+            <div class="section-title">Đã chia sẻ {{ repostsTotal ? `(${repostsTotal})` : '' }}</div>
             <div v-for="post in reposts" :key="'rp-' + post.postId" class="border-b last:border-b-0">
                 <Post :post="post" />
+            </div>
+            <div v-if="repostsPage < repostsTotalPages" class="pt-3 text-center">
+                <button class="link text-sm" :disabled="repostsLoading" @click="loadReposts(false)">
+                    {{ repostsLoading ? 'Đang tải…' : 'Xem thêm' }}
+                </button>
             </div>
         </div>
     </div>
@@ -103,7 +108,7 @@ import {
 } from '@/apis/friend';
 import { openDirectConversation } from '@/apis/chat';
 import { LOCALKEYS, getItemLocal } from '@/storages/localStorage';
-import { bumpNotifRefresh } from '@/storages/appState';
+import { bumpNotifRefresh, avatarUpdates } from '@/storages/appState';
 import { IMAGE_BASE } from '@/config';
 
 const showDialog = inject('openDialogError');
@@ -118,6 +123,10 @@ const POSTS_SIZE = 10;
 const user = ref(null);
 const posts = ref([]);
 const reposts = ref([]);
+const repostsPage = ref(0);
+const repostsTotal = ref(0);
+const repostsTotalPages = ref(1);
+const repostsLoading = ref(false);
 const postsPage = ref(0);
 const postsTotal = ref(0);
 const postsTotalPages = ref(1);
@@ -127,7 +136,11 @@ const fStatus = ref('none');       // none|pending_out|pending_in|friends|self
 const friendCount = ref(0);
 
 const isMe = computed(() => userId.value === myId);
-const avatarUrl = computed(() => (user.value?.avtUrl ? IMAGE_BASE + user.value.avtUrl : ""));
+const avatarUrl = computed(() => {
+    const upd = avatarUpdates.value?.[userId.value];
+    if (upd !== undefined && upd !== null && upd !== '') return IMAGE_BASE + upd;
+    return user.value?.avtUrl ? IMAGE_BASE + user.value.avtUrl : "";
+});
 const coverUrl = computed(() => (user.value?.coverUrl ? IMAGE_BASE + user.value.coverUrl : ""));
 const hasInfo = computed(() => !!(user.value?.phone || user.value?.address || user.value?.hobbies));
 
@@ -160,11 +173,29 @@ const loadPosts = async (reset = false) => {
     }
 }
 
+const loadReposts = async (reset = false) => {
+    if (reset) { repostsPage.value = 0; reposts.value = []; }
+    repostsLoading.value = true;
+    try {
+        const d = (await getRepostsOf(userId.value, repostsPage.value, 10))?.data?.data;
+        const data = Array.isArray(d) ? { items: d } : (d || {});
+        const batch = data.items || [];
+        reposts.value = reset ? batch : [...reposts.value, ...batch];
+        repostsTotal.value = data.total ?? reposts.value.length;
+        repostsTotalPages.value = data.totalPages ?? 1;
+        if (batch.length) repostsPage.value += 1; else repostsTotalPages.value = repostsPage.value;
+    } catch (e) {
+        if (reset) reposts.value = [];
+    } finally {
+        repostsLoading.value = false;
+    }
+}
+
 const load = async () => {
     user.value = null;
     reposts.value = [];
     avatarOk.value = true;
-    getRepostsOf(userId.value).then((r) => { reposts.value = r?.data?.data || []; }).catch(() => { reposts.value = []; });
+    loadReposts(true);
     try {
         const res = await getUserInfo(userId.value);
         user.value = res?.data?.data || null;
@@ -255,5 +286,6 @@ const messageUser = async () => {
 };
 
 watch(userId, load);
+watch(avatarUrl, () => { avatarOk.value = true; });
 onMounted(load);
 </script>

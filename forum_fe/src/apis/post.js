@@ -48,8 +48,8 @@ export const unrepostPost = (id) => {
     return authApi.delete(`/post/${id}/repost`);
 }
 
-export const getRepostsOf = (userId) => {
-    return authApi.get(`/post/reposts/${userId}`);
+export const getRepostsOf = (userId, page = 0, size = 10) => {
+    return authApi.get(`/post/reposts/${userId}?page=${page}&size=${size}`);
 }
 
 export const getPostsByUser = (userId, page = 0, size = 10) => {

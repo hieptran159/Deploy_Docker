@@ -34,8 +34,8 @@ public interface PostService {
     // Chia sẻ (repost) bài viết
     boolean repost(String postId, String note) throws Exception;
     boolean unrepost(String postId) throws Exception;
-    // Danh sách bài mà userId đã chia sẻ (mới nhất trước)
-    List<PostDTO> getRepostsOf(String userId) throws Exception;
+    // Danh sách bài mà userId đã chia sẻ (mới nhất trước), phân trang; kèm total/totalPages
+    java.util.Map<String, Object> getRepostsOf(String userId, int page, int size) throws Exception;
     // Lịch sử bài đã đăng của userId (mới nhất trước), phân trang; kèm total/totalPages
     java.util.Map<String, Object> getPostsByUser(String userId, int page, int size) throws Exception;
 
