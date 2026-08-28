@@ -14,6 +14,10 @@ export const checkIsAdmin = async () => {
     }
 }
 
+export const getAdminStats = () => {
+    return authApi.get('/admin/stats');
+}
+
 export const grantAdmin = (userId) => {
     return authApi.patch(`/admin/grant?userId=${encodeURIComponent(userId)}`);
 }

@@ -3,10 +3,16 @@
         <div class="app-header__inner">
             <span class="app-brand" @click="goHomeReload">HIPDN-EA&nbsp;Forum</span>
 
-            <div v-if="isLogin" class="flex-1 min-w-0">
+            <div v-if="isLogin" class="flex-1 min-w-0 flex flex-col gap-0.5">
                 <DxTabs
-                    :selected-index="0"
-                    :dataSource="options"
+                    :selected-index="primaryIndex"
+                    :dataSource="primaryTabs"
+                    styling-mode="secondary"
+                    @item-click="selectChange"
+                />
+                <DxTabs
+                    :selected-index="moreIndex"
+                    :dataSource="moreTabs"
                     styling-mode="secondary"
                     @item-click="selectChange"
                 />
@@ -141,20 +147,33 @@ const toggleTheme = () => {
 const isAdmin = ref(getItemLocal(LOCALKEYS.IS_ADMIN) === true);
 const isLogin = ref(getItemLocal(LOCALKEYS.ACCESS_TOKEN) != null);
 
-const options = computed(() => {
+const primaryTabs = computed(() => {
     const base = [
         { id: 0, text: "Trang chủ", icon: "home" },
         { id: 1, text: "Nhắn tin", icon: "textdocument" },
         { id: 2, text: "Bạn bè", icon: "group" },
         { id: 3, text: "Tìm người dùng", icon: "search" },
-        { id: 5, text: "Đã lưu", icon: "bookmark" },
-        { id: 6, text: "Bản nháp", icon: "doc" },
     ];
     if (isAdmin.value) base.push({ id: 4, text: "Quản trị", icon: "preferences" });
     return base;
 })
+// Hàng thứ 2 (xuống dòng)
+const moreTabs = [
+    { id: 5, text: "Đã lưu", icon: "bookmark" },
+    { id: 6, text: "Bản nháp", icon: "doc" },
+];
 
 const routeById = { 0: '/', 1: '/chat', 2: '/follow', 3: '/users', 4: '/admin', 5: '/saved', 6: '/drafts' };
+
+const currentTabId = computed(() => {
+    const p = route.currentRoute.value.path;
+    for (const [id, r] of Object.entries(routeById)) {
+        if (r === '/' ? p === '/' : p.startsWith(r)) return Number(id);
+    }
+    return -1;
+});
+const primaryIndex = computed(() => primaryTabs.value.findIndex((t) => t.id === currentTabId.value));
+const moreIndex = computed(() => moreTabs.findIndex((t) => t.id === currentTabId.value));
 
 // bấm logo -> tải lại toàn bộ trang chủ (F5)
 const goHomeReload = () => {

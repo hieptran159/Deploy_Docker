@@ -6,6 +6,13 @@ import com.didan.social.entity.BlacklistUser;
 import com.didan.social.entity.Users;
 import com.didan.social.repository.BlacklistRepository;
 import com.didan.social.repository.BlacklistUserRepository;
+import com.didan.social.repository.BlockRepository;
+import com.didan.social.repository.BookmarkRepository;
+import com.didan.social.repository.CommentRepository;
+import com.didan.social.repository.ConversationRepository;
+import com.didan.social.repository.MessageRepository;
+import com.didan.social.repository.PostRepository;
+import com.didan.social.repository.ReportRepository;
 import com.didan.social.repository.UserRepository;
 import com.didan.social.service.AdminService;
 import org.slf4j.Logger;
@@ -28,13 +35,72 @@ public class AdminServiceImpl implements AdminService {
     private final UserRepository userRepository;
     private final BlacklistUserRepository blacklistUserRepository;
     private final BlacklistRepository blacklistTokenRepository;
+    private final PostRepository postRepository;
+    private final CommentRepository commentRepository;
+    private final ConversationRepository conversationRepository;
+    private final MessageRepository messageRepository;
+    private final BookmarkRepository bookmarkRepository;
+    private final BlockRepository blockRepository;
+    private final ReportRepository reportRepository;
     private final Logger logger = LoggerFactory.getLogger(AdminServiceImpl.class);
     @Autowired
-    public AdminServiceImpl(AuthorizePathServiceImpl authorizePathService, UserRepository userRepository, BlacklistUserRepository blacklistUserRepository, BlacklistRepository blacklistTokenRepository) {
+    public AdminServiceImpl(AuthorizePathServiceImpl authorizePathService, UserRepository userRepository,
+                            BlacklistUserRepository blacklistUserRepository, BlacklistRepository blacklistTokenRepository,
+                            PostRepository postRepository, CommentRepository commentRepository,
+                            ConversationRepository conversationRepository, MessageRepository messageRepository,
+                            BookmarkRepository bookmarkRepository, BlockRepository blockRepository,
+                            ReportRepository reportRepository) {
         this.authorizePathService = authorizePathService;
         this.userRepository = userRepository;
         this.blacklistUserRepository = blacklistUserRepository;
         this.blacklistTokenRepository = blacklistTokenRepository;
+        this.postRepository = postRepository;
+        this.commentRepository = commentRepository;
+        this.conversationRepository = conversationRepository;
+        this.messageRepository = messageRepository;
+        this.bookmarkRepository = bookmarkRepository;
+        this.blockRepository = blockRepository;
+        this.reportRepository = reportRepository;
+    }
+
+    @Override
+    public java.util.Map<String, Object> getStats() throws Exception {
+        authAdmin();
+        java.util.Map<String, Object> m = new java.util.LinkedHashMap<>();
+        m.put("users", userRepository.count());
+        m.put("admins", userRepository.countByIsAdmin(1));
+        m.put("posts", postRepository.countPublished());
+        m.put("drafts", postRepository.countByStatus("draft"));
+        m.put("comments", commentRepository.count());
+        m.put("conversations", conversationRepository.count());
+        m.put("messages", messageRepository.count());
+        m.put("bookmarks", bookmarkRepository.count());
+        m.put("blocks", blockRepository.count());
+        m.put("reportsOpen", reportRepository.countByStatus("OPEN"));
+        m.put("reportsResolved", reportRepository.countByStatus("RESOLVED"));
+        m.put("reportsDismissed", reportRepository.countByStatus("DISMISSED"));
+        m.put("bannedUsers", blacklistUserRepository.countByStatus("blocked"));
+
+        // Bài đăng theo ngày, 14 ngày gần nhất
+        java.time.LocalDate today = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"));
+        java.time.LocalDate from = today.minusDays(13);
+        java.sql.Timestamp since = java.sql.Timestamp.valueOf(from.atStartOfDay());
+        java.util.Map<String, Long> byDay = new java.util.LinkedHashMap<>();
+        for (int i = 0; i < 14; i++) byDay.put(from.plusDays(i).toString(), 0L);
+        for (Object[] row : postRepository.countPostsPerDaySince(since)) {
+            String d = row[0].toString().substring(0, 10);
+            long c = ((Number) row[1]).longValue();
+            if (byDay.containsKey(d)) byDay.put(d, c);
+        }
+        java.util.List<java.util.Map<String, Object>> series = new java.util.ArrayList<>();
+        for (java.util.Map.Entry<String, Long> e : byDay.entrySet()) {
+            java.util.Map<String, Object> pt = new java.util.LinkedHashMap<>();
+            pt.put("date", e.getKey());
+            pt.put("count", e.getValue());
+            series.add(pt);
+        }
+        m.put("postsPerDay", series);
+        return m;
     }
     @Override
     public boolean grantAdmin(String userIdGranted) throws Exception {

@@ -25,4 +25,6 @@ public interface UserRepository extends JpaRepository<Users, String> {
 
     // Search User By Fullname
     List<Users> findByFullNameContainingOrEmailLike(String name, String email);
+
+    long countByIsAdmin(int isAdmin);
 }

@@ -7,6 +7,34 @@
 
         <template v-else>
             <div class="card">
+                <div class="section-title">Thống kê</div>
+                <div v-if="stats" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div v-for="s in statCards" :key="s.key" class="rounded-xl border p-3 bg-[var(--surface)]">
+                        <div class="text-2xl font-bold">{{ stats[s.key] ?? 0 }}</div>
+                        <div class="text-xs muted">{{ s.label }}</div>
+                    </div>
+                </div>
+                <div v-else class="state text-sm">Đang tải…</div>
+
+                <div v-if="stats?.postsPerDay?.length" class="mt-4">
+                    <div class="text-xs muted mb-1">Bài đăng 14 ngày gần nhất</div>
+                    <div class="flex items-end gap-1 h-24">
+                        <div
+                            v-for="p in stats.postsPerDay"
+                            :key="p.date"
+                            class="flex-1 bg-[var(--brand)] rounded-t min-h-[2px]"
+                            :style="{ height: barH(p.count) }"
+                            :title="`${p.date}: ${p.count} bài`"
+                        ></div>
+                    </div>
+                    <div class="flex justify-between text-[10px] muted mt-1">
+                        <span>{{ stats.postsPerDay[0].date.slice(5) }}</span>
+                        <span>{{ stats.postsPerDay[stats.postsPerDay.length - 1].date.slice(5) }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
                 <div class="section-title">Cấp quyền admin</div>
                 <div class="flex gap-2">
                     <DxTextBox v-model="grantId" placeholder="userId cần cấp quyền" class="flex-1"/>
@@ -111,7 +139,7 @@
 import { DxTextBox, DxButton } from 'devextreme-vue';
 import { onMounted, ref, inject } from 'vue';
 import { useRouter } from 'vue-router';
-import { getBlacklist, grantAdmin, banUser, unbanUser } from '@/apis/admin';
+import { getBlacklist, grantAdmin, banUser, unbanUser, getAdminStats } from '@/apis/admin';
 import { getReports, handleReport, removeReportedTarget } from '@/apis/report';
 import { timeAgo } from '@/js/helper';
 
@@ -127,6 +155,33 @@ const grantId = ref('');
 const banId = ref('');
 const reports = ref([]);
 const reportFilter = ref('OPEN');
+
+const stats = ref(null);
+const statCards = [
+    { key: 'users', label: 'Người dùng' },
+    { key: 'admins', label: 'Admin' },
+    { key: 'posts', label: 'Bài đã đăng' },
+    { key: 'drafts', label: 'Bản nháp' },
+    { key: 'comments', label: 'Bình luận' },
+    { key: 'conversations', label: 'Cuộc trò chuyện' },
+    { key: 'messages', label: 'Tin nhắn' },
+    { key: 'bookmarks', label: 'Lượt lưu' },
+    { key: 'blocks', label: 'Lượt chặn (user)' },
+    { key: 'reportsOpen', label: 'Báo cáo chờ xử lý' },
+    { key: 'reportsResolved', label: 'Báo cáo đã xử lý' },
+    { key: 'bannedUsers', label: 'User bị khoá' },
+];
+
+const loadStats = async () => {
+    try {
+        stats.value = (await getAdminStats())?.data?.data || null;
+    } catch (e) { stats.value = null; }
+};
+
+const barH = (c) => {
+    const max = Math.max(1, ...(stats.value?.postsPerDay || []).map((p) => p.count));
+    return Math.round((c / max) * 100) + '%';
+};
 
 const loadReports = async () => {
     try {
@@ -215,5 +270,5 @@ const doUnban = (userId) => {
     });
 }
 
-onMounted(() => { loadBlacklist(); loadReports(); });
+onMounted(() => { loadStats(); loadBlacklist(); loadReports(); });
 </script>

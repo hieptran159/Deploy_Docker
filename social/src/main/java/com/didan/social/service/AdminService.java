@@ -10,4 +10,6 @@ public interface AdminService {
     List<BlacklistUserDTO> getAllBlacklistUser() throws Exception;
     boolean blockUser(String userId) throws Exception;
     boolean unblockUser(String userId) throws Exception;
+    // Số liệu tổng quan cho bảng điều khiển admin
+    java.util.Map<String, Object> getStats() throws Exception;
 }

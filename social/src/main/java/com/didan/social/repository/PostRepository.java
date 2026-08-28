@@ -26,6 +26,14 @@ public interface PostRepository extends JpaRepository<Posts, String> {
     @Query("SELECT COUNT(p) FROM posts p WHERE " + PUBLISHED)
     long countPublished();
 
+    long countByStatus(String status);
+
+    // Số bài đã đăng theo ngày, từ mốc :since (cho biểu đồ dashboard)
+    @Query(value = "SELECT DATE(posted_at) d, COUNT(*) c FROM posts "
+                 + "WHERE (status IS NULL OR status = 'published') AND posted_at >= :since "
+                 + "GROUP BY DATE(posted_at) ORDER BY d", nativeQuery = true)
+    List<Object[]> countPostsPerDaySince(@Param("since") java.sql.Timestamp since);
+
     // Feed loại trừ bài của các tác giả bị chặn (2 chiều). Gọi khi tập loại trừ khác rỗng.
     @Query("SELECT p FROM posts p WHERE " + PUBLISHED + " AND p.userPost.users.userId NOT IN :ex "
          + "ORDER BY p.postedAt DESC, p.postId ASC")

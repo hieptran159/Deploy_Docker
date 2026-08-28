@@ -12,4 +12,5 @@ public interface ReportRepository extends JpaRepository<Reports, String> {
     List<Reports> findTop300ByOrderByCreatedAtDesc();
     Reports findFirstByReporterIdAndTargetTypeAndTargetIdAndStatus(String reporterId, String targetType, String targetId, String status);
     long countByTargetTypeAndTargetIdAndStatus(String targetType, String targetId, String status);
+    long countByStatus(String status);
 }

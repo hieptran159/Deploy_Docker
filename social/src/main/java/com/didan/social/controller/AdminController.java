@@ -38,6 +38,22 @@ public class AdminController{
         }
     }
 
+    @Operation(summary = "Số liệu tổng quan (admin)", security = @SecurityRequirement(name = "bearerAuth"))
+    @GetMapping(value = "/stats")
+    public ResponseEntity<?> stats(){
+        ResponseData payload = new ResponseData();
+        try {
+            payload.setData(adminService.getStats());
+            payload.setDescription("OK");
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e){
+            payload.setDescription(e.getMessage());
+            payload.setStatusCode(500);
+            payload.setSuccess(false);
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
     @Operation(summary = "Get all users in blacklist", description = "Require admin to do this",
             security = @SecurityRequirement(name = "bearerAuth"))
     @GetMapping(value = "/blacklist")

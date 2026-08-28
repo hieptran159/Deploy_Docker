@@ -11,5 +11,5 @@ import java.util.List;
 public interface BlacklistUserRepository extends JpaRepository<BlacklistUser, String> {
     BlacklistUser findByUserId(String userId);
 
-
+    long countByStatus(String status);
 }
