@@ -59,15 +59,21 @@ npm run build     # → dist/, served by nginx in the Docker image
 
 ## Tests
 
-Small JUnit 5 unit-test suite under `social/src/test/java` — **no DB / Docker / Spring
+JUnit 5 unit-test suite (52 tests) under `social/src/test/java` — **no DB / Docker / Spring
 context**, runs on plain `./mvnw test` (deps already in `spring-boot-starter-test` +
-`spring-security-test`):
+`spring-security-test`). Service tests use `@ExtendWith(MockitoExtension.class)` +
+`@MockitoSettings(strictness = LENIENT)`, mock every constructor dep, and instantiate the
+impl directly in `@BeforeEach`:
 
 | Test | Covers |
 |------|--------|
 | `security/RateLimitFilterTest` | `RateLimitFilter` window counter (per-IP, per-bucket, XFF, GET/non-auth bypass, disabled flag) via `MockHttpServletRequest`/`MockFilterChain` |
 | `service/impl/FileUploadsServiceImplTest` | upload validation + downscale/recompress + small-image passthrough + non-image reject, `MockEnvironment` + `@TempDir` |
 | `service/impl/NormReactionTest` | `PostServiceImpl.normReaction` (static pkg-private) |
+| `service/impl/FollowServiceImplTest` | block/unblock guards (self, already-blocked no-op, not-blocked reject), `friendStatus` block direction (`blocked_out`/`blocked_in`/`self`/`none`), `isBlockedEither`, `sendRequest` guards (blocked, deactivated target, self) — Mockito, no context |
+| `service/impl/PostServiceImplTest` | `createPost` visibility (`friends`/default `public`) + draft rules (title-only ok, empty rejected, published missing body); `publishPost` guards (non-author, already published, missing content, happy path); `repost` guards (friends-only, own post, draft, idempotent, saves + notifies) — `ArgumentCaptor<Posts>` |
+| `service/impl/ReportServiceImplTest` | `ReportServiceImpl.create` auto-hide threshold: invalid type, below threshold no-hide, at threshold sets `status=hidden` + saves, already-hidden untouched, duplicate open report no-op, threshold `0` disables — `ReflectionTestUtils` for `@Value autoHideThreshold` |
+| `service/impl/NotificationServiceImplTest` | `listMinePaged` page/size clamping (negative page→0, size<1→20, size>50→50) via `ArgumentCaptor<Pageable>` |
 | `utils/EmailTemplateTest` | `EmailTemplate.otp` HTML + HTML-escaping |
 
 `SocialApplicationTests` (`@SpringBootTest` context-load) is the exception — it needs a
