@@ -91,6 +91,14 @@ class PostServiceImplTest {
     }
 
     @Test
+    void createPostPrivateVisibility() throws Exception {
+        svc.createPost(req("T", "B", null, "private"));
+        ArgumentCaptor<Posts> c = ArgumentCaptor.forClass(Posts.class);
+        verify(postRepository).save(c.capture());
+        assertEquals("private", c.getValue().getVisibility());
+    }
+
+    @Test
     void createDraftWithOnlyTitleOk() throws Exception {
         svc.createPost(req("Chỉ tiêu đề", null, "true", null));
         ArgumentCaptor<Posts> c = ArgumentCaptor.forClass(Posts.class);
@@ -150,6 +158,13 @@ class PostServiceImplTest {
         when(postRepository.findFirstByPostId("p-1")).thenReturn(post(OTHER, "published", "friends", "T", "B"));
         Exception e = assertThrows(Exception.class, () -> svc.repost("p-1", null));
         assertTrue(e.getMessage().contains("chỉ bạn bè"));
+    }
+
+    @Test
+    void repostPrivateRejected() {
+        when(postRepository.findFirstByPostId("p-1")).thenReturn(post(OTHER, "published", "private", "T", "B"));
+        Exception e = assertThrows(Exception.class, () -> svc.repost("p-1", null));
+        assertTrue(e.getMessage().contains("chỉ mình tôi"));
     }
 
     @Test

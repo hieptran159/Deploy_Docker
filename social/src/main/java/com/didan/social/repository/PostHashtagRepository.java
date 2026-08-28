@@ -35,19 +35,23 @@ public interface PostHashtagRepository extends JpaRepository<PostHashtags, PostH
          + "GROUP BY ph.postHashtagId.tag ORDER BY COUNT(p) DESC, ph.postHashtagId.tag ASC")
     List<Object[]> trending(Pageable pageable);
 
-    // Bài theo tag (mới nhất trước), lọc quyền xem của người xem (:vids).
+    // Bài theo tag (mới nhất trước), lọc quyền xem của người xem.
+    // Công khai cho mọi người; bài của :me luôn thấy; 'friends' khi tác giả trong :vids; 'private' chỉ chính chủ.
+    String VIS = "(p.visibility IS NULL OR p.visibility = 'public'"
+            + " OR p.userPost.users.userId = :me"
+            + " OR (p.visibility = 'friends' AND p.userPost.users.userId IN :vids))";
+
     @Query("SELECT p FROM posts p, post_hashtags ph "
          + "WHERE p.postId = ph.postHashtagId.postId AND ph.postHashtagId.tag = :tag "
-         + "AND (p.status IS NULL OR p.status = 'published') "
-         + "AND (p.visibility IS NULL OR p.visibility = 'public' OR p.userPost.users.userId IN :vids) "
+         + "AND (p.status IS NULL OR p.status = 'published') AND " + VIS + " "
          + "ORDER BY p.postedAt DESC, p.postId ASC")
     List<com.didan.social.entity.Posts> findPostsByTag(@Param("tag") String tag,
                                                        @Param("vids") Collection<String> vids,
+                                                       @Param("me") String me,
                                                        Pageable pageable);
 
     @Query("SELECT COUNT(p) FROM posts p, post_hashtags ph "
          + "WHERE p.postId = ph.postHashtagId.postId AND ph.postHashtagId.tag = :tag "
-         + "AND (p.status IS NULL OR p.status = 'published') "
-         + "AND (p.visibility IS NULL OR p.visibility = 'public' OR p.userPost.users.userId IN :vids)")
-    long countPostsByTag(@Param("tag") String tag, @Param("vids") Collection<String> vids);
+         + "AND (p.status IS NULL OR p.status = 'published') AND " + VIS)
+    long countPostsByTag(@Param("tag") String tag, @Param("vids") Collection<String> vids, @Param("me") String me);
 }

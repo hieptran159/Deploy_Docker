@@ -151,7 +151,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         UUID postId = UUID.randomUUID();
         post.setPostId(postId.toString());
         post.setStatus(draft ? "draft" : "published");
-        post.setVisibility("friends".equalsIgnoreCase(createPostRequest.getVisibility()) ? "friends" : "public");
+        post.setVisibility(normVisibility(createPostRequest.getVisibility()));
         post.setTitle(createPostRequest.getTitle() == null ? "" : createPostRequest.getTitle());
         if (createPostRequest.getPostImg() != null && !createPostRequest.getPostImg().isEmpty()){
             String fileName = fileUploadsService.storeFile(createPostRequest.getPostImg(), "post", postId.toString());
@@ -171,7 +171,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
     @Override
     public List<PostDTO> getAllPosts() throws Exception {
         String meId = currentUserOrNull();
-        List<Posts> posts = postRepository.findAllPost(visibleAuthorIds(meId));
+        List<Posts> posts = postRepository.findAllPost(visibleAuthorIds(meId), meParam(meId));
         if (posts == null) {
             logger.info("No posts are here");
             return Collections.emptyList();
@@ -186,7 +186,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
     public List<PostDTO> getAllPostsByPage(int index) throws Exception {
         if (index < 1) index = 1;
         String meId = currentUserOrNull();
-        List<Object[]> rows = postRepository.feedPage(feedExcludeParam(meId), visibleAuthorIds(meId), 10, (index - 1) * 10);
+        List<Object[]> rows = postRepository.feedPage(feedExcludeParam(meId), visibleAuthorIds(meId), meParam(meId), 10, (index - 1) * 10);
         return buildFeedFromRows(rows, meId);
     }
 
@@ -284,11 +284,23 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         return s;
     }
 
+    // Id người xem cho nhánh ':me' của VISIBLE (bài 'private'/của mình). Khách -> sentinel "-".
+    private String meParam(String meId) {
+        return meId == null ? "-" : meId;
+    }
+
+    // Chuẩn hoá quyền xem bài: 'public' (mặc định) | 'friends' | 'private'
+    static String normVisibility(String v) {
+        if ("friends".equalsIgnoreCase(v)) return "friends";
+        if ("private".equalsIgnoreCase(v)) return "private";
+        return "public";
+    }
+
     @Override
     public java.util.Map<String, Object> feedPageInfo() throws Exception {
         int pageSize = 10;
         String meId = currentUserOrNull();
-        long total = postRepository.feedCount(feedExcludeParam(meId), visibleAuthorIds(meId));
+        long total = postRepository.feedCount(feedExcludeParam(meId), visibleAuthorIds(meId), meParam(meId));
         int totalPages = (int) Math.max(1, Math.ceil(total / (double) pageSize));
         java.util.Map<String, Object> m = new java.util.HashMap<>();
         m.put("total", total);
@@ -312,6 +324,11 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         // Tác giả đang tự vô hiệu hoá -> chỉ chính chủ xem được
         if (author != null && author.getDeactivated() != null && author.getDeactivated() == 1 && !isAuthor) {
             logger.info("Post by deactivated user not visible");
+            return null;
+        }
+        // Bài "chỉ mình tôi" -> chỉ tác giả
+        if ("private".equals(post.getVisibility()) && !isAuthor) {
+            logger.info("Private post not visible to this user");
             return null;
         }
         // Bài "chỉ bạn bè" -> chỉ tác giả hoặc bạn bè của tác giả
@@ -356,11 +373,11 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         if (size > 50) size = 50;
         String meId = currentUserOrNull();
         java.util.Collection<String> vids = visibleAuthorIds(meId);
-        List<Posts> posts = postRepository.findPublishedByAuthor(userId, vids, PageRequest.of(page, size));
+        List<Posts> posts = postRepository.findPublishedByAuthor(userId, vids, meParam(meId), PageRequest.of(page, size));
         List<PostDTO> items = posts.stream().map(p -> toListDTO(p, meId)).collect(Collectors.toList());
         applyRepostInfo(items, meId);
         applyHashtags(items);
-        long total = postRepository.countPublishedByAuthor(userId, vids);
+        long total = postRepository.countPublishedByAuthor(userId, vids, meParam(meId));
         java.util.Map<String, Object> m = new java.util.HashMap<>();
         m.put("items", items);
         m.put("total", total);
@@ -386,11 +403,11 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         }
         String meId = currentUserOrNull();
         java.util.Collection<String> vids = visibleAuthorIds(meId);
-        List<Posts> posts = postHashtagRepository.findPostsByTag(norm, vids, PageRequest.of(page, size));
+        List<Posts> posts = postHashtagRepository.findPostsByTag(norm, vids, meParam(meId), PageRequest.of(page, size));
         List<PostDTO> items = posts.stream().map(p -> toListDTO(p, meId)).collect(Collectors.toList());
         applyRepostInfo(items, meId);
         applyHashtags(items);
-        long total = postHashtagRepository.countPostsByTag(norm, vids);
+        long total = postHashtagRepository.countPostsByTag(norm, vids, meParam(meId));
         m.put("items", items);
         m.put("total", total);
         m.put("totalPages", (int) Math.max(1, Math.ceil(total / (double) size)));
@@ -459,6 +476,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         String st = post.getStatus();
         if (st != null && !"published".equals(st)) throw new Exception("Không thể chia sẻ bài viết này");
         if ("friends".equals(post.getVisibility())) throw new Exception("Không thể chia sẻ bài 'chỉ bạn bè'");
+        if ("private".equals(post.getVisibility())) throw new Exception("Không thể chia sẻ bài 'chỉ mình tôi'");
         String authorId = post.getUserPost() != null && post.getUserPost().getUsers() != null
                 ? post.getUserPost().getUsers().getUserId() : null;
         if (meId.equals(authorId)) throw new Exception("Không thể tự chia sẻ bài của mình");
@@ -519,8 +537,8 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         java.util.Collection<String> vids = visibleAuthorIds(meId);
         PageRequest pr = PageRequest.of(page, size);
         List<Posts> posts = ex.isEmpty()
-                ? postRepository.searchByKeyword(searchName.trim(), vids, pr)
-                : postRepository.searchByKeywordExcludingAuthors(searchName.trim(), ex, vids, pr);
+                ? postRepository.searchByKeyword(searchName.trim(), vids, meParam(meId), pr)
+                : postRepository.searchByKeywordExcludingAuthors(searchName.trim(), ex, vids, meParam(meId), pr);
         if (posts.isEmpty()) {
             logger.info("No posts are here");
             return Collections.emptyList();
@@ -607,7 +625,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
             post.setBody(editPostRequest.getBody());
         }
         if (StringUtils.hasText(editPostRequest.getVisibility())){
-            post.setVisibility("friends".equalsIgnoreCase(editPostRequest.getVisibility()) ? "friends" : "public");
+            post.setVisibility(normVisibility(editPostRequest.getVisibility()));
         }
         if (editPostRequest.getPostImg()!= null && !editPostRequest.getPostImg().isEmpty()){
             if(StringUtils.hasText(post.getPostImg())){

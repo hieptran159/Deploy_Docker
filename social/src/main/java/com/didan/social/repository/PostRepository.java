@@ -15,11 +15,15 @@ import java.util.List;
 public interface PostRepository extends JpaRepository<Posts, String> {
     // Điều kiện "đã đăng": status NULL (dữ liệu cũ) hoặc 'published'. Bản nháp ('draft') bị loại.
     String PUBLISHED = "(p.status IS NULL OR p.status = 'published')";
-    // Bài "chỉ bạn bè" chỉ hiện khi tác giả nằm trong :vids (bạn bè của người xem + chính người xem)
-    String VISIBLE = "(p.visibility IS NULL OR p.visibility = 'public' OR p.userPost.users.userId IN :vids)";
+    // Quyền xem: công khai (NULL/'public') cho mọi người; bài của chính người xem (:me) luôn thấy;
+    // 'friends' chỉ khi tác giả nằm trong :vids (bạn bè của người xem + chính người xem);
+    // 'private' chỉ chính chủ (đã được nhánh ':me' phủ).
+    String VISIBLE = "(p.visibility IS NULL OR p.visibility = 'public'"
+            + " OR p.userPost.users.userId = :me"
+            + " OR (p.visibility = 'friends' AND p.userPost.users.userId IN :vids))";
 
     @Query("SELECT p FROM posts p WHERE " + PUBLISHED + " AND " + VISIBLE + " ORDER BY p.postedAt DESC, p.postId ASC")
-    List<Posts> findAllPost(@Param("vids") Collection<String> vids);
+    List<Posts> findAllPost(@Param("vids") Collection<String> vids, @Param("me") String me);
 
     @Query("SELECT COUNT(p) FROM posts p WHERE " + PUBLISHED)
     long countPublished();
@@ -40,10 +44,11 @@ public interface PostRepository extends JpaRepository<Posts, String> {
     // Lịch sử bài đã đăng của 1 người dùng (mới nhất trước), phân trang; lọc theo quyền xem của người xem
     @Query("SELECT p FROM posts p WHERE " + PUBLISHED + " AND " + VISIBLE
          + " AND p.userPost.users.userId = :uid ORDER BY p.postedAt DESC, p.postId ASC")
-    List<Posts> findPublishedByAuthor(@Param("uid") String uid, @Param("vids") Collection<String> vids, Pageable pageable);
+    List<Posts> findPublishedByAuthor(@Param("uid") String uid, @Param("vids") Collection<String> vids,
+                                      @Param("me") String me, Pageable pageable);
 
     @Query("SELECT COUNT(p) FROM posts p WHERE " + PUBLISHED + " AND " + VISIBLE + " AND p.userPost.users.userId = :uid")
-    long countPublishedByAuthor(@Param("uid") String uid, @Param("vids") Collection<String> vids);
+    long countPublishedByAuthor(@Param("uid") String uid, @Param("vids") Collection<String> vids, @Param("me") String me);
 
     // Feed hợp nhất: bài gốc (posted_at, is_repost=0) + lượt chia sẻ (created_at, is_repost=1).
     // Gộp theo post_id -> mỗi bài chỉ 1 dòng. Vì thời điểm repost luôn > posted_at,
@@ -53,22 +58,24 @@ public interface PostRepository extends JpaRepository<Posts, String> {
         "SELECT p.post_id AS pid, p.posted_at AS t, 0 AS is_repost " +
         "FROM posts p JOIN user_posts up ON up.post_id = p.post_id " +
         "WHERE (p.status IS NULL OR p.status = 'published') AND up.user_id NOT IN (:ex) " +
-        "AND (p.visibility IS NULL OR p.visibility = 'public' OR up.user_id IN (:vids)) " +
+        "AND (p.visibility IS NULL OR p.visibility = 'public' OR up.user_id = :me " +
+        "     OR (p.visibility = 'friends' AND up.user_id IN (:vids))) " +
         "UNION ALL " +
         "SELECT rp.post_id AS pid, rp.created_at AS t, 1 AS is_repost " +
         "FROM reposts rp JOIN posts p2 ON p2.post_id = rp.post_id " +
         "JOIN user_posts up2 ON up2.post_id = rp.post_id " +
         "WHERE (p2.status IS NULL OR p2.status = 'published') " +
         "AND up2.user_id NOT IN (:ex) AND rp.user_id NOT IN (:ex) " +
-        "AND (p2.visibility IS NULL OR p2.visibility = 'public' OR up2.user_id IN (:vids))";
+        "AND (p2.visibility IS NULL OR p2.visibility = 'public' OR up2.user_id = :me " +
+        "     OR (p2.visibility = 'friends' AND up2.user_id IN (:vids)))";
 
     @Query(value = "SELECT u.pid, MAX(u.t) AS sort_t, MAX(u.is_repost) AS is_repost FROM (" + FEED_UNION
                  + ") u GROUP BY u.pid ORDER BY sort_t DESC, u.pid ASC LIMIT :lim OFFSET :off", nativeQuery = true)
     List<Object[]> feedPage(@Param("ex") Collection<String> ex, @Param("vids") Collection<String> vids,
-                            @Param("lim") int lim, @Param("off") int off);
+                            @Param("me") String me, @Param("lim") int lim, @Param("off") int off);
 
     @Query(value = "SELECT COUNT(DISTINCT u.pid) FROM (" + FEED_UNION + ") u", nativeQuery = true)
-    long feedCount(@Param("ex") Collection<String> ex, @Param("vids") Collection<String> vids);
+    long feedCount(@Param("ex") Collection<String> ex, @Param("vids") Collection<String> vids, @Param("me") String me);
 
     // Bảng tin bạn bè: bài gốc của người trong :ids + lượt chia sẻ do người trong :ids thực hiện.
     // (Không cần lọc "chỉ bạn bè": mọi bài đều của bạn bè / của mình rồi.)
@@ -76,10 +83,12 @@ public interface PostRepository extends JpaRepository<Posts, String> {
         "SELECT p.post_id AS pid, p.posted_at AS t, 0 AS is_repost " +
         "FROM posts p JOIN user_posts up ON up.post_id = p.post_id " +
         "WHERE (p.status IS NULL OR p.status = 'published') AND up.user_id IN (:ids) " +
+        "AND (p.visibility IS NULL OR p.visibility <> 'private') " +
         "UNION ALL " +
         "SELECT rp.post_id AS pid, rp.created_at AS t, 1 AS is_repost " +
         "FROM reposts rp JOIN posts p2 ON p2.post_id = rp.post_id " +
-        "WHERE (p2.status IS NULL OR p2.status = 'published') AND rp.user_id IN (:ids)";
+        "WHERE (p2.status IS NULL OR p2.status = 'published') AND rp.user_id IN (:ids) " +
+        "AND (p2.visibility IS NULL OR p2.visibility <> 'private')";
 
     @Query(value = "SELECT u.pid, MAX(u.t) AS sort_t, MAX(u.is_repost) AS is_repost FROM (" + FRIEND_FEED_UNION
                  + ") u GROUP BY u.pid ORDER BY sort_t DESC, u.pid ASC LIMIT :lim OFFSET :off", nativeQuery = true)
@@ -98,7 +107,8 @@ public interface PostRepository extends JpaRepository<Posts, String> {
     @Query("SELECT p FROM posts p WHERE " + PUBLISHED + " AND " + VISIBLE
          + " AND (lower(p.title) LIKE lower(concat('%', :q, '%')) "
          + "OR lower(p.body) LIKE lower(concat('%', :q, '%'))) ORDER BY p.postedAt DESC, p.postId ASC")
-    List<Posts> searchByKeyword(@Param("q") String q, @Param("vids") Collection<String> vids, Pageable pageable);
+    List<Posts> searchByKeyword(@Param("q") String q, @Param("vids") Collection<String> vids,
+                                @Param("me") String me, Pageable pageable);
 
     @Query("SELECT p FROM posts p WHERE " + PUBLISHED + " AND " + VISIBLE
          + " AND (lower(p.title) LIKE lower(concat('%', :q, '%')) "
@@ -107,5 +117,6 @@ public interface PostRepository extends JpaRepository<Posts, String> {
     List<Posts> searchByKeywordExcludingAuthors(@Param("q") String q,
                                                 @Param("ex") Collection<String> ex,
                                                 @Param("vids") Collection<String> vids,
+                                                @Param("me") String me,
                                                 Pageable pageable);
 }

@@ -25,7 +25,7 @@ Hướng dẫn chi tiết (biến môi trường, SendGrid, migrate DB…): xem 
 
 ### Bài viết & bảng tin
 - Đăng bài kèm ảnh; sửa / xoá bài của mình.
-- **Quyền xem bài**: *công khai* hoặc *chỉ bạn bè* (bài "chỉ bạn bè" không lên feed người lạ, không tìm thấy, không chia sẻ được).
+- **Quyền xem bài**: *công khai* / *chỉ bạn bè* / *chỉ mình tôi* (bài hạn chế không lên feed / tìm kiếm của người ngoài, không chia sẻ được).
 - **Bản nháp**: lưu bài chưa hoàn thiện (không lên feed), quản lý ở trang *Bản nháp*, đăng khi sẵn sàng.
 - **Hashtag `#chủ_đề`**: gõ thẳng trong tiêu đề / nội dung — hiện chip dưới bài, bấm mở trang `/tag/<tag>`, có card *"Hashtag nổi bật"* ở trang chủ.
 - **Chia sẻ (repost)** bài của người khác — feed hiển thị *"X đã chia sẻ"*, đếm lượt chia sẻ, mục *"Đã chia sẻ"* (phân trang) trên trang cá nhân.

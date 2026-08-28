@@ -61,7 +61,7 @@ npm run build     # → dist/, served by nginx in the Docker image
 
 ## Tests
 
-JUnit 5 unit-test suite (68 tests) under `social/src/test/java` — **no DB / Docker / Spring
+JUnit 5 unit-test suite (70 tests) under `social/src/test/java` — **no DB / Docker / Spring
 context**, runs on plain `./mvnw test` (deps already in `spring-boot-starter-test` +
 `spring-security-test`). Service tests use `@ExtendWith(MockitoExtension.class)` +
 `@MockitoSettings(strictness = LENIENT)`, mock every constructor dep, and instantiate the
@@ -73,7 +73,7 @@ impl directly in `@BeforeEach`:
 | `service/impl/FileUploadsServiceImplTest` | upload validation + downscale/recompress + small-image passthrough + non-image reject, `MockEnvironment` + `@TempDir` |
 | `service/impl/NormReactionTest` | `PostServiceImpl.normReaction` (static pkg-private) |
 | `service/impl/FollowServiceImplTest` | block/unblock guards (self, already-blocked no-op, not-blocked reject), `friendStatus` block direction (`blocked_out`/`blocked_in`/`self`/`none`), `isBlockedEither`, `sendRequest` guards (blocked, deactivated target, self) — Mockito, no context |
-| `service/impl/PostServiceImplTest` | `createPost` visibility (`friends`/default `public`) + draft rules (title-only ok, empty rejected, published missing body); `publishPost` guards (non-author, already published, missing content, happy path); `repost` guards (friends-only, own post, draft, idempotent, saves + notifies) — `ArgumentCaptor<Posts>` |
+| `service/impl/PostServiceImplTest` | `createPost` visibility (`friends`/`private`/default `public`) + draft rules (title-only ok, empty rejected, published missing body); `publishPost` guards (non-author, already published, missing content, happy path); `repost` guards (friends-only, own post, draft, idempotent, saves + notifies) — `ArgumentCaptor<Posts>` |
 | `service/impl/ReportServiceImplTest` | `ReportServiceImpl.create` auto-hide threshold: invalid type, below threshold no-hide, at threshold sets `status=hidden` + saves, already-hidden untouched, duplicate open report no-op, threshold `0` disables — `ReflectionTestUtils` for `@Value autoHideThreshold` |
 | `service/impl/NotificationServiceImplTest` | `listMinePaged` page/size clamping (negative page→0, size<1→20, size>50→50) via `ArgumentCaptor<Pageable>` |
 | `utils/EmailTemplateTest` | `EmailTemplate.otp` HTML + HTML-escaping |
@@ -157,13 +157,18 @@ uses `./mvnw install -DskipTests`. No frontend tests.
   individual `getPostById` calls) + "Xem thêm". The repost glyph is an inline Feather
   "repeat" SVG (not the 🔁 emoji) in `Post.vue` / `PostDetail.vue`.
 - Post visibility: `Posts.visibility` (`null`/`"public"` = everyone, `"friends"` = author +
-  author's friends). Every feed/search/profile query also carries `PostRepository.VISIBLE`
-  (`p.visibility IS NULL OR = 'public' OR p.userPost.users.userId IN :vids`) where `:vids` =
-  `followService.friendIdsOf(viewer) ∪ {viewer}` (or `["-"]` for a guest — non-empty for
-  the native `IN`). `getPostById` gates a `friends` post to author/friend-of-author; a
-  `friends` post cannot be reposted. Friends feed needs no `:vids` filter (already
-  friends-only). `CreatePostRequest`/`EditPostRequest` carry `visibility`; FE `CreatePost`/
-  `EditPost` have a "Ai xem được" select; `Post.vue`/`PostDetail.vue` show a "👥 Bạn bè" badge.
+  author's friends, `"private"` = author only). `PostServiceImpl.normVisibility` maps the
+  request value to one of those three. Every feed/search/profile/by-tag query carries
+  `PostRepository.VISIBLE` = `(p.visibility IS NULL OR = 'public' OR p.userPost.users.userId
+  = :me OR (p.visibility = 'friends' AND p.userPost.users.userId IN :vids))` where `:vids` =
+  `followService.friendIdsOf(viewer) ∪ {viewer}` and `:me` = the viewer id (both `"-"` for a
+  guest — non-empty for the native `IN` / `=`). The native `FEED_UNION` carries the same
+  clause with `:me`; `FRIEND_FEED_UNION` just adds `visibility <> 'private'` (private posts
+  never show in the friends feed). `getPostById` gates a `private` post to the author and a
+  `friends` post to author/friend-of-author; neither `friends` nor `private` can be reposted.
+  `CreatePostRequest`/`EditPostRequest` carry `visibility`; FE `CreatePost`/`EditPost` have a
+  "Ai xem được" select (🌐/👥/🔒); `Post.vue`/`PostDetail.vue` show a "👥 Bạn bè" / "🔒 Chỉ
+  mình tôi" badge.
 - Draft posts: `Posts.status` (`null`/`"published"` = live, `"draft"` = draft). Every feed
   and search query carries `PostRepository.PUBLISHED` (`p.status IS NULL OR p.status =
   'published'`) so drafts never leak; `countPublished()` backs `feedPageInfo`. `createPost`

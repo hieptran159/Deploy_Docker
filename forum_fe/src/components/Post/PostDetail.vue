@@ -40,6 +40,7 @@
                     <div class="text-sm muted mt-0.5">
                         {{ calculateTimeDifference(post?.postedAt) }} trước
                         <span v-if="post?.visibility === 'friends'" class="ml-1 px-1.5 py-0.5 rounded bg-gray-100 text-[11px] font-semibold">👥 Chỉ bạn bè</span>
+                        <span v-else-if="post?.visibility === 'private'" class="ml-1 px-1.5 py-0.5 rounded bg-gray-100 text-[11px] font-semibold">🔒 Chỉ mình tôi</span>
                     </div>
 
                     <div class="my-3 whitespace-pre-wrap">{{ post?.body }}</div>

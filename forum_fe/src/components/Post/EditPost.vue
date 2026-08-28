@@ -17,6 +17,7 @@
             <select v-model="data.visibility" class="text-sm border rounded-lg px-2 py-1 bg-[var(--surface)]">
                 <option value="public">🌐 Mọi người</option>
                 <option value="friends">👥 Chỉ bạn bè</option>
+                <option value="private">🔒 Chỉ mình tôi</option>
             </select>
         </div>
         <div class="flex justify-end">

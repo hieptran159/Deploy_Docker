@@ -1,6 +1,7 @@
 <template>
     <TheHeader />
     <router-view></router-view>
+    <TheFooter />
 
     <MDialog
         v-if="dlg.show"
@@ -37,6 +38,7 @@
 
 <script setup>
 import TheHeader from '@/components/layout/TheHeader.vue';
+import TheFooter from '@/components/layout/TheFooter.vue';
 import MDialog from './components/Dialog/MDialog.vue';
 import { provide, ref, onMounted, onBeforeUnmount } from 'vue';
 
