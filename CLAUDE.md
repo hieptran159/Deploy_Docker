@@ -88,6 +88,15 @@ uses `./mvnw install -DskipTests`. No frontend tests.
   under `/friend` (`request`/`accept`/`decline`/`cancel`/`{id}` delete = unfriend,
   `list/{id}`, `requests/incoming|outgoing`, `status/{id}`). `ChatService.addMember` only
   admits users who are already friends of the caller.
+- Blocking: `entity/Blocks` (table `blocks`, composite key `blocker_id`+`blocked_id`,
+  `ddl-auto`). `/friend/block/{id}` (POST) also deletes any `followers` rows both ways;
+  `/friend/block/{id}` (DELETE) unblock; `/friend/blocked` lists ids I blocked.
+  `friendStatus` returns `blocked_out` / `blocked_in` before the friend states.
+  `FollowService.isBlockedEither` guards `sendRequest` and `ChatServiceImpl.openDirectConversation`.
+  Feed + search filter out authors in `blockRepository.blockedIdsOf(me) ∪ blockerIdsOf(me)`
+  (`PostRepository.findFeedExcludingAuthors` / `countFeedExcludingAuthors` /
+  `searchByKeywordExcludingAuthors`, used only when the exclude set is non-empty — `NOT IN`
+  with an empty collection is avoided). Guests (no `me`) get no filtering.
 - Notifications: `entity/Notifications` (plain columns, no JPA relations; table
   auto-created by `ddl-auto=update`). `NotificationService.push(...)` is fire-and-forget
   and swallows its own errors so it never breaks the caller. `pushUnique` dedups on

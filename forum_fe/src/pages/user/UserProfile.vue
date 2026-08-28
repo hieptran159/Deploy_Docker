@@ -26,17 +26,29 @@
             </div>
 
             <div v-if="!isMe" class="flex flex-col gap-2 flex-none">
-                <DxButton type="success" icon="message" text="Nhắn tin" @click="messageUser" />
-
-                <DxButton v-if="fStatus === 'none'" type="default" icon="user" text="Kết bạn" @click="doSend" />
-                <DxButton v-else-if="fStatus === 'pending_out'" type="normal" stylingMode="outlined" text="Huỷ lời mời" @click="doCancel" />
-                <template v-else-if="fStatus === 'pending_in'">
-                    <DxButton type="default" text="Chấp nhận kết bạn" @click="doAccept" />
-                    <DxButton type="normal" stylingMode="outlined" text="Từ chối" @click="doDecline" />
+                <template v-if="fStatus === 'blocked_out'">
+                    <span class="text-xs muted">Bạn đã chặn người này</span>
+                    <DxButton type="normal" stylingMode="outlined" text="Bỏ chặn" @click="doUnblock" />
                 </template>
-                <DxButton v-else-if="fStatus === 'friends'" type="normal" stylingMode="outlined" icon="check" text="Bạn bè" @click="doUnfriend" />
+                <template v-else-if="fStatus === 'blocked_in'">
+                    <span class="text-xs muted">Không khả dụng</span>
+                </template>
+                <template v-else>
+                    <DxButton type="success" icon="message" text="Nhắn tin" @click="messageUser" />
 
-                <DxButton type="danger" stylingMode="text" icon="warning" text="Báo cáo" @click="report" />
+                    <DxButton v-if="fStatus === 'none'" type="default" icon="user" text="Kết bạn" @click="doSend" />
+                    <DxButton v-else-if="fStatus === 'pending_out'" type="normal" stylingMode="outlined" text="Huỷ lời mời" @click="doCancel" />
+                    <template v-else-if="fStatus === 'pending_in'">
+                        <DxButton type="default" text="Chấp nhận kết bạn" @click="doAccept" />
+                        <DxButton type="normal" stylingMode="outlined" text="Từ chối" @click="doDecline" />
+                    </template>
+                    <DxButton v-else-if="fStatus === 'friends'" type="normal" stylingMode="outlined" icon="check" text="Bạn bè" @click="doUnfriend" />
+
+                    <div class="flex gap-1">
+                        <DxButton type="danger" stylingMode="text" icon="warning" text="Báo cáo" @click="report" />
+                        <DxButton type="danger" stylingMode="text" icon="clearsquare" text="Chặn" @click="doBlock" />
+                    </div>
+                </template>
             </div>
             </div>
         </div>
@@ -77,6 +89,7 @@ import { getPostById } from '@/apis/post';
 import {
     friendStatus, getFriends, sendFriendRequest, cancelFriendRequest,
     acceptFriendRequest, declineFriendRequest, unfriend,
+    blockUser, unblockUser,
 } from '@/apis/friend';
 import { openDirectConversation } from '@/apis/chat';
 import { LOCALKEYS, getItemLocal } from '@/storages/localStorage';
@@ -161,6 +174,27 @@ const doUnfriend = () => {
             showDialog?.('Thông báo', e?.description || 'Huỷ kết bạn thất bại');
         }
     }, { danger: true, confirmText: 'Huỷ kết bạn' });
+};
+
+const doBlock = () => {
+    openConfirm?.('Chặn người dùng', `Chặn ${user.value?.fullName || 'người này'}? Hai người sẽ không thấy bài của nhau, không nhắn tin hay kết bạn được. Quan hệ bạn bè hiện tại (nếu có) sẽ bị huỷ.`, async () => {
+        try {
+            await blockUser(userId.value);
+            toast?.('Đã chặn');
+            await refreshStatus();
+        } catch (e) {
+            showDialog?.('Thông báo', e?.description || 'Chặn thất bại');
+        }
+    }, { danger: true, confirmText: 'Chặn' });
+};
+const doUnblock = async () => {
+    try {
+        await unblockUser(userId.value);
+        toast?.('Đã bỏ chặn');
+        await refreshStatus();
+    } catch (e) {
+        showDialog?.('Thông báo', e?.description || 'Bỏ chặn thất bại');
+    }
 };
 
 const report = () => {

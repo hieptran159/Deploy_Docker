@@ -1,9 +1,12 @@
 package com.didan.social.service.impl;
 
 import com.didan.social.dto.FollowDTO;
+import com.didan.social.entity.Blocks;
 import com.didan.social.entity.Followers;
 import com.didan.social.entity.Users;
+import com.didan.social.entity.keys.BlockId;
 import com.didan.social.entity.keys.FollowerId;
+import com.didan.social.repository.BlockRepository;
 import com.didan.social.repository.FollowRepository;
 import com.didan.social.repository.UserRepository;
 import com.didan.social.service.AuthorizePathService;
@@ -26,16 +29,19 @@ public class FollowServiceImpl implements FollowService {
     private final AuthorizePathService authorizePathService;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
+    private final BlockRepository blockRepository;
 
     @Autowired
     public FollowServiceImpl(FollowRepository followRepository,
                              AuthorizePathService authorizePathService,
                              UserRepository userRepository,
-                             NotificationService notificationService) {
+                             NotificationService notificationService,
+                             BlockRepository blockRepository) {
         this.followRepository = followRepository;
         this.authorizePathService = authorizePathService;
         this.userRepository = userRepository;
         this.notificationService = notificationService;
+        this.blockRepository = blockRepository;
     }
 
     private boolean isAccepted(Followers f) {
@@ -76,6 +82,8 @@ public class FollowServiceImpl implements FollowService {
     public String friendStatus(String userId) throws Exception {
         String me = authorizePathService.getUserIdAuthoried();
         if (me.equals(userId)) return "self";
+        if (blockRepository.existsByBlockId_BlockerIdAndBlockId_BlockedId(me, userId)) return "blocked_out";
+        if (blockRepository.existsByBlockId_BlockerIdAndBlockId_BlockedId(userId, me)) return "blocked_in";
         Followers out = row(me, userId);
         Followers in = row(userId, me);
         if (isAccepted(out) || isAccepted(in)) return "friends";
@@ -88,6 +96,7 @@ public class FollowServiceImpl implements FollowService {
     public boolean sendRequest(String userId) throws Exception {
         String me = authorizePathService.getUserIdAuthoried();
         if (me.equals(userId)) throw new Exception("Không thể tự kết bạn với chính mình");
+        if (isBlockedEither(me, userId)) throw new Exception("Không thể gửi lời mời tới người này");
         Users other = requireUser(userId, "The user isnt existed");
         Users meUser = userRepository.findFirstByUserId(me);
 
@@ -186,5 +195,57 @@ public class FollowServiceImpl implements FollowService {
             if (f.getUsers2() != null) ids.add(f.getUsers2().getUserId());
         }
         return new FollowDTO(ids.size(), ids);
+    }
+
+    // ----- Chặn người dùng -----
+
+    @Override
+    public boolean blockUser(String userId) throws Exception {
+        String me = authorizePathService.getUserIdAuthoried();
+        if (me.equals(userId)) throw new Exception("Không thể tự chặn chính mình");
+        requireUser(userId, "The user isnt existed");
+        if (blockRepository.existsByBlockId_BlockerIdAndBlockId_BlockedId(me, userId)) {
+            return true; // đã chặn rồi -> coi như thành công
+        }
+        // Huỷ mọi quan hệ bạn bè / lời mời 2 chiều
+        Followers out = row(me, userId);
+        Followers in = row(userId, me);
+        if (out != null) followRepository.delete(out);
+        if (in != null) followRepository.delete(in);
+        blockRepository.save(new Blocks(new BlockId(me, userId), new Date()));
+        return true;
+    }
+
+    @Override
+    public boolean unblockUser(String userId) throws Exception {
+        String me = authorizePathService.getUserIdAuthoried();
+        if (!blockRepository.existsByBlockId_BlockerIdAndBlockId_BlockedId(me, userId)) {
+            throw new Exception("Bạn chưa chặn người này");
+        }
+        blockRepository.deleteById(new BlockId(me, userId));
+        return true;
+    }
+
+    @Override
+    public FollowDTO getBlocked() throws Exception {
+        String me = authorizePathService.getUserIdAuthoried();
+        List<String> ids = blockRepository.blockedIdsOf(me);
+        return new FollowDTO(ids.size(), ids);
+    }
+
+    @Override
+    public java.util.Set<String> blockRelatedIds(String userId) {
+        java.util.Set<String> ids = new java.util.HashSet<>();
+        if (userId == null) return ids;
+        ids.addAll(blockRepository.blockedIdsOf(userId));
+        ids.addAll(blockRepository.blockerIdsOf(userId));
+        return ids;
+    }
+
+    @Override
+    public boolean isBlockedEither(String a, String b) {
+        if (a == null || b == null) return false;
+        return blockRepository.existsByBlockId_BlockerIdAndBlockId_BlockedId(a, b)
+                || blockRepository.existsByBlockId_BlockerIdAndBlockId_BlockedId(b, a);
     }
 }

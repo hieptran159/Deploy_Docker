@@ -96,4 +96,22 @@ public class FollowController {
     public ResponseEntity<?> unfriend(@PathVariable String userId) {
         return run(() -> followService.unfriend(userId), "Đã huỷ kết bạn");
     }
+
+    @Operation(summary = "Chặn người dùng (huỷ luôn quan hệ bạn/lời mời)", security = @SecurityRequirement(name = "bearerAuth"))
+    @PostMapping("/block/{userId}")
+    public ResponseEntity<?> block(@PathVariable String userId) {
+        return run(() -> followService.blockUser(userId), "Đã chặn người dùng");
+    }
+
+    @Operation(summary = "Bỏ chặn người dùng", security = @SecurityRequirement(name = "bearerAuth"))
+    @DeleteMapping("/block/{userId}")
+    public ResponseEntity<?> unblock(@PathVariable String userId) {
+        return run(() -> followService.unblockUser(userId), "Đã bỏ chặn");
+    }
+
+    @Operation(summary = "Danh sách người tôi đã chặn", security = @SecurityRequirement(name = "bearerAuth"))
+    @GetMapping("/blocked")
+    public ResponseEntity<?> blocked() {
+        return run(() -> followService.getBlocked(), "OK");
+    }
 }

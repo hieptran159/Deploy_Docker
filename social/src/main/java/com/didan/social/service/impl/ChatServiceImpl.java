@@ -93,6 +93,9 @@ public class ChatServiceImpl implements ChatService {
             logger.error("User is not found");
             throw new Exception("User is not found");
         }
+        if (followService.isBlockedEither(myId, otherUserId)) {
+            throw new Exception("Không thể nhắn tin với người này");
+        }
         // Tên tất định cho cặp người dùng -> cả hai phía luôn ra cùng một phòng
         String first = myId.compareTo(otherUserId) <= 0 ? myId : otherUserId;
         String second = myId.compareTo(otherUserId) <= 0 ? otherUserId : myId;

@@ -36,6 +36,9 @@
                     <DxButton type="default" text="Chấp nhận" @click="() => accept(item)" />
                     <DxButton type="normal" stylingMode="outlined" text="Từ chối" @click="() => decline(item)" />
                 </template>
+                <template v-else-if="tab === 'blocked'">
+                    <DxButton type="normal" stylingMode="outlined" text="Bỏ chặn" @click="() => doUnblock(item)" />
+                </template>
                 <template v-else>
                     <span class="text-xs muted">Đang chờ…</span>
                     <DxButton type="normal" stylingMode="outlined" text="Huỷ lời mời" @click="() => cancel(item)" />
@@ -49,6 +52,7 @@
 import {
     getFriends, getIncomingRequests, getOutgoingRequests,
     acceptFriendRequest, declineFriendRequest, cancelFriendRequest, unfriend,
+    getBlockedUsers, unblockUser,
 } from '@/apis/friend';
 import { getUserInfo } from "@/apis/user";
 import { markReadByType } from '@/apis/notification';
@@ -74,6 +78,7 @@ const allTabs = [
     { key: 'friends', label: 'Bạn bè' },
     { key: 'incoming', label: 'Lời mời kết bạn' },
     { key: 'outgoing', label: 'Đã gửi' },
+    { key: 'blocked', label: 'Đã chặn' },
 ];
 // xem hồ sơ người khác thì chỉ có tab "Bạn bè"
 const tabs = computed(() => (isMe.value ? allTabs : [allTabs[0]]));
@@ -89,6 +94,7 @@ const emptyText = computed(() => ({
     friends: 'Chưa có bạn bè',
     incoming: 'Không có lời mời nào',
     outgoing: 'Chưa gửi lời mời nào',
+    blocked: 'Chưa chặn ai',
 }[tab.value]));
 
 const setTab = (t) => {
@@ -132,6 +138,8 @@ const load = async () => {
             ids = (await getFriends(targetUser.value))?.data?.data?.userId || [];
         } else if (tab.value === 'incoming') {
             ids = (await getIncomingRequests())?.data?.data?.userId || [];
+        } else if (tab.value === 'blocked') {
+            ids = (await getBlockedUsers())?.data?.data?.userId || [];
         } else {
             ids = (await getOutgoingRequests())?.data?.data?.userId || [];
         }
@@ -186,6 +194,16 @@ const cancel = async (item) => {
         showDialog?.('Thông báo', e?.description || 'Huỷ thất bại');
     }
 }
+const doUnblock = async (item) => {
+    try {
+        await unblockUser(item.id);
+        list.value = list.value.filter((u) => u.id !== item.id);
+        toast?.('Đã bỏ chặn');
+    } catch (e) {
+        showDialog?.('Thông báo', e?.description || 'Bỏ chặn thất bại');
+    }
+}
+
 const confirmUnfriend = (item) => {
     openConfirm?.('Huỷ kết bạn', `Huỷ kết bạn với ${item.name}?`, async () => {
         try {

@@ -12,3 +12,9 @@ export const acceptFriendRequest = (id) => authApi.post(`/friend/accept/${id}`);
 export const declineFriendRequest = (id) => authApi.delete(`/friend/decline/${id}`);
 export const cancelFriendRequest = (id) => authApi.delete(`/friend/cancel/${id}`);
 export const unfriend = (id) => authApi.delete(`/friend/${id}`);
+
+// Chặn người dùng
+export const blockUser = (id) => authApi.post(`/friend/block/${id}`);
+export const unblockUser = (id) => authApi.delete(`/friend/block/${id}`);
+// { quantity, userId: [...] }
+export const getBlockedUsers = () => authApi.get('/friend/blocked');

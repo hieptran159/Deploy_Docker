@@ -18,6 +18,13 @@ public interface PostRepository extends JpaRepository<Posts, String> {
     @Query("SELECT p FROM posts p ORDER BY p.postedAt DESC, p.postId ASC")
     List<Posts> findAllPostByCommentAtOrPostAt(Pageable pageable);
 
+    // Feed loại trừ bài của các tác giả bị chặn (2 chiều). Gọi khi tập loại trừ khác rỗng.
+    @Query("SELECT p FROM posts p WHERE p.userPost.users.userId NOT IN :ex ORDER BY p.postedAt DESC, p.postId ASC")
+    List<Posts> findFeedExcludingAuthors(@org.springframework.data.repository.query.Param("ex") java.util.Collection<String> ex, Pageable pageable);
+
+    @Query("SELECT COUNT(p) FROM posts p WHERE p.userPost.users.userId NOT IN :ex")
+    long countFeedExcludingAuthors(@org.springframework.data.repository.query.Param("ex") java.util.Collection<String> ex);
+
     // Join all the tables to get the post, user, likes, comments and sub-comments
     @EntityGraph(attributePaths = {"userPost", "postLikes", "userComments", "userComments.comments"}, type = EntityGraph.EntityGraphType.FETCH)
     Posts findFirstByPostId(String postId);
@@ -28,5 +35,12 @@ public interface PostRepository extends JpaRepository<Posts, String> {
     @Query("SELECT p FROM posts p WHERE lower(p.title) LIKE lower(concat('%', :q, '%')) "
          + "OR lower(p.body) LIKE lower(concat('%', :q, '%')) ORDER BY p.postedAt DESC, p.postId ASC")
     List<Posts> searchByKeyword(@org.springframework.data.repository.query.Param("q") String q, Pageable pageable);
+
+    @Query("SELECT p FROM posts p WHERE (lower(p.title) LIKE lower(concat('%', :q, '%')) "
+         + "OR lower(p.body) LIKE lower(concat('%', :q, '%'))) AND p.userPost.users.userId NOT IN :ex "
+         + "ORDER BY p.postedAt DESC, p.postId ASC")
+    List<Posts> searchByKeywordExcludingAuthors(@org.springframework.data.repository.query.Param("q") String q,
+                                                @org.springframework.data.repository.query.Param("ex") java.util.Collection<String> ex,
+                                                Pageable pageable);
 
 }

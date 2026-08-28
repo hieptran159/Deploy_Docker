@@ -36,6 +36,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
     private final CommentRepository commentRepository;
     private final AuthorizePathService authorizePathService;
     private final com.didan.social.service.NotificationService notificationService;
+    private final com.didan.social.repository.BlockRepository blockRepository;
     @Autowired
     public PostServiceImpl(PostRepository postRepository,
                        UserPostRepository userPostRepository,
@@ -44,7 +45,8 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
                        PostLikeRepository postLikeRepository,
                        CommentRepository commentRepository,
                        AuthorizePathService authorizePathService,
-                       com.didan.social.service.NotificationService notificationService
+                       com.didan.social.service.NotificationService notificationService,
+                       com.didan.social.repository.BlockRepository blockRepository
     ){
         this.postRepository = postRepository;
         this.userPostRepository = userPostRepository;
@@ -54,6 +56,15 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         this.commentRepository =commentRepository;
         this.authorizePathService = authorizePathService;
         this.notificationService = notificationService;
+        this.blockRepository = blockRepository;
+    }
+
+    // Tập id có quan hệ chặn với tôi (tôi chặn họ HOẶC họ chặn tôi) -> ẩn bài của họ khỏi feed
+    private java.util.Set<String> blockRelatedIds(String meId) {
+        if (meId == null) return java.util.Collections.emptySet();
+        java.util.Set<String> s = new java.util.HashSet<>(blockRepository.blockedIdsOf(meId));
+        s.addAll(blockRepository.blockerIdsOf(meId));
+        return s;
     }
     @Transactional
     @Override
@@ -97,26 +108,33 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
             return Collections.emptyList();
         }
         String meId = currentUserOrNull();
-        return posts.stream().map(post -> toListDTO(post, meId)).collect(Collectors.toList());
+        java.util.Set<String> ex = blockRelatedIds(meId);
+        return posts.stream()
+                .filter(p -> ex.isEmpty() || !ex.contains(p.getUserPost().getUsers().getUserId()))
+                .map(post -> toListDTO(post, meId)).collect(Collectors.toList());
     }
 
     @Override
     public List<PostDTO> getAllPostsByPage(int index) throws Exception {
         if (index < 1) index = 1;
         PageRequest pageRequest = PageRequest.of(index - 1, 10);
-        List<Posts> posts = postRepository.findAllPostByCommentAtOrPostAt(pageRequest);
+        String meId = currentUserOrNull();
+        java.util.Set<String> ex = blockRelatedIds(meId);
+        List<Posts> posts = ex.isEmpty()
+                ? postRepository.findAllPostByCommentAtOrPostAt(pageRequest)
+                : postRepository.findFeedExcludingAuthors(ex, pageRequest);
         if (posts == null || posts.isEmpty()) {
             logger.info("No posts are here");
             return Collections.emptyList();
         }
-        String meId = currentUserOrNull();
         return posts.stream().map(post -> toListDTO(post, meId)).collect(Collectors.toList());
     }
 
     @Override
     public java.util.Map<String, Object> feedPageInfo() throws Exception {
         int pageSize = 10;
-        long total = postRepository.count();
+        java.util.Set<String> ex = blockRelatedIds(currentUserOrNull());
+        long total = ex.isEmpty() ? postRepository.count() : postRepository.countFeedExcludingAuthors(ex);
         int totalPages = (int) Math.max(1, Math.ceil(total / (double) pageSize));
         java.util.Map<String, Object> m = new java.util.HashMap<>();
         m.put("total", total);
@@ -143,12 +161,16 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         if (page < 0) page = 0;
         if (size < 1) size = 10;
         if (size > 50) size = 50;
-        List<Posts> posts = postRepository.searchByKeyword(searchName.trim(), PageRequest.of(page, size));
+        String meId = currentUserOrNull();
+        java.util.Set<String> ex = blockRelatedIds(meId);
+        PageRequest pr = PageRequest.of(page, size);
+        List<Posts> posts = ex.isEmpty()
+                ? postRepository.searchByKeyword(searchName.trim(), pr)
+                : postRepository.searchByKeywordExcludingAuthors(searchName.trim(), ex, pr);
         if (posts.isEmpty()) {
             logger.info("No posts are here");
             return Collections.emptyList();
         }
-        String meId = currentUserOrNull();
         return posts.stream().map(post -> toListDTO(post, meId)).collect(Collectors.toList());
     }
 

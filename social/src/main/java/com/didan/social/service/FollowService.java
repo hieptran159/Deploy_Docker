@@ -22,4 +22,12 @@ public interface FollowService {
     boolean areFriends(String a, String b);
     // Danh sách id bạn bè đã kết bạn của 1 người (không cần ngữ cảnh đăng nhập)
     java.util.List<String> friendIdsOf(String userId);
+
+    // ----- Chặn người dùng -----
+    boolean blockUser(String userId) throws Exception;   // chặn (đồng thời huỷ mọi quan hệ bạn/lời mời 2 chiều)
+    boolean unblockUser(String userId) throws Exception;  // bỏ chặn
+    FollowDTO getBlocked() throws Exception;              // danh sách id tôi đã chặn
+    // Tập id có quan hệ chặn với userId (tôi chặn họ HOẶC họ chặn tôi) - không cần ngữ cảnh đăng nhập
+    java.util.Set<String> blockRelatedIds(String userId);
+    boolean isBlockedEither(String a, String b);
 }
