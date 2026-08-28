@@ -44,6 +44,15 @@
 
                     <div class="my-3 whitespace-pre-wrap">{{ post?.body }}</div>
 
+                    <div v-if="post?.hashtags?.length" class="flex flex-wrap gap-1.5 mb-3">
+                        <button
+                            v-for="t in post.hashtags"
+                            :key="t"
+                            class="text-xs font-semibold text-[var(--brand)] bg-[var(--brand-soft)] rounded-full px-2 py-0.5 hover:underline"
+                            @click="route.push('/tag/' + encodeURIComponent(t))"
+                        >#{{ t }}</button>
+                    </div>
+
                     <img :src="linkPostImg" v-if="post?.postImg" class="max-w-md rounded-xl border cursor-zoom-in" @click="openLightbox(linkPostImg)" />
 
                     <div class="row-actions mt-3 items-center">

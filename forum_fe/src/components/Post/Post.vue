@@ -69,6 +69,14 @@
             </span>
         </div>
     </div>
+    <div v-if="hashtags.length" class="flex flex-wrap gap-1.5 pb-2 pl-1 -mt-1">
+        <button
+            v-for="t in hashtags"
+            :key="t"
+            class="text-xs font-semibold text-[var(--brand)] bg-[var(--brand-soft)] rounded-full px-2 py-0.5 hover:underline"
+            @click.stop="goTag(t)"
+        >#{{ t }}</button>
+    </div>
   </div>
 </template>
 
@@ -114,6 +122,9 @@ const excerpt = computed(() => {
     const b = (post.value?.body || '').trim();
     return b.length > 140 ? b.slice(0, 140) + '…' : b;
 });
+
+const hashtags = computed(() => post.value?.hashtags || []);
+const goTag = (t) => route.push('/tag/' + encodeURIComponent(t));
 
 const viewDetail = () => {
     route.push(`/post/${post?.value?.postId}`);

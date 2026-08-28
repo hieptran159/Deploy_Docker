@@ -27,9 +27,13 @@ public class PostDTO {
     private String repostedById;
     private String repostedAt;
     private String repostNote;
+    private List<String> hashtags = new java.util.ArrayList<>();
 
     public PostDTO() {
     }
+
+    public List<String> getHashtags() { return hashtags; }
+    public void setHashtags(List<String> hashtags) { this.hashtags = hashtags; }
 
     public long getRepostCount() { return repostCount; }
     public void setRepostCount(long repostCount) { this.repostCount = repostCount; }

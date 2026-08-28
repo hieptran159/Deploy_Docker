@@ -31,6 +31,18 @@
             Bạn đang xem với tư cách khách. Đăng nhập để viết bài, bình luận và tương tác.
         </div>
 
+        <div v-if="trendingTags.length" class="card">
+            <div class="section-title">Hashtag nổi bật</div>
+            <div class="flex flex-wrap gap-2">
+                <button
+                    v-for="t in trendingTags"
+                    :key="t.tag"
+                    class="text-sm font-semibold text-[var(--brand)] bg-[var(--brand-soft)] rounded-full px-3 py-1 hover:underline"
+                    @click="router.push('/tag/' + encodeURIComponent(t.tag))"
+                >#{{ t.tag }} <span class="muted font-normal">{{ t.count }}</span></button>
+            </div>
+        </div>
+
         <div class="card">
             <div v-if="isLogin" class="flex gap-1 mb-3">
                 <button
@@ -114,7 +126,7 @@
 <script setup>
 import Post from '../../components/Post/Post.vue';
 import { DxButton, DxPopup, DxTextBox } from 'devextreme-vue';
-import { getListPostApi, searchPost, getFeedPages, getFriendsFeed, getFriendsFeedPages } from '@/apis/post';
+import { getListPostApi, searchPost, getFeedPages, getFriendsFeed, getFriendsFeedPages, getTrendingHashtags } from '@/apis/post';
 import { computed, inject, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import BaseAvatar from '@/components/BaseAvatar.vue';
@@ -130,6 +142,13 @@ const gotoPage = ref(currentPage.value);
 const ishowCreatePost = ref(false);
 const loading = ref(false);
 const feedMode = ref(isLogin.value ? 'all' : 'all'); // 'all' | 'friends'
+const trendingTags = ref([]);
+
+const loadTrending = async () => {
+    try {
+        trendingTags.value = (await getTrendingHashtags(12))?.data?.data || [];
+    } catch (e) { trendingTags.value = []; }
+}
 
 const setFeedMode = (m) => {
     if (feedMode.value === m) return;
@@ -241,5 +260,5 @@ const handleSearch = () => {
 
 const loadMoreSearch = () => runSearch(true);
 
-onMounted(() => { getListPost(); loadPageInfo(); });
+onMounted(() => { getListPost(); loadPageInfo(); loadTrending(); });
 </script>

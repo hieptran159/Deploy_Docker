@@ -67,6 +67,15 @@ const routers = [
 	},
 
 	{
+		// Xem bài theo hashtag — khách cũng xem được (như trang chủ)
+		path: '/tag/:tag',
+		component: () =>
+			import(
+				"@/pages/tag/TagPage.vue"
+			),
+	},
+
+	{
 		path: '/follow',
 		component: () =>
 			import(

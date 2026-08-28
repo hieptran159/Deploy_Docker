@@ -292,6 +292,40 @@ public class PostController {
         }
     }
 
+    @Operation(summary = "Bài viết theo hashtag (mới nhất trước, phân trang). Khách xem được.")
+    @GetMapping("/by-tag/{tag}")
+    public ResponseEntity<?> postsByTag(@PathVariable("tag") String tag,
+                                        @RequestParam(defaultValue = "0") int page,
+                                        @RequestParam(defaultValue = "10") int size){
+        ResponseData payload = new ResponseData();
+        try {
+            payload.setData(postService.getPostsByTag(tag, page, size));
+            payload.setDescription("OK");
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e){
+            payload.setSuccess(false);
+            payload.setStatusCode(500);
+            payload.setDescription(e.getMessage());
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
+    @Operation(summary = "Hashtag phổ biến ([{tag,count}]). Khách xem được.")
+    @GetMapping("/hashtags/trending")
+    public ResponseEntity<?> trendingHashtags(@RequestParam(defaultValue = "10") int limit){
+        ResponseData payload = new ResponseData();
+        try {
+            payload.setData(postService.getTrendingHashtags(limit));
+            payload.setDescription("OK");
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e){
+            payload.setSuccess(false);
+            payload.setStatusCode(500);
+            payload.setDescription(e.getMessage());
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
     @Operation(summary = "Danh sách bài mà một người dùng đã chia sẻ", security = @SecurityRequirement(name = "bearerAuth"))
     @GetMapping("/reposts/{user_id}")
     public ResponseEntity<?> repostsOf(@PathVariable("user_id") String userId,

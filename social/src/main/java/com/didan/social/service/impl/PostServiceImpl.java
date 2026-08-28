@@ -40,6 +40,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
     private final com.didan.social.repository.BlockRepository blockRepository;
     private final com.didan.social.repository.RepostRepository repostRepository;
     private final com.didan.social.service.FollowService followService;
+    private final com.didan.social.repository.PostHashtagRepository postHashtagRepository;
     @Autowired
     public PostServiceImpl(PostRepository postRepository,
                        UserPostRepository userPostRepository,
@@ -51,7 +52,8 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
                        com.didan.social.service.NotificationService notificationService,
                        com.didan.social.repository.BlockRepository blockRepository,
                        com.didan.social.repository.RepostRepository repostRepository,
-                       com.didan.social.service.FollowService followService
+                       com.didan.social.service.FollowService followService,
+                       com.didan.social.repository.PostHashtagRepository postHashtagRepository
     ){
         this.postRepository = postRepository;
         this.userPostRepository = userPostRepository;
@@ -64,6 +66,37 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         this.blockRepository = blockRepository;
         this.repostRepository = repostRepository;
         this.followService = followService;
+        this.postHashtagRepository = postHashtagRepository;
+    }
+
+    // Đồng bộ hashtag của 1 bài: xóa hết tag cũ, chèn lại từ tiêu đề + nội dung hiện tại.
+    private void syncHashtags(String postId, String title, String body) {
+        try {
+            postHashtagRepository.deleteByPostHashtagId_PostId(postId);
+            java.util.Set<String> tags = com.didan.social.utils.HashtagUtils.extract(title, body);
+            if (tags.isEmpty()) return;
+            java.util.List<com.didan.social.entity.PostHashtags> rows = new ArrayList<>();
+            for (String t : tags) {
+                rows.add(new com.didan.social.entity.PostHashtags(
+                        new com.didan.social.entity.keys.PostHashtagId(postId, t)));
+            }
+            postHashtagRepository.saveAll(rows);
+        } catch (Exception e) {
+            logger.error("syncHashtags lỗi cho bài " + postId + ": " + e.getMessage());
+        }
+    }
+
+    // Điền danh sách hashtag cho nhiều DTO bằng 1 truy vấn gộp (không N+1)
+    private void applyHashtags(List<PostDTO> dtos) {
+        if (dtos == null || dtos.isEmpty()) return;
+        java.util.List<String> pids = dtos.stream().map(PostDTO::getPostId).distinct().collect(Collectors.toList());
+        java.util.Map<String, java.util.List<String>> byPost = new java.util.HashMap<>();
+        for (Object[] row : postHashtagRepository.findTagsForPosts(pids)) {
+            byPost.computeIfAbsent((String) row[0], k -> new ArrayList<>()).add((String) row[1]);
+        }
+        for (PostDTO d : dtos) {
+            d.setHashtags(byPost.getOrDefault(d.getPostId(), java.util.Collections.emptyList()));
+        }
     }
 
     // Điền repostCount + reposted cho danh sách DTO bằng 2 truy vấn gộp (không N+1)
@@ -131,6 +164,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         userPost.setUserPostId(new UserPostId(postId.toString(), user.getUserId()));
         postRepository.save(post);
         userPostRepository.save(userPost);
+        syncHashtags(postId.toString(), post.getTitle(), post.getBody());
         return postId.toString();
     }
 
@@ -231,6 +265,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
             out.add(d);
         }
         applyRepostInfo(out, meId);
+        applyHashtags(out);
         return out;
     }
 
@@ -301,6 +336,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         }
         PostDTO dto = (PostDTO) convertToDTO(post);
         applyRepostInfo(java.util.Collections.singletonList(dto), currentUserOrNull());
+        applyHashtags(java.util.Collections.singletonList(dto));
         return dto;
     }
 
@@ -308,7 +344,9 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
     public List<PostDTO> getMyDrafts() throws Exception {
         String meId = authorizePathService.getUserIdAuthoried();
         List<Posts> drafts = postRepository.findDraftsOfAuthor(meId);
-        return drafts.stream().map(p -> toListDTO(p, meId)).collect(Collectors.toList());
+        List<PostDTO> out = drafts.stream().map(p -> toListDTO(p, meId)).collect(Collectors.toList());
+        applyHashtags(out);
+        return out;
     }
 
     @Override
@@ -321,6 +359,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         List<Posts> posts = postRepository.findPublishedByAuthor(userId, vids, PageRequest.of(page, size));
         List<PostDTO> items = posts.stream().map(p -> toListDTO(p, meId)).collect(Collectors.toList());
         applyRepostInfo(items, meId);
+        applyHashtags(items);
         long total = postRepository.countPublishedByAuthor(userId, vids);
         java.util.Map<String, Object> m = new java.util.HashMap<>();
         m.put("items", items);
@@ -328,6 +367,48 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         m.put("page", page);
         m.put("totalPages", (int) Math.max(1, Math.ceil(total / (double) size)));
         return m;
+    }
+
+    @Override
+    public java.util.Map<String, Object> getPostsByTag(String tag, int page, int size) throws Exception {
+        if (page < 0) page = 0;
+        if (size < 1) size = 10;
+        if (size > 50) size = 50;
+        String norm = com.didan.social.utils.HashtagUtils.normalize(tag);
+        java.util.Map<String, Object> m = new java.util.HashMap<>();
+        m.put("tag", norm);
+        m.put("page", page);
+        if (norm == null) {
+            m.put("items", java.util.Collections.emptyList());
+            m.put("total", 0L);
+            m.put("totalPages", 1);
+            return m;
+        }
+        String meId = currentUserOrNull();
+        java.util.Collection<String> vids = visibleAuthorIds(meId);
+        List<Posts> posts = postHashtagRepository.findPostsByTag(norm, vids, PageRequest.of(page, size));
+        List<PostDTO> items = posts.stream().map(p -> toListDTO(p, meId)).collect(Collectors.toList());
+        applyRepostInfo(items, meId);
+        applyHashtags(items);
+        long total = postHashtagRepository.countPostsByTag(norm, vids);
+        m.put("items", items);
+        m.put("total", total);
+        m.put("totalPages", (int) Math.max(1, Math.ceil(total / (double) size)));
+        return m;
+    }
+
+    @Override
+    public java.util.List<java.util.Map<String, Object>> getTrendingHashtags(int limit) throws Exception {
+        if (limit < 1) limit = 10;
+        if (limit > 50) limit = 50;
+        java.util.List<java.util.Map<String, Object>> out = new ArrayList<>();
+        for (Object[] row : postHashtagRepository.trending(PageRequest.of(0, limit))) {
+            java.util.Map<String, Object> item = new java.util.HashMap<>();
+            item.put("tag", row[0]);
+            item.put("count", ((Number) row[1]).longValue());
+            out.add(item);
+        }
+        return out;
     }
 
     @Override
@@ -358,6 +439,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
                 out.add(d);
             }
             applyRepostInfo(out, meId);
+            applyHashtags(out);
         }
         long total = repostRepository.countByRepostId_UserId(userId);
         java.util.Map<String, Object> m = new java.util.HashMap<>();
@@ -445,6 +527,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         }
         List<PostDTO> out = posts.stream().map(post -> toListDTO(post, meId)).collect(Collectors.toList());
         applyRepostInfo(out, meId);
+        applyHashtags(out);
         return out;
     }
 
@@ -534,6 +617,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
             post.setPostImg("post/"+fileName);
         }
         postRepository.save(post);
+        syncHashtags(post.getPostId(), post.getTitle(), post.getBody());
         return (PostDTO) convertToDTO(post);
     }
 
@@ -555,6 +639,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
                 logger.info("There is not post to delete");
                 throw new Exception("There is not post to delete");
             }
+            postHashtagRepository.deleteByPostHashtagId_PostId(postId);
             postRepository.delete(post);
             if(StringUtils.hasText(post.getPostImg())){
                 fileUploadsService.deleteFile(post.getPostImg());

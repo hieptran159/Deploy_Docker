@@ -36,6 +36,12 @@ public interface PostService {
     boolean unrepost(String postId) throws Exception;
     // Danh sách bài mà userId đã chia sẻ (mới nhất trước), phân trang; kèm total/totalPages
     java.util.Map<String, Object> getRepostsOf(String userId, int page, int size) throws Exception;
+
+    // Bài theo hashtag (mới nhất trước), phân trang; kèm total/totalPages/tag
+    java.util.Map<String, Object> getPostsByTag(String tag, int page, int size) throws Exception;
+
+    // Hashtag phổ biến: [{tag, count}], nhiều nhất trước
+    java.util.List<java.util.Map<String, Object>> getTrendingHashtags(int limit) throws Exception;
     // Lịch sử bài đã đăng của userId (mới nhất trước), phân trang; kèm total/totalPages
     java.util.Map<String, Object> getPostsByUser(String userId, int page, int size) throws Exception;
 

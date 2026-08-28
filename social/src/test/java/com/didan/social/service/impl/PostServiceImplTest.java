@@ -36,6 +36,7 @@ class PostServiceImplTest {
     @Mock BlockRepository blockRepository;
     @Mock RepostRepository repostRepository;
     @Mock FollowService followService;
+    @Mock PostHashtagRepository postHashtagRepository;
 
     PostServiceImpl svc;
     static final String ME = "me-1";
@@ -45,7 +46,7 @@ class PostServiceImplTest {
     void setUp() throws Exception {
         svc = new PostServiceImpl(postRepository, userPostRepository, fileUploadsService, userRepository,
                 postLikeRepository, commentRepository, authorizePathService, notificationService,
-                blockRepository, repostRepository, followService);
+                blockRepository, repostRepository, followService, postHashtagRepository);
         when(authorizePathService.getUserIdAuthoried()).thenReturn(ME);
         Users me = new Users(); me.setUserId(ME); me.setFullName("Me");
         when(userRepository.findFirstByUserId(ME)).thenReturn(me);
