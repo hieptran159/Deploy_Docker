@@ -179,7 +179,7 @@ const goMyProfile = () => {
 
 const doLogout = async () => {
     try { await logoutApi(); } catch (e) { console.log(e); }
-    [LOCALKEYS.ACCESS_TOKEN, LOCALKEYS.USER_ID, LOCALKEYS.LINK_AVT, LOCALKEYS.USER_NAME, LOCALKEYS.IS_ADMIN]
+    [LOCALKEYS.ACCESS_TOKEN, LOCALKEYS.REFRESH_TOKEN, LOCALKEYS.USER_ID, LOCALKEYS.LINK_AVT, LOCALKEYS.USER_NAME, LOCALKEYS.IS_ADMIN]
         .forEach(delItemLocal);
     isAdmin.value = false;
     stopNotifPoll();

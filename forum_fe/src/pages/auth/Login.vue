@@ -52,6 +52,7 @@ const loginHandler = async() => {
         const data = await login(formData.value);
         const d = data.data.data;
         setItemLocal(LOCALKEYS.ACCESS_TOKEN, d.accessToken);
+        if (d.refreshToken) setItemLocal(LOCALKEYS.REFRESH_TOKEN, d.refreshToken);
         setItemLocal(LOCALKEYS.USER_ID, d.userId);
         setItemLocal(LOCALKEYS.IS_ADMIN, String(d.isAdmin) === '1');
         await getDataUser(d.userId);

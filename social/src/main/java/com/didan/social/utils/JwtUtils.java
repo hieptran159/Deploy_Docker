@@ -30,15 +30,48 @@ public class JwtUtils {
     }
     @Value("${jwt.secretkey}")
     private String secretKey;
-    private static final long ACCESS_TOKEN_EXPIRATION_TIME = 24 * 60 * 60 * 1000; // Thời gian hết hạn của access token (1 ngày)
+    // Có thể chỉnh qua application.properties / biến môi trường.
+    @Value("${jwt.access-expiration-ms:86400000}")   // mặc định 1 ngày
+    private long accessExpirationMs;
+    @Value("${jwt.refresh-expiration-ms:2592000000}") // mặc định 30 ngày
+    private long refreshExpirationMs;
+
+    private static final String CLAIM_TYPE = "typ";
+    private static final String TYPE_REFRESH = "refresh";
 
     // Mã hóa data, email thành accessToken dùng để xác thực người dùng
     public String generateAccessToken(String data){
         Date now = new Date();
-        Date exp = new Date(now.getTime() + ACCESS_TOKEN_EXPIRATION_TIME);
+        Date exp = new Date(now.getTime() + accessExpirationMs);
         SecretKey key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(this.secretKey));
-        String accessToken = Jwts.builder().signWith(key).subject(data).issuedAt(now).expiration(exp).compact();
-        return accessToken;
+        return Jwts.builder().signWith(key).subject(data).issuedAt(now).expiration(exp).compact();
+    }
+
+    // Refresh token: sống lâu hơn, mang claim typ=refresh để phân biệt với access token.
+    public String generateRefreshToken(String data){
+        Date now = new Date();
+        Date exp = new Date(now.getTime() + refreshExpirationMs);
+        SecretKey key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(this.secretKey));
+        return Jwts.builder().signWith(key).subject(data).claim(CLAIM_TYPE, TYPE_REFRESH)
+                .issuedAt(now).expiration(exp).compact();
+    }
+
+    // Xác thực refresh token: chữ ký hợp lệ, chưa hết hạn, đúng loại "refresh", không nằm trong blacklist.
+    public void validateRefreshToken(String refreshToken) throws Exception {
+        try {
+            if (blacklistRepository.findFirstByToken(refreshToken) != null) {
+                throw new Exception("Refresh token đã bị thu hồi");
+            }
+            SecretKey key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(this.secretKey));
+            Claims claims = Jwts.parser().verifyWith(key).build().parseSignedClaims(refreshToken).getPayload();
+            if (!TYPE_REFRESH.equals(claims.get(CLAIM_TYPE, String.class))) {
+                throw new Exception("Không phải refresh token");
+            }
+        } catch (ExpiredJwtException e) {
+            throw new Exception("Refresh token hết hạn");
+        } catch (MalformedJwtException | UnsupportedJwtException | IllegalArgumentException e) {
+            throw new Exception("Refresh token không hợp lệ");
+        }
     }
 
     // Lấy token từ header
@@ -65,7 +98,11 @@ public class JwtUtils {
                 throw new Exception("Invalid access token"); // Nếu token ở trong blacklist thì không xác thực
             }
             SecretKey key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(this.secretKey));
-            Jwts.parser().verifyWith(key).build().parseSignedClaims(accessToken); // Giải mã accessToken
+            Claims claims = Jwts.parser().verifyWith(key).build().parseSignedClaims(accessToken).getPayload();
+            if (TYPE_REFRESH.equals(claims.get(CLAIM_TYPE, String.class))) { // Không cho dùng refresh token thay access token
+                logger.error("Refresh token used as access token");
+                throw new Exception("Invalid access token");
+            }
         }catch(MalformedJwtException e){ // Nếu access token không hợp lệ thì bắn lỗi
             logger.error("Invalid access token");
             throw new Exception("Invalid access token");

@@ -82,7 +82,11 @@ public class AuthServiceImpl implements AuthService {
                 user.setDeactivated(0);
                 logger.info("Reactivated account on login: {}", user.getUserId());
             }
+            if (StringUtils.hasText(user.getRefreshToken())) {
+                blacklistRepository.save(new BlacklistToken(user.getRefreshToken()));
+            }
             user.setAccessToken(jwtUtils.generateAccessToken(user.getUserId()));
+            user.setRefreshToken(jwtUtils.generateRefreshToken(user.getUserId()));
             userRepository.save(user);
             return user;
         }
@@ -159,6 +163,31 @@ public class AuthServiceImpl implements AuthService {
             logger.error("Server error");
             throw new Exception("Server error");
         }
+        // Thu hồi refresh token: đưa vào blacklist + xóa khỏi hồ sơ -> không refresh được nữa
+        if (StringUtils.hasText(user.getRefreshToken())) {
+            blacklistRepository.save(new BlacklistToken(user.getRefreshToken()));
+        }
+        user.setRefreshToken(null);
+        userRepository.save(user);
+    }
+
+    @Override
+    public Users refreshAccess(String refreshToken) throws Exception {
+        if (!StringUtils.hasText(refreshToken)) throw new Exception("Thiếu refresh token");
+        jwtUtils.validateRefreshToken(refreshToken);
+        String userId = jwtUtils.getUserIdFromAccessToken(refreshToken);
+        Users user = userRepository.findFirstByUserId(userId);
+        if (user == null) throw new Exception("Người dùng không tồn tại");
+        // Đối chiếu 1-1: chỉ refresh token đang lưu trên hồ sơ mới hợp lệ (đăng nhập lại/đăng xuất -> vô hiệu token cũ)
+        if (!refreshToken.equals(user.getRefreshToken())) throw new Exception("Refresh token không hợp lệ");
+        BlacklistUser blacklistUser = blacklistUserRepository.findByUserId(userId);
+        if (blacklistUser != null && "blocked".equals(blacklistUser.getStatus())) throw new Exception("Tài khoản đã bị khóa");
+        // Xoay vòng: chặn token cũ, cấp cặp token mới
+        blacklistRepository.save(new BlacklistToken(refreshToken));
+        user.setAccessToken(jwtUtils.generateAccessToken(userId));
+        user.setRefreshToken(jwtUtils.generateRefreshToken(userId));
+        userRepository.save(user);
+        return user;
     }
 
     @Override
@@ -264,7 +293,11 @@ public class AuthServiceImpl implements AuthService {
         if (StringUtils.hasText(user.getAccessToken())) {
             blacklistRepository.save(new BlacklistToken(user.getAccessToken()));
         }
+        if (StringUtils.hasText(user.getRefreshToken())) {
+            blacklistRepository.save(new BlacklistToken(user.getRefreshToken()));
+        }
         user.setAccessToken(jwtUtils.generateAccessToken(user.getUserId()));
+        user.setRefreshToken(jwtUtils.generateRefreshToken(user.getUserId()));
         userRepository.save(user);
         return user;
     }

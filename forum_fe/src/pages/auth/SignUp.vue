@@ -117,6 +117,7 @@ const handleVerify = async () => {
         const res = await verifyEmail(pendingEmail.value, code.value.trim());
         const d = res?.data?.data || {};
         setItemLocal(LOCALKEYS.ACCESS_TOKEN, d.accessToken);
+        if (d.refreshToken) setItemLocal(LOCALKEYS.REFRESH_TOKEN, d.refreshToken);
         setItemLocal(LOCALKEYS.USER_ID, d.userId);
         setItemLocal(LOCALKEYS.IS_ADMIN, String(d.isAdmin) === '1');
         try {

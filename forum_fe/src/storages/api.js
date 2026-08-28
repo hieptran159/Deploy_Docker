@@ -1,9 +1,40 @@
 import axios from 'axios';
 
-import { LOCALKEYS, getItemLocal } from './localStorage';
+import { LOCALKEYS, getItemLocal, setItemLocal } from './localStorage';
 import { API_URL } from '../config';
 
 const BASE_URL = API_URL + "/";
+
+// --- Tự động làm mới access token khi hết hạn (một lần cho nhiều request 401 song song) ---
+let refreshPromise = null;
+
+const clearSessionAndRedirect = () => {
+	try {
+		Object.values(LOCALKEYS).forEach((k) => localStorage.removeItem(k));
+	} catch (e) { /* ignore */ }
+	if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+		window.location.assign('/login');
+	}
+};
+
+// Gọi /auth/refresh bằng axios "trần" (không qua interceptor) -> tránh đệ quy.
+const doRefresh = () => {
+	if (refreshPromise) return refreshPromise;
+	const rt = getItemLocal(LOCALKEYS.REFRESH_TOKEN);
+	if (!rt) return Promise.reject(new Error('no-refresh-token'));
+	refreshPromise = axios
+		.post(`${BASE_URL}auth/refresh`, null, { params: { refreshToken: rt } })
+		.then((res) => {
+			const d = res?.data?.data || {};
+			if (!d.accessToken) throw new Error('refresh-failed');
+			setItemLocal(LOCALKEYS.ACCESS_TOKEN, d.accessToken);
+			if (d.refreshToken) setItemLocal(LOCALKEYS.REFRESH_TOKEN, d.refreshToken);
+			if (d.isAdmin !== undefined) setItemLocal(LOCALKEYS.IS_ADMIN, d.isAdmin === '1' || d.isAdmin === true);
+			return d.accessToken;
+		})
+		.finally(() => { refreshPromise = null; });
+	return refreshPromise;
+};
 
 /**
  * Khởi tạo cách truyền và xử lí Rest-API
@@ -43,23 +74,41 @@ export const createApiInstance = (config, { auth = true, silent } = {}) => {
 		 * @param {import('axios').AxiosError} error
 		 * @returns {{message: string, data: object}} data
 		 */
-		(error) => {
+		async (error) => {
 			if (!silent) {
 				console.log(error);
 			}
 
 			const status = error?.response?.status;
+			const original = error?.config || {};
+			const url = original?.url || '';
+			const isAuthCall = url.includes('/auth/');
+
 			if (status === 401 && typeof window !== 'undefined') {
-				// Chỉ đá về /login khi ĐÃ có phiên (token hết hạn/không hợp lệ).
-				// Khách chưa đăng nhập gọi endpoint công khai bị 401 thì bỏ qua.
 				const hadToken = !!getItemLocal(LOCALKEYS.ACCESS_TOKEN);
-				try {
-					Object.values(LOCALKEYS).forEach((k) => localStorage.removeItem(k));
-				} catch (e) {
-					/* ignore */
+
+				// Khách chưa đăng nhập gọi endpoint công khai bị 401 -> bỏ qua, không đá về login.
+				if (!hadToken) {
+					return Promise.reject(error?.response?.data ?? error);
 				}
-				if (hadToken && window.location.pathname !== '/login') {
-					window.location.assign('/login');
+
+				// Có phiên + chưa thử refresh + không phải chính lời gọi /auth/* -> thử làm mới token 1 lần.
+				if (!original._retry && !isAuthCall && getItemLocal(LOCALKEYS.REFRESH_TOKEN)) {
+					original._retry = true;
+					try {
+						const newToken = await doRefresh();
+						original.headers = original.headers || {};
+						original.headers.Authorization = `Bearer ${newToken}`;
+						return api(original); // phát lại request gốc với token mới
+					} catch (e) {
+						clearSessionAndRedirect();
+						return Promise.reject(error?.response?.data ?? error);
+					}
+				}
+
+				// Không refresh được (hết refresh token / đã thử / lỗi login) -> kết thúc phiên.
+				if (!isAuthCall) {
+					clearSessionAndRedirect();
 				}
 			}
 

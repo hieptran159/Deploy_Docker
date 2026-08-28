@@ -14,6 +14,9 @@ public interface AuthService {
     // Logout
     void logout() throws Exception;
 
+    // Cấp access token mới từ refresh token (xoay vòng refresh token cũ)
+    Users refreshAccess(String refreshToken) throws Exception;
+
     // Request Forgot Password
     String requestForgot(String email) throws Exception;
 

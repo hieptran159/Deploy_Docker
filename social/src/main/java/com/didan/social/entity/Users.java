@@ -40,6 +40,10 @@ public class Users {
     @Column(name = "access_token", nullable = true, length = 255)
     private String accessToken;
 
+    // Refresh token hiện hành của người dùng (đối chiếu 1-1 -> thu hồi tức thì khi đăng nhập lại / đăng xuất)
+    @Column(name = "refresh_token", nullable = true, length = 512)
+    private String refreshToken;
+
     // Xác thực email khi đăng ký. null = tài khoản cũ (coi như đã xác thực), 0 = chưa, 1 = đã.
     @Column(name = "email_verified")
     private Integer emailVerified;
@@ -228,6 +232,14 @@ public class Users {
 
     public void setAccessToken(String accessToken) {
         this.accessToken = accessToken;
+    }
+
+    public String getRefreshToken() {
+        return refreshToken;
+    }
+
+    public void setRefreshToken(String refreshToken) {
+        this.refreshToken = refreshToken;
     }
 
     public Integer getEmailVerified() {

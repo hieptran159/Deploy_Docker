@@ -59,7 +59,7 @@ npm run build     # → dist/, served by nginx in the Docker image
 
 ## Tests
 
-JUnit 5 unit-test suite (52 tests) under `social/src/test/java` — **no DB / Docker / Spring
+JUnit 5 unit-test suite (62 tests) under `social/src/test/java` — **no DB / Docker / Spring
 context**, runs on plain `./mvnw test` (deps already in `spring-boot-starter-test` +
 `spring-security-test`). Service tests use `@ExtendWith(MockitoExtension.class)` +
 `@MockitoSettings(strictness = LENIENT)`, mock every constructor dep, and instantiate the
@@ -75,6 +75,8 @@ impl directly in `@BeforeEach`:
 | `service/impl/ReportServiceImplTest` | `ReportServiceImpl.create` auto-hide threshold: invalid type, below threshold no-hide, at threshold sets `status=hidden` + saves, already-hidden untouched, duplicate open report no-op, threshold `0` disables — `ReflectionTestUtils` for `@Value autoHideThreshold` |
 | `service/impl/NotificationServiceImplTest` | `listMinePaged` page/size clamping (negative page→0, size<1→20, size>50→50) via `ArgumentCaptor<Pageable>` |
 | `utils/EmailTemplateTest` | `EmailTemplate.otp` HTML + HTML-escaping |
+| `utils/HashtagUtilsTest` | `HashtagUtils.extract` (lowercase/dedup, Unicode + `_`, skip all-digit, 20-tag cap) + `normalize` (strip `#`, reject spaces/empty/all-digit/null) |
+| `utils/JwtUtilsTest` | refresh-token round-trip; `validateRefreshToken` rejects an access token; `validateAccessToken` rejects a refresh token; blacklisted refresh token rejected — `ReflectionTestUtils` for `@Value` secret/expiry |
 
 `SocialApplicationTests` (`@SpringBootTest` context-load) is the exception — it needs a
 running MySQL on the configured host, so `./mvnw test` fails without one; the normal build
@@ -167,6 +169,18 @@ uses `./mvnw install -DskipTests`. No frontend tests.
   author. `GET /post/drafts` (mine), `PATCH /post/publish/{id}` (author-only; requires
   title+body, bumps `postedAt` to now). FE: `CreatePost.vue` "Lưu nháp" button, `/drafts`
   page (edit via `EditPost` popup / publish / delete), header tab id 6.
+- Hashtags: `entity/PostHashtags` (table `post_hashtags`, composite key `post_id`+`tag`,
+  `ddl-auto`, indexed on `tag` and `post_id`). `utils/HashtagUtils.extract(title, body)`
+  parses `#tag` (`[\p{L}\p{N}_]{1,50}`, Unicode + `_`, lowercased, all-digit tags dropped,
+  ≤20/post); `normalize` cleans a client-supplied tag. `PostServiceImpl.syncHashtags` runs
+  after `createPost` / `updatePost` (delete-all-then-insert) and rows are cleared on delete.
+  `applyHashtags(dtos)` fills `PostDTO.hashtags` with **one** batched `IN` query on
+  feed/search/detail/by-user/drafts (no N+1). `GET /post/by-tag/{tag}?page=&size=`
+  (`getPostsByTag` → `{items,total,page,totalPages,tag}`, carries `PostRepository.VISIBLE`
+  via `:vids`) and `GET /post/hashtags/trending?limit=` (`getTrendingHashtags` →
+  `[{tag,count}]`, counts **public+published** only) are both in the guest permit list. FE:
+  route `/tag/:tag` (no guard) → `pages/tag/TagPage.vue`; tag chips in `Post.vue` /
+  `PostDetail.vue` link to it; "Hashtag nổi bật" card on `Home.vue`.
 - Notifications: `entity/Notifications` (plain columns, no JPA relations; table
   auto-created by `ddl-auto=update`). `NotificationService.push(...)` is fire-and-forget
   and swallows its own errors so it never breaks the caller. `pushUnique` dedups on
@@ -202,8 +216,23 @@ uses `./mvnw install -DskipTests`. No frontend tests.
   validates the bearer token and sets the Spring `Authentication` principal to the
   **userId string**. Retrieve the current user with
   `AuthorizePathService.getUserIdAuthoried()`.
+- Refresh tokens: `JwtUtils.generateRefreshToken` mints a long-lived JWT (`jwt.refresh-expiration-ms`,
+  default 30d) with a `typ=refresh` claim; `generateAccessToken` uses `jwt.access-expiration-ms`
+  (default 1d). `validateAccessToken` now rejects a `typ=refresh` token and `validateRefreshToken`
+  rejects a plain access token, so the two are not interchangeable. `Users.refresh_token`
+  (`ddl-auto`, 512) stores the user's **current** refresh token — `POST /auth/refresh?refreshToken=`
+  (`AuthServiceImpl.refreshAccess`, in the `/auth/**` permit list) checks it matches that column,
+  blacklists the old refresh token, and returns a **rotated** `{accessToken, refreshToken, isAdmin}`.
+  `login` / `verifyEmail` issue a refresh token alongside the access token (and blacklist any
+  prior one); `logout` blacklists it and nulls the column. FE: `LOCALKEYS.REFRESH_TOKEN`
+  (`"RefreshToken"`); `src/storages/api.js` response interceptor, on a 401 for a request that
+  had a token, calls `/auth/refresh` **once** (single-flight `refreshPromise` shared across
+  concurrent 401s), updates `Token`/`RefreshToken`/`isAdmin`, and replays the original request;
+  only if refresh fails does it clear `localStorage` + redirect to `/login`. `/auth/*` calls
+  themselves are exempt from the retry.
 - `CustomFilterSecurity` permits `/auth/**`, `/images/**`, `/api-docs**/**`,
-  `swagger-ui/**`, and **GET** `/post/get`, `/post/pages`, `/post/search` (guest can
+  `swagger-ui/**`, and **GET** `/post/get`, `/post/pages`, `/post/search`, `/post/by-tag/*`,
+  `/post/hashtags/trending` (guest can
   browse the home feed without an account — the SPA's `/` route has no guard; every
   other route/endpoint still needs a valid JWT, incl. `/post/{id}` and `/user/**`).
   Session is STATELESS, CSRF off. The feed `PostDTO` carries `authorName`/`authorAvatar`
@@ -258,7 +287,9 @@ uses `./mvnw install -DskipTests`. No frontend tests.
 - API layer: `src/storages/api.js` creates axios instances (`api`, `apiForm`, `authApi`,
   `authApiFormData`); `authApi*` inject `Authorization: Bearer <Token from localStorage>`.
   The response interceptor rejects with `error.response.data` (the `ResponseData` body),
-  and on HTTP 401 clears `localStorage` + redirects to `/login`.
+  and on HTTP 401 (for a request that had a token) tries `POST /auth/refresh` once and
+  replays the request; only if that fails does it clear `localStorage` + redirect to
+  `/login` (see the refresh-token note under backend architecture).
   Endpoints are centralised in `src/config.js` (`API_URL`, `SOCKET_URL`, `IMAGE_BASE`),
   overridable via Vite env vars `VITE_API_URL` / `VITE_SOCKET_URL` in `forum_fe/.env`
   (defaults point at `localhost:8081` / `localhost:8082`). Per-feature calls live in
@@ -268,8 +299,8 @@ uses `./mvnw install -DskipTests`. No frontend tests.
   params. One socket is bound to one conversation; switching conversations reconnects.
   The server does **not** echo `get_message` to the sender, so the sender appends its
   own message locally.
-- `localStorage` keys (`src/storages/localStorage.js`): `Token`, `UserId`, `UserName`,
-  `linkAvt`.
+- `localStorage` keys (`src/storages/localStorage.js`): `Token`, `RefreshToken`, `UserId`,
+  `UserName`, `linkAvt`, `isAdmin`.
 - Backend business errors return HTTP **503** with `statusCode: 500` in the body (not
   just true server errors); some "empty" cases (`/chat/conversation/alls` with no
   groups, `searchConversation`/`searchUser` with no hits) also throw → treat as empty.

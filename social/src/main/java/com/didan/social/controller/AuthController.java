@@ -44,9 +44,33 @@ public class AuthController {
                 response.put("email", user.getEmail());
                 response.put("avatar", user.getAvtUrl());
                 response.put("accessToken", user.getAccessToken());
+                response.put("refreshToken", user.getRefreshToken());
                 response.put("isAdmin", String.valueOf(user.getIsAdmin()));
                 payload.setData(response);
             }
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e){
+            payload.setDescription(e.getMessage());
+            payload.setStatusCode(500);
+            payload.setSuccess(false);
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
+    @Operation(summary = "Cấp access token mới từ refresh token",
+            description = "Gửi refreshToken đang lưu; trả về cặp accessToken + refreshToken mới (token cũ bị thu hồi)")
+    @PostMapping("/refresh")
+    public ResponseEntity<?> refresh(@RequestParam String refreshToken){
+        ResponseData payload = new ResponseData();
+        Map<String, String> response = new HashMap<>();
+        try {
+            Users user = authService.refreshAccess(refreshToken);
+            response.put("userId", user.getUserId());
+            response.put("accessToken", user.getAccessToken());
+            response.put("refreshToken", user.getRefreshToken());
+            response.put("isAdmin", String.valueOf(user.getIsAdmin()));
+            payload.setDescription("OK");
+            payload.setData(response);
             return new ResponseEntity<>(payload, HttpStatus.OK);
         } catch (Exception e){
             payload.setDescription(e.getMessage());
@@ -111,6 +135,7 @@ public class AuthController {
             response.put("email", user.getEmail());
             response.put("avatar", user.getAvtUrl());
             response.put("accessToken", user.getAccessToken());
+            response.put("refreshToken", user.getRefreshToken());
             response.put("isAdmin", String.valueOf(user.getIsAdmin()));
             payload.setData(response);
             return new ResponseEntity<>(payload, HttpStatus.OK);
