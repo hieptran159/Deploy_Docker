@@ -35,6 +35,8 @@ public class UserServiceImpl extends ConvertDTO implements UserService {
     private final com.didan.social.repository.PostRepository postRepository;
     private final com.didan.social.repository.CommentRepository commentRepository;
     private final com.didan.social.repository.BlacklistRepository blacklistRepository;
+    private final com.didan.social.socket.RealtimeGateway realtimeGateway;
+    private final com.didan.social.service.FollowService followService;
     @Autowired
     public UserServiceImpl(UserRepository userRepository,
                            AuthorizePathService authorizePathService,
@@ -43,7 +45,9 @@ public class UserServiceImpl extends ConvertDTO implements UserService {
                            BlacklistUserRepository blacklistUserRepository,
                            com.didan.social.repository.PostRepository postRepository,
                            com.didan.social.repository.CommentRepository commentRepository,
-                           com.didan.social.repository.BlacklistRepository blacklistRepository
+                           com.didan.social.repository.BlacklistRepository blacklistRepository,
+                           com.didan.social.socket.RealtimeGateway realtimeGateway,
+                           com.didan.social.service.FollowService followService
     ){
         this.userRepository = userRepository;
         this.authorizePathService = authorizePathService;
@@ -53,6 +57,21 @@ public class UserServiceImpl extends ConvertDTO implements UserService {
         this.postRepository = postRepository;
         this.commentRepository = commentRepository;
         this.blacklistRepository = blacklistRepository;
+        this.realtimeGateway = realtimeGateway;
+        this.followService = followService;
+    }
+
+    // Báo cho chính mình + bạn bè biết avatar mới (socket "user_avatar")
+    private void broadcastAvatar(String userId, String avtUrl) {
+        try {
+            java.util.Map<String, Object> p = new java.util.HashMap<>();
+            p.put("userId", userId);
+            p.put("avtUrl", avtUrl);
+            realtimeGateway.toUser(userId, "user_avatar", p);
+            for (String fid : followService.friendIdsOf(userId)) {
+                realtimeGateway.toUser(fid, "user_avatar", p);
+            }
+        } catch (Exception ignore) {}
     }
     @Override
     public List<UserDTO> getAllUser(){
@@ -170,14 +189,19 @@ public class UserServiceImpl extends ConvertDTO implements UserService {
             if (StringUtils.hasText(editUserRequest.getNewPassword())) {
                 user.setPassword(passwordEncoder.encode(editUserRequest.getNewPassword()));
             }
+            boolean avatarChanged = false;
             if (editUserRequest.getAvatar() != null && !editUserRequest.getAvatar().isEmpty()){
                 if(StringUtils.hasText(user.getAvtUrl())){
                     fileUploadsService.deleteFile(user.getAvtUrl());
                 }
-                String fileName = fileUploadsService.storeFile(editUserRequest.getAvatar(), "avatar", user.getUserId());
+                // Tên file kèm timestamp -> URL đổi mỗi lần -> client không dính cache ảnh cũ
+                String fileName = fileUploadsService.storeFile(editUserRequest.getAvatar(), "avatar",
+                        user.getUserId() + "-" + System.currentTimeMillis());
                 user.setAvtUrl("avatar/"+fileName);
+                avatarChanged = true;
             }
             userRepository.save(user);
+            if (avatarChanged) broadcastAvatar(user.getUserId(), user.getAvtUrl());
             return true;
         }
     }
@@ -227,7 +251,7 @@ public class UserServiceImpl extends ConvertDTO implements UserService {
         if (org.springframework.util.StringUtils.hasText(user.getCoverUrl())) {
             try { fileUploadsService.deleteFile(user.getCoverUrl()); } catch (Exception ignore) { }
         }
-        String fileName = fileUploadsService.storeFile(cover, "cover", user.getUserId());
+        String fileName = fileUploadsService.storeFile(cover, "cover", user.getUserId() + "-" + System.currentTimeMillis());
         user.setCoverUrl("cover/" + fileName);
         userRepository.save(user);
         return true;

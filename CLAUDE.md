@@ -176,8 +176,18 @@ uses `./mvnw install -DskipTests`. No frontend tests.
   `myReaction`. FE `Chat.vue`: 🙂 hover button → 6-emoji picker, chips under the bubble.
 - Group chat avatar: `Conversations.avatarUrl` (`ddl-auto`). `PATCH
   /chat/conversation/{id}/avatar` (multipart `avatar`, participant-only, non-DM) →
-  `storeFile(.., "conversation", id)`, broadcasts `conversation_avatar`. `ConversationDTO`
-  carries `avatarUrl`; FE shows it in the sidebar rows + chat header (✎ overlay to change).
+  `storeFile(.., "conversation", id + "-" + ts)` (**unique filename** so the URL changes and
+  clients don't reuse the cached old image), broadcasts `conversation_avatar`.
+  `ConversationDTO` carries `avatarUrl`; FE shows it in sidebar rows + chat header (✎ overlay
+  to change; uploader also calls `loadConversations()`). DM rows/header show the **other
+  user's avatar** (`dmAvatars`, resolved alongside `dmNames`), not the 💬 icon.
+- Realtime avatar change: `UserServiceImpl.updateUser` (and `updateCover`) name the file
+  `"<userId>-<ts>"` so the URL always changes; on avatar change it broadcasts `user_avatar`
+  `{userId, avtUrl}` via `RealtimeGateway.toUser` to the user + every `friendIdsOf`. FE:
+  `appState.avatarUpdates` (id → new avtUrl) is populated by `TheHeader`'s notif-socket
+  listener; `BaseAvatar` and `Post.vue` prefer `avatarUpdates[userId]` over the DTO value;
+  `Chat.vue` watches it to patch `dmAvatars`. (`TheHeader` also updates `LINK_AVT` + its own
+  avatar when the event is for the current user.)
 - Chat socket (`SocketModule`, netty-socketio :8082): events `send_message`→`get_message`,
   `typing`, `seen`, `presence {userId,online}` (broadcast on join/leave; on join the new
   client is also told who is already present). `SocketService.broadcastExcept` relays to

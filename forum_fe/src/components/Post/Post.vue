@@ -79,6 +79,7 @@ import { IMAGE_BASE } from '@/config';
 import { useRouter } from 'vue-router';
 import { LOCALKEYS, getItemLocal } from '@/storages/localStorage';
 import { repostPost, unrepostPost } from '@/apis/post';
+import { avatarUpdates } from '@/storages/appState';
 
 const route = useRouter();
 const toast = inject('toast', null);
@@ -93,7 +94,11 @@ const myId = getItemLocal(LOCALKEYS.USER_ID);
 const isLogin = computed(() => getItemLocal(LOCALKEYS.ACCESS_TOKEN) != null);
 // Tên + avatar tác giả đã đi kèm trong DTO feed -> không cần gọi /user/{id} cho từng thẻ
 const userCreatedPost = computed(() => post.value?.authorName || '');
-const linkAvt = computed(() => (post.value?.authorAvatar ? IMAGE_BASE + post.value.authorAvatar : ''));
+const linkAvt = computed(() => {
+    const upd = post.value?.userCreatedPost && avatarUpdates.value[post.value.userCreatedPost];
+    const path = upd || post.value?.authorAvatar;
+    return path ? IMAGE_BASE + path : '';
+});
 const avatarErrored = ref(false);
 const busy = ref(false);
 

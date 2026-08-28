@@ -279,7 +279,7 @@ import { getUserInfo } from '@/apis/user';
 import { getFriends } from '@/apis/friend';
 import { markReadByTarget, getNotifications } from '@/apis/notification';
 import { LOCALKEYS, getItemLocal } from '@/storages/localStorage';
-import { activeConversationId, bumpNotifRefresh, notifRefreshTick, onlinePeers } from '@/storages/appState';
+import { activeConversationId, bumpNotifRefresh, notifRefreshTick, onlinePeers, avatarUpdates } from '@/storages/appState';
 import { SOCKET_URL, IMAGE_BASE } from '@/config';
 import { formatTime, timeAgo } from '@/js/helper';
 import EmojiPicker from '@/components/EmojiPicker.vue';
@@ -359,15 +359,25 @@ const onGroupAvatar = async (e) => {
     try {
         const url = (await setConversationAvatar(active.value.conversationId, f))?.data?.data?.avatarUrl;
         if (url) {
-            active.value.avatarUrl = url;
-            const c = conversations.value.find((x) => x.conversationId === active.value.conversationId);
-            if (c) c.avatarUrl = url;
+            active.value = { ...active.value, avatarUrl: url };
+            await loadConversations();
         }
         toast?.('Đã cập nhật ảnh nhóm');
     } catch (err) {
         showDialog?.('Thông báo', err?.description || 'Cập nhật ảnh nhóm thất bại');
     }
 };
+
+// Ai đó đổi avatar (realtime) -> cập nhật avatar hiển thị trong DM tương ứng
+watch(avatarUpdates, (m) => {
+    for (const c of conversations.value) {
+        if (!isDm(c.conversationName)) continue;
+        const other = otherIdFromDm(c.conversationName);
+        if (other && m[other] !== undefined) {
+            dmAvatars.value = { ...dmAvatars.value, [c.conversationId]: m[other] };
+        }
+    }
+}, { deep: true });
 
 // typing / seen / presence
 const otherTyping = ref(false);

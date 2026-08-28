@@ -86,6 +86,7 @@
                     @click="goMyProfile"
                 >
                     <BaseAvatar
+                        :key="headerAvatarTick"
                         :link-avt="getItemLocal(LOCALKEYS.LINK_AVT)"
                         :user-created-post="getItemLocal(LOCALKEYS.USER_NAME)"
                         :is-show="false"
@@ -117,7 +118,7 @@ import { checkIsAdmin } from '@/apis/admin';
 import { getNotifications, markAllRead, markRead } from '@/apis/notification';
 import { notifRoute, POST_TYPES } from '@/js/notifTarget';
 import { timeAgo } from '@/js/helper';
-import { activeConversationId, activePostId, notifRefreshTick, setPeerOnline, onlinePeers } from '@/storages/appState';
+import { activeConversationId, activePostId, notifRefreshTick, setPeerOnline, onlinePeers, applyAvatarUpdate } from '@/storages/appState';
 import { SOCKET_URL, IMAGE_BASE } from '@/config';
 import { io } from 'socket.io-client';
 import BaseAvatar from '../BaseAvatar.vue';
@@ -200,6 +201,7 @@ const refreshAdminFlag = async () => {
 
 /* ---------- notifications ---------- */
 const unread = ref(0);
+const headerAvatarTick = ref(0);
 const notifs = ref([]);
 const showNotif = ref(false);
 const notifLoading = ref(false);
@@ -327,6 +329,14 @@ const startNotifSocket = () => {
         notifSocket = io(SOCKET_URL, { transports: ['websocket'], query: { token } });
         notifSocket.on('notification', bumpPoll);
         notifSocket.on('friend_presence', (p) => { if (p) setPeerOnline(p.userId, !!p.online); });
+        notifSocket.on('user_avatar', (p) => {
+            if (!p?.userId) return;
+            applyAvatarUpdate(p.userId, p.avtUrl);
+            if (p.userId === getItemLocal(LOCALKEYS.USER_ID)) {
+                setItemLocal(LOCALKEYS.LINK_AVT, p.avtUrl ? IMAGE_BASE + p.avtUrl : '');
+                headerAvatarTick.value++;
+            }
+        });
         notifSocket.on('connect', () => { try { notifSocket.emit('hb'); } catch (e) { /* ignore */ } });
         clearInterval(hbTimer);
         hbTimer = setInterval(() => { try { notifSocket?.emit('hb'); } catch (e) { /* ignore */ } }, 20000);

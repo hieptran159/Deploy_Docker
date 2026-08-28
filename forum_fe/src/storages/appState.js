@@ -18,3 +18,11 @@ export const setPeerOnline = (userId, online) => {
     if (online) next.add(userId); else next.delete(userId);
     onlinePeers.value = next;
 };
+
+// Avatar mới của user (id -> avtUrl) khi có ai đó đổi ảnh — cập nhật realtime từ socket "user_avatar".
+// Mọi nơi hiển thị avatar nên ưu tiên map này trước dữ liệu cũ trong DTO.
+export const avatarUpdates = ref({});
+export const applyAvatarUpdate = (userId, avtUrl) => {
+    if (!userId) return;
+    avatarUpdates.value = { ...avatarUpdates.value, [userId]: avtUrl || '' };
+};

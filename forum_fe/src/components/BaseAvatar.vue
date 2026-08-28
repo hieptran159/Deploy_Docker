@@ -2,7 +2,8 @@
     <div class="base-avatar" :class="{ 'cursor-pointer': userId }" @click="goProfile">
         <img
             v-show="showImage"
-            :src="props.linkAvt"
+            :src="effectiveSrc"
+            :key="effectiveSrc"
             class="size-9 rounded-full object-cover bg-gray-100"
             @error="errored = true"
             @load="errored = false"
@@ -16,6 +17,8 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
+import { avatarUpdates } from '@/storages/appState';
+import { IMAGE_BASE } from '@/config';
 
 const props = defineProps({
     linkAvt: {},
@@ -28,14 +31,21 @@ const props = defineProps({
 const router = useRouter();
 const errored = ref(false);
 
+// Nếu có avatar mới realtime cho userId này thì ưu tiên dùng nó
+const effectiveSrc = computed(() => {
+    const upd = props.userId && avatarUpdates.value[props.userId];
+    if (upd) return IMAGE_BASE + upd;
+    return props.linkAvt;
+});
+
 const hasValidUrl = computed(() => {
-    const u = props.linkAvt;
+    const u = effectiveSrc.value;
     return typeof u === 'string' && u.trim() !== '' && !u.endsWith('/') && !u.endsWith('null') && !u.endsWith('undefined');
 });
 const showImage = computed(() => hasValidUrl.value && !errored.value);
 const firstLetter = computed(() => (props.userCreatedPost || '?').toString().charAt(0));
 
-watch(() => props.linkAvt, () => { errored.value = false; });
+watch(effectiveSrc, () => { errored.value = false; });
 
 const goProfile = (e) => {
     if (!props.userId) return;
