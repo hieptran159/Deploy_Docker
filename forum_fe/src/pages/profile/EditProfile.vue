@@ -92,6 +92,25 @@
         </div>
 
         <div class="card">
+            <div class="section-title">Xác thực 2 bước</div>
+            <p class="muted text-sm mb-2">
+                Khi bật, mỗi lần đăng nhập sẽ cần thêm mã 6 ký tự gửi tới email
+                <b>{{ rawUser.email || '' }}</b>. Cần nhập mật khẩu hiện tại ở thẻ “Xác thực” phía trên.
+            </p>
+            <div class="flex items-center gap-3">
+                <span class="text-sm font-semibold" :class="twoFAOn ? 'text-[var(--brand)]' : 'muted'">
+                    {{ twoFAOn ? 'Đang bật' : 'Đang tắt' }}
+                </span>
+                <DxButton
+                    :type="twoFAOn ? 'normal' : 'default'"
+                    :stylingMode="twoFAOn ? 'outlined' : 'contained'"
+                    :text="twoFAOn ? 'Tắt' : 'Bật'"
+                    @click="toggleTwoFA"
+                />
+            </div>
+        </div>
+
+        <div class="card">
             <div class="section-title">Đổi ảnh đại diện</div>
             <div class="flex flex-col sm:flex-row sm:items-center gap-2">
                 <input type="file" accept="image/*" class="flex-1" @change="handleFileChange" />
@@ -131,6 +150,7 @@ import { DxButton, DxTextBox, DxTextArea } from 'devextreme-vue';
 import { useRouter } from 'vue-router';
 import { computed, inject, onMounted, ref } from 'vue';
 import { editUser, updateProfile, getUserInfo, deleteAccount, deactivateAccount, updateCover } from '@/apis/user';
+import { enableTwoFactor, disableTwoFactor } from '@/apis/auth';
 import { LOCALKEYS, getItemLocal, setItemLocal, delItemLocal } from '@/storages/localStorage';
 import { IMAGE_BASE } from '@/config';
 import { applyAvatarUpdate } from '@/storages/appState';
@@ -285,6 +305,20 @@ const saveCover = async () => {
         coverFile.value = null;
     } catch (e) {
         showDialog('Thông báo', e?.description || 'Cập nhật ảnh bìa thất bại');
+    }
+};
+
+const twoFAOn = computed(() => rawUser.value?.twoFactorEnabled === true);
+const toggleTwoFA = async () => {
+    if (!requirePassword()) return;
+    const turningOn = !twoFAOn.value;
+    try {
+        if (turningOn) await enableTwoFactor(currentPassword.value);
+        else await disableTwoFactor(currentPassword.value);
+        await loadProfile();
+        toast?.(turningOn ? 'Đã bật xác thực 2 bước' : 'Đã tắt xác thực 2 bước');
+    } catch (e) {
+        showDialog('Thông báo', e?.description || 'Không đổi được cài đặt 2FA');
     }
 };
 

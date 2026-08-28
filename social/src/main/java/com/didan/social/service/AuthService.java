@@ -17,6 +17,9 @@ public interface AuthService {
     // Cấp access token mới từ refresh token (xoay vòng refresh token cũ)
     Users refreshAccess(String refreshToken) throws Exception;
 
+    // Bước 2 của đăng nhập khi bật 2FA: xác minh mã đã gửi qua email, cấp token
+    Users verifyTwoFactor(String email, String code) throws Exception;
+
     // Request Forgot Password
     String requestForgot(String email) throws Exception;
 

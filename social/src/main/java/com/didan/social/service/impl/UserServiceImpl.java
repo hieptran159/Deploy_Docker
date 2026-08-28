@@ -108,6 +108,8 @@ public class UserServiceImpl extends ConvertDTO implements UserService {
         UserDTO dto = (UserDTO) convertToDTO(user);
         if (!isOwner) {
             hidePrivate(dto);
+        } else {
+            dto.setTwoFactorEnabled(user.getTwofaEnabled() != null && user.getTwofaEnabled() == 1);
         }
         return dto;
     }
@@ -275,6 +277,27 @@ public class UserServiceImpl extends ConvertDTO implements UserService {
         if (org.springframework.util.StringUtils.hasText(me.getAccessToken())) {
             try { blacklistRepository.save(new com.didan.social.entity.BlacklistToken(me.getAccessToken())); } catch (Exception ignore) { }
         }
+        return true;
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    @Override
+    public boolean setTwoFactor(boolean enable, String password) throws Exception {
+        String myId = authorizePathService.getUserIdAuthoried();
+        Users me = userRepository.findFirstByUserId(myId);
+        if (me == null) {
+            throw new Exception("User is not found");
+        }
+        if (!org.springframework.util.StringUtils.hasText(password)
+                || !passwordEncoder.matches(password, me.getPassword())) {
+            throw new Exception("Mật khẩu không đúng");
+        }
+        me.setTwofaEnabled(enable ? 1 : 0);
+        if (!enable) {
+            me.setTwofaCode(null);
+            me.setTwofaExpires(null);
+        }
+        userRepository.save(me);
         return true;
     }
 

@@ -61,7 +61,7 @@ npm run build     # → dist/, served by nginx in the Docker image
 
 ## Tests
 
-JUnit 5 unit-test suite (62 tests) under `social/src/test/java` — **no DB / Docker / Spring
+JUnit 5 unit-test suite (68 tests) under `social/src/test/java` — **no DB / Docker / Spring
 context**, runs on plain `./mvnw test` (deps already in `spring-boot-starter-test` +
 `spring-security-test`). Service tests use `@ExtendWith(MockitoExtension.class)` +
 `@MockitoSettings(strictness = LENIENT)`, mock every constructor dep, and instantiate the
@@ -79,6 +79,7 @@ impl directly in `@BeforeEach`:
 | `utils/EmailTemplateTest` | `EmailTemplate.otp` HTML + HTML-escaping |
 | `utils/HashtagUtilsTest` | `HashtagUtils.extract` (lowercase/dedup, Unicode + `_`, skip all-digit, 20-tag cap) + `normalize` (strip `#`, reject spaces/empty/all-digit/null) |
 | `utils/JwtUtilsTest` | refresh-token round-trip; `validateRefreshToken` rejects an access token; `validateAccessToken` rejects a refresh token; blacklisted refresh token rejected — `ReflectionTestUtils` for `@Value` secret/expiry |
+| `service/impl/AuthServiceImplTest` | `login` withholds tokens + saves a code + sets `twofaRequired` when 2FA on (issues tokens when off); `verifyTwoFactor` guards (wrong code, expired, 2FA disabled) + happy path (case-insensitive code, clears code, issues access+refresh) — 8 mocked ctor deps |
 
 `SocialApplicationTests` (`@SpringBootTest` context-load) is the exception — it needs a
 running MySQL on the configured host, so `./mvnw test` fails without one; the normal build
@@ -236,6 +237,19 @@ uses `./mvnw install -DskipTests`. No frontend tests.
   concurrent 401s), updates `Token`/`RefreshToken`/`isAdmin`, and replays the original request;
   only if refresh fails does it clear `localStorage` + redirect to `/login`. `/auth/*` calls
   themselves are exempt from the retry.
+- Two-factor (email code): `Users.twofa_enabled` (`ddl-auto`, `null`/`0` off, `1` on) +
+  `twofa_code` / `twofa_expires`. `POST /user/2fa/enable?password=` / `/user/2fa/disable?password=`
+  (`UserServiceImpl.setTwoFactor`, password-confirmed like deactivate). When on,
+  `AuthServiceImpl.login` (after the password check) generates a 6-char code, saves it with a
+  10-min expiry, emails it (`MailService` + `[2fa] … code=` log line), sets a `@Transient
+  Users.twofaRequired` and returns **without** issuing tokens — `/auth/signin` then responds
+  `{twoFactorRequired:"1", email}`. `POST /auth/2fa/verify?email=&code=`
+  (`AuthServiceImpl.verifyTwoFactor`, `/auth/**` permit list, `otp-check` rate bucket) checks
+  the code (case-insensitive) + expiry, clears it, and returns the full login payload
+  (access+refresh, blacklisting any prior tokens; also clears `deactivated` like `login`).
+  `UserDTO.twoFactorEnabled` is set **only for the owner** in `getUserById`. FE: `Login.vue`
+  has a two-stage flow (`stage` `creds`→`2fa`); `EditProfile.vue` "Xác thực 2 bước" card
+  toggles it (reuses the shared `currentPassword` field).
 - `CustomFilterSecurity` permits `/auth/**`, `/images/**`, `/api-docs**/**`,
   `swagger-ui/**`, and **GET** `/post/get`, `/post/pages`, `/post/search`, `/post/by-tag/*`,
   `/post/hashtags/trending` (guest can
@@ -246,7 +260,7 @@ uses `./mvnw install -DskipTests`. No frontend tests.
 - `security/RateLimitFilter` (plain servlet filter, order `HIGHEST_PRECEDENCE+5`, runs
   before the JWT filter) throttles POST/PATCH on `/auth/**` per client IP with in-memory
   fixed-window counters (single-instance deploy). Buckets: `signin` 20/5min, `signup`
-  6/hr, `otp-send` (`resend-verify`+`token-reset`) 5/15min, `otp-check` (`verify`+`reset`)
+  6/hr, `otp-send` (`resend-verify`+`token-reset`) 5/15min, `otp-check` (`verify`+`reset`+`2fa/verify`)
   20/10min, `default` 40/5min. Over limit → HTTP **429** + `Retry-After` header, body
   `{success:false,statusCode:429,description:"Bạn thao tác quá nhanh..."}` (surfaces via
   the FE's `e?.description`). Client IP from `X-Forwarded-For`/`X-Real-IP` then

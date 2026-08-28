@@ -28,6 +28,12 @@ public class UserDTO {
     private Boolean hobbiesPublic;
     private Boolean sloganPublic;
 
+    // Chỉ được set khi xem hồ sơ của chính mình
+    private Boolean twoFactorEnabled;
+
+    public Boolean getTwoFactorEnabled() { return twoFactorEnabled; }
+    public void setTwoFactorEnabled(Boolean v) { this.twoFactorEnabled = v; }
+
     public String getNickname() { return nickname; }
     public void setNickname(String v) { this.nickname = v; }
     public String getPhone() { return phone; }

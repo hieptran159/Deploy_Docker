@@ -37,6 +37,13 @@ public class AuthController {
         Map<String, String> response = new HashMap<>();
         try{
             Users user = authService.login(email, password);
+            if (user != null && user.isTwofaRequired()) {
+                payload.setDescription("Đã gửi mã xác thực 2 bước tới email của bạn");
+                response.put("twoFactorRequired", "1");
+                response.put("email", user.getEmail());
+                payload.setData(response);
+                return new ResponseEntity<>(payload, HttpStatus.OK);
+            }
             if (user != null) {
                 payload.setDescription("Login Successful");
                 response.put("userId", user.getUserId());
@@ -70,6 +77,32 @@ public class AuthController {
             response.put("refreshToken", user.getRefreshToken());
             response.put("isAdmin", String.valueOf(user.getIsAdmin()));
             payload.setDescription("OK");
+            payload.setData(response);
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e){
+            payload.setDescription(e.getMessage());
+            payload.setStatusCode(500);
+            payload.setSuccess(false);
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
+    @Operation(summary = "Bước 2 đăng nhập khi bật 2FA",
+            description = "Nhập email + mã 6 ký tự đã nhận qua email; thành công trả token đăng nhập")
+    @PostMapping("/2fa/verify")
+    public ResponseEntity<?> verifyTwoFactor(@RequestParam String email, @RequestParam String code){
+        ResponseData payload = new ResponseData();
+        Map<String, String> response = new HashMap<>();
+        try {
+            Users user = authService.verifyTwoFactor(email, code);
+            payload.setDescription("Login Successful");
+            response.put("userId", user.getUserId());
+            response.put("fullName", user.getFullName());
+            response.put("email", user.getEmail());
+            response.put("avatar", user.getAvtUrl());
+            response.put("accessToken", user.getAccessToken());
+            response.put("refreshToken", user.getRefreshToken());
+            response.put("isAdmin", String.valueOf(user.getIsAdmin()));
             payload.setData(response);
             return new ResponseEntity<>(payload, HttpStatus.OK);
         } catch (Exception e){

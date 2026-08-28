@@ -57,6 +57,34 @@ public class UserController {
         }
     }
 
+    @Operation(summary = "Bật xác thực 2 bước (mã qua email khi đăng nhập)", description = "Cần mật khẩu",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @PostMapping("/2fa/enable")
+    public ResponseEntity<?> enableTwoFactor(@RequestParam String password){
+        return toggleTwoFactor(true, password);
+    }
+
+    @Operation(summary = "Tắt xác thực 2 bước", description = "Cần mật khẩu",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @PostMapping("/2fa/disable")
+    public ResponseEntity<?> disableTwoFactor(@RequestParam String password){
+        return toggleTwoFactor(false, password);
+    }
+
+    private ResponseEntity<?> toggleTwoFactor(boolean enable, String password){
+        ResponseData payload = new ResponseData();
+        try {
+            userService.setTwoFactor(enable, password);
+            payload.setDescription(enable ? "Đã bật xác thực 2 bước" : "Đã tắt xác thực 2 bước");
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e){
+            payload.setSuccess(false);
+            payload.setStatusCode(500);
+            payload.setDescription(e.getMessage());
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
     @Operation(summary = "Get all users",
             description = "Get all users",
             security = @SecurityRequirement(name = "bearerAuth"))

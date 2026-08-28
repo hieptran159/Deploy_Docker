@@ -28,6 +28,9 @@ public interface UserService {
     // Tự vô hiệu hoá tạm thời (đăng nhập lại để kích hoạt)
     boolean deactivateMyAccount(String password) throws Exception;
 
+    // Bật/tắt xác thực 2 bước qua email (xác nhận bằng mật khẩu hiện tại)
+    boolean setTwoFactor(boolean enable, String password) throws Exception;
+
     // Đổi ảnh bìa hồ sơ (không cần mật khẩu)
     boolean updateCover(org.springframework.web.multipart.MultipartFile cover) throws Exception;
 

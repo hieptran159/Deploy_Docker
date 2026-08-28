@@ -82,6 +82,27 @@ public class AuthServiceImpl implements AuthService {
                 user.setDeactivated(0);
                 logger.info("Reactivated account on login: {}", user.getUserId());
             }
+            // Xác thực 2 bước: gửi mã qua email, CHƯA cấp token
+            if (user.getTwofaEnabled() != null && user.getTwofaEnabled() == 1) {
+                String code = randomCode();
+                user.setTwofaCode(code);
+                user.setTwofaExpires(Timestamp.valueOf(
+                        LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh")).plusMinutes(10)));
+                userRepository.save(user);
+                logger.info("[2fa] {} code={}", user.getEmail(), code);
+                try {
+                    mailService.sendTextEmail(user.getEmail(), "Mã đăng nhập 2 bước",
+                            com.didan.social.utils.EmailTemplate.otp(
+                                    "Xác thực đăng nhập",
+                                    "Nhập mã dưới đây để hoàn tất đăng nhập.",
+                                    code,
+                                    "Nếu không phải bạn đăng nhập, hãy đổi mật khẩu ngay."));
+                } catch (Exception mailEx) {
+                    logger.error("send 2fa email failed: " + mailEx.getMessage());
+                }
+                user.setTwofaRequired(true);
+                return user;
+            }
             if (StringUtils.hasText(user.getRefreshToken())) {
                 blacklistRepository.save(new BlacklistToken(user.getRefreshToken()));
             }
@@ -186,6 +207,37 @@ public class AuthServiceImpl implements AuthService {
         blacklistRepository.save(new BlacklistToken(refreshToken));
         user.setAccessToken(jwtUtils.generateAccessToken(userId));
         user.setRefreshToken(jwtUtils.generateRefreshToken(userId));
+        userRepository.save(user);
+        return user;
+    }
+
+    @Override
+    public Users verifyTwoFactor(String email, String code) throws Exception {
+        Users user = userRepository.findFirstByEmail(email);
+        if (user == null) throw new Exception("Email không tồn tại");
+        if (user.getTwofaEnabled() == null || user.getTwofaEnabled() != 1)
+            throw new Exception("Tài khoản không bật xác thực 2 bước");
+        if (!StringUtils.hasText(user.getTwofaCode()) || code == null
+                || !user.getTwofaCode().equalsIgnoreCase(code.trim()))
+            throw new Exception("Mã xác thực không đúng");
+        if (user.getTwofaExpires() == null || user.getTwofaExpires().before(new java.util.Date()))
+            throw new Exception("Mã xác thực đã hết hạn. Vui lòng đăng nhập lại.");
+        BlacklistUser blacklistUser = blacklistUserRepository.findByUserId(user.getUserId());
+        if (blacklistUser != null && "blocked".equals(blacklistUser.getStatus()))
+            throw new Exception("User is blocked");
+        user.setTwofaCode(null);
+        user.setTwofaExpires(null);
+        if (user.getDeactivated() != null && user.getDeactivated() == 1) {
+            user.setDeactivated(0);
+        }
+        if (StringUtils.hasText(user.getAccessToken())) {
+            blacklistRepository.save(new BlacklistToken(user.getAccessToken()));
+        }
+        if (StringUtils.hasText(user.getRefreshToken())) {
+            blacklistRepository.save(new BlacklistToken(user.getRefreshToken()));
+        }
+        user.setAccessToken(jwtUtils.generateAccessToken(user.getUserId()));
+        user.setRefreshToken(jwtUtils.generateRefreshToken(user.getUserId()));
         userRepository.save(user);
         return user;
     }

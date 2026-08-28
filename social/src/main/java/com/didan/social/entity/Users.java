@@ -44,6 +44,18 @@ public class Users {
     @Column(name = "refresh_token", nullable = true, length = 512)
     private String refreshToken;
 
+    // Xác thực 2 bước qua email. null/0 = tắt, 1 = bật.
+    @Column(name = "twofa_enabled")
+    private Integer twofaEnabled;
+    @Column(name = "twofa_code", length = 12)
+    private String twofaCode;
+    @Column(name = "twofa_expires")
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date twofaExpires;
+    // Chỉ dùng để báo hiệu từ login(): true = cần nhập mã 2FA, chưa cấp token.
+    @Transient
+    private boolean twofaRequired;
+
     // Xác thực email khi đăng ký. null = tài khoản cũ (coi như đã xác thực), 0 = chưa, 1 = đã.
     @Column(name = "email_verified")
     private Integer emailVerified;
@@ -241,6 +253,15 @@ public class Users {
     public void setRefreshToken(String refreshToken) {
         this.refreshToken = refreshToken;
     }
+
+    public Integer getTwofaEnabled() { return twofaEnabled; }
+    public void setTwofaEnabled(Integer twofaEnabled) { this.twofaEnabled = twofaEnabled; }
+    public String getTwofaCode() { return twofaCode; }
+    public void setTwofaCode(String twofaCode) { this.twofaCode = twofaCode; }
+    public Date getTwofaExpires() { return twofaExpires; }
+    public void setTwofaExpires(Date twofaExpires) { this.twofaExpires = twofaExpires; }
+    public boolean isTwofaRequired() { return twofaRequired; }
+    public void setTwofaRequired(boolean twofaRequired) { this.twofaRequired = twofaRequired; }
 
     public Integer getEmailVerified() {
         return emailVerified;

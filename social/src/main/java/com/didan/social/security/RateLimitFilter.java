@@ -71,7 +71,8 @@ public class RateLimitFilter extends OncePerRequestFilter implements Ordered {
             bucket = "signup"; limit = signupLimit; windowSec = signupWindow;
         } else if (path.startsWith("/auth/resend-verify") || path.startsWith("/auth/token-reset")) {
             bucket = "otp-send"; limit = otpSendLimit; windowSec = otpSendWindow;
-        } else if (path.startsWith("/auth/verify") || path.startsWith("/auth/reset")) {
+        } else if (path.startsWith("/auth/verify") || path.startsWith("/auth/reset")
+                || path.startsWith("/auth/2fa/verify")) {
             bucket = "otp-check"; limit = otpCheckLimit; windowSec = otpCheckWindow;
         } else {
             bucket = "default"; limit = defaultLimit; windowSec = defaultWindow;

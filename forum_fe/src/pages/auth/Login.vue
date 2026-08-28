@@ -1,6 +1,6 @@
 <template>
     <div class="form-login">
-        <div class="flex flex-col items-stretch gap-3">
+        <div v-if="stage === 'creds'" class="flex flex-col items-stretch gap-3">
             <div class="section-title">Đăng nhập</div>
             <p class="muted text-sm text-center -mt-2">Chào mừng bạn đến với diễn đàn</p>
             <div class="form-login-fields">
@@ -17,7 +17,7 @@
                     />
                 </div>
             </div>
-            <DxButton width="100%" text="Đăng nhập" type="default" @click="loginHandler" />
+            <DxButton width="100%" text="Đăng nhập" type="default" :disabled="busy" @click="loginHandler" />
             <div class="text-sm text-center muted">
                 Chưa có tài khoản?
                 <span class="link" @click="() => route.push('/signup')">Đăng ký</span>
@@ -26,13 +26,30 @@
                 <span class="link" @click="() => route.push('/forgot-password')">Quên mật khẩu?</span>
             </div>
         </div>
+
+        <div v-else class="flex flex-col items-stretch gap-3">
+            <div class="section-title">Xác thực 2 bước</div>
+            <p class="muted text-sm text-center -mt-2">
+                Nhập mã 6 ký tự vừa gửi tới <b>{{ twofaEmail }}</b>
+            </p>
+            <div class="form-login-fields">
+                <div>
+                    <label class="text-sm muted">Mã xác thực</label>
+                    <DxTextBox v-model="code" @enter-key="verifyHandler" />
+                </div>
+            </div>
+            <DxButton width="100%" text="Xác nhận" type="default" :disabled="busy" @click="verifyHandler" />
+            <div class="text-sm text-center">
+                <span class="link" @click="backToCreds">← Đăng nhập lại</span>
+            </div>
+        </div>
     </div>
 </template>
 
 <script setup>
 import { DxTextBox } from 'devextreme-vue';
 import DxButton from 'devextreme-vue/button';
-import { login } from '../../apis/auth';
+import { login, verifyTwoFactor } from '../../apis/auth';
 import { getUserInfo } from '@/apis/user';
 import { inject, ref } from 'vue';
 import { LOCALKEYS, setItemLocal } from '../../storages/localStorage';
@@ -46,26 +63,64 @@ const formData = ref({
     "email": "",
     "password": "",
 })
+const stage = ref('creds');   // 'creds' | '2fa'
+const twofaEmail = ref('');
+const code = ref('');
+const busy = ref(false);
+
+const finishLogin = async (d) => {
+    setItemLocal(LOCALKEYS.ACCESS_TOKEN, d.accessToken);
+    if (d.refreshToken) setItemLocal(LOCALKEYS.REFRESH_TOKEN, d.refreshToken);
+    setItemLocal(LOCALKEYS.USER_ID, d.userId);
+    setItemLocal(LOCALKEYS.IS_ADMIN, String(d.isAdmin) === '1');
+    await getDataUser(d.userId);
+    route.push('/');
+}
 
 const loginHandler = async() => {
+    if (busy.value) return;
+    busy.value = true;
     try{
         const data = await login(formData.value);
         const d = data.data.data;
-        setItemLocal(LOCALKEYS.ACCESS_TOKEN, d.accessToken);
-        if (d.refreshToken) setItemLocal(LOCALKEYS.REFRESH_TOKEN, d.refreshToken);
-        setItemLocal(LOCALKEYS.USER_ID, d.userId);
-        setItemLocal(LOCALKEYS.IS_ADMIN, String(d.isAdmin) === '1');
-        await getDataUser(d.userId);
-        route.push('/');
+        if (d.twoFactorRequired === '1' || d.twoFactorRequired === true) {
+            twofaEmail.value = d.email || formData.value.email;
+            code.value = '';
+            stage.value = '2fa';
+            return;
+        }
+        await finishLogin(d);
     }
     catch (e) {
         const msg = e?.description || '';
-        if (msg.includes('xác thực')) {
+        if (msg.includes('xác thực') && !msg.includes('2 bước')) {
             route.push({ path: '/signup', query: { verify: formData.value.email } });
             return;
         }
         showDialog("Đăng nhập thất bại", msg || "Tài khoản hoặc mật khẩu không chính xác!");
+    } finally {
+        busy.value = false;
     }
+}
+
+const verifyHandler = async () => {
+    if (busy.value) return;
+    if (!code.value.trim()) { showDialog("Thông báo", "Nhập mã xác thực"); return; }
+    busy.value = true;
+    try {
+        const data = await verifyTwoFactor(twofaEmail.value, code.value.trim());
+        await finishLogin(data.data.data);
+    } catch (e) {
+        showDialog("Xác thực thất bại", e?.description || "Mã không đúng hoặc đã hết hạn");
+    } finally {
+        busy.value = false;
+    }
+}
+
+const backToCreds = () => {
+    stage.value = 'creds';
+    code.value = '';
+    formData.value.password = '';
 }
 
 const getDataUser = async(id) => {
