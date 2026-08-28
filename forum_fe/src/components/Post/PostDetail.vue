@@ -1,5 +1,5 @@
 <template>
-    <div class="page page--wide">
+    <div class="page">
         <div class="card">
             <!-- dòng tác giả -->
             <div class="flex items-center gap-2">
@@ -187,7 +187,7 @@ import { io } from 'socket.io-client';
 
 const  route = useRouter();
 
-const id = ref(route.currentRoute._value.params.id);
+const id = ref(route.currentRoute.value.params.id);
 const post = ref();
 const linkPostImg = ref();
 const contentPost = ref();
