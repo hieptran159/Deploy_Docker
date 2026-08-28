@@ -28,6 +28,10 @@ public class Posts {
     @Temporal(TemporalType.TIMESTAMP)
     private Date postedAt;
 
+    // NULL / "published" = đã đăng (hiện trên feed). "draft" = bản nháp (chỉ chủ bài thấy).
+    @Column(name = "status", length = 20)
+    private String status;
+
     @OneToOne(mappedBy = "posts", cascade = CascadeType.ALL, orphanRemoval = true)
     private UserPosts userPost;
 
@@ -88,6 +92,14 @@ public class Posts {
 
     public void setPostedAt(Date postedAt) {
         this.postedAt = postedAt;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
     }
 
     public UserPosts getUserPost() {

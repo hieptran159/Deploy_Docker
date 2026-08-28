@@ -121,6 +121,40 @@ public class PostController {
             return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
         }
     }
+    // Bản nháp của tôi
+    @Operation(summary = "Danh sách bản nháp của tôi", security = @SecurityRequirement(name = "bearerAuth"))
+    @GetMapping("/drafts")
+    public ResponseEntity<?> myDrafts(){
+        ResponseData payload = new ResponseData();
+        try {
+            payload.setData(postService.getMyDrafts());
+            payload.setDescription("OK");
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e){
+            payload.setSuccess(false);
+            payload.setStatusCode(500);
+            payload.setDescription(e.getMessage());
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
+    // Đăng một bản nháp
+    @Operation(summary = "Đăng bản nháp", security = @SecurityRequirement(name = "bearerAuth"))
+    @PatchMapping("/publish/{post_id}")
+    public ResponseEntity<?> publish(@PathVariable("post_id") String postId){
+        ResponseData payload = new ResponseData();
+        try {
+            postService.publishPost(postId);
+            payload.setDescription("Đã đăng bài");
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e){
+            payload.setSuccess(false);
+            payload.setStatusCode(500);
+            payload.setDescription(e.getMessage());
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
     // Get Detail One Post
     @Operation(summary = "Get detail a post",
             description = "Enter the id post you want to get detail",

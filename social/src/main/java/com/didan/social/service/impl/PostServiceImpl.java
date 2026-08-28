@@ -70,9 +70,15 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
     @Override
     public String createPost(CreatePostRequest createPostRequest) throws Exception {
         String userId = authorizePathService.getUserIdAuthoried();
-        if (!StringUtils.hasText(createPostRequest.getTitle())
-                || !StringUtils.hasText(createPostRequest.getBody())
-        ){
+        boolean draft = createPostRequest.isDraft();
+        if (draft) {
+            // Bản nháp: chỉ cần có tiêu đề HOẶC nội dung
+            if (!StringUtils.hasText(createPostRequest.getTitle())
+                    && !StringUtils.hasText(createPostRequest.getBody())) {
+                throw new Exception("Bản nháp cần ít nhất tiêu đề hoặc nội dung");
+            }
+        } else if (!StringUtils.hasText(createPostRequest.getTitle())
+                || !StringUtils.hasText(createPostRequest.getBody())) {
             logger.error("Miss some fields");
             throw new Exception("Miss some fields");
         }
@@ -85,12 +91,13 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         UserPosts userPost = new UserPosts();
         UUID postId = UUID.randomUUID();
         post.setPostId(postId.toString());
-        post.setTitle(createPostRequest.getTitle());
+        post.setStatus(draft ? "draft" : "published");
+        post.setTitle(createPostRequest.getTitle() == null ? "" : createPostRequest.getTitle());
         if (createPostRequest.getPostImg() != null && !createPostRequest.getPostImg().isEmpty()){
             String fileName = fileUploadsService.storeFile(createPostRequest.getPostImg(), "post", postId.toString());
             post.setPostImg("post/"+fileName);
         }
-        post.setBody(createPostRequest.getBody());
+        post.setBody(createPostRequest.getBody() == null ? "" : createPostRequest.getBody());
         LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
         Date nowSql = Timestamp.valueOf(now);
         post.setPostedAt(nowSql);
@@ -134,7 +141,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
     public java.util.Map<String, Object> feedPageInfo() throws Exception {
         int pageSize = 10;
         java.util.Set<String> ex = blockRelatedIds(currentUserOrNull());
-        long total = ex.isEmpty() ? postRepository.count() : postRepository.countFeedExcludingAuthors(ex);
+        long total = ex.isEmpty() ? postRepository.countPublished() : postRepository.countFeedExcludingAuthors(ex);
         int totalPages = (int) Math.max(1, Math.ceil(total / (double) pageSize));
         java.util.Map<String, Object> m = new java.util.HashMap<>();
         m.put("total", total);
@@ -150,7 +157,43 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
             logger.info("No post is here");
             return null;
         }
+        // Bản nháp chỉ chủ bài mới xem được
+        if ("draft".equals(post.getStatus())) {
+            String meId = currentUserOrNull();
+            String authorId = post.getUserPost() != null && post.getUserPost().getUsers() != null
+                    ? post.getUserPost().getUsers().getUserId() : null;
+            if (meId == null || !meId.equals(authorId)) {
+                logger.info("Draft not visible to this user");
+                return null;
+            }
+        }
         return (PostDTO) convertToDTO(post);
+    }
+
+    @Override
+    public List<PostDTO> getMyDrafts() throws Exception {
+        String meId = authorizePathService.getUserIdAuthoried();
+        List<Posts> drafts = postRepository.findDraftsOfAuthor(meId);
+        return drafts.stream().map(p -> toListDTO(p, meId)).collect(Collectors.toList());
+    }
+
+    @Transactional
+    @Override
+    public boolean publishPost(String postId) throws Exception {
+        String meId = authorizePathService.getUserIdAuthoried();
+        Posts post = postRepository.findFirstByPostId(postId);
+        if (post == null) throw new Exception("Không tìm thấy bài viết");
+        String authorId = post.getUserPost() != null && post.getUserPost().getUsers() != null
+                ? post.getUserPost().getUsers().getUserId() : null;
+        if (!meId.equals(authorId)) throw new Exception("Bạn không có quyền với bài viết này");
+        if (!"draft".equals(post.getStatus())) throw new Exception("Bài viết đã được đăng");
+        if (!StringUtils.hasText(post.getTitle()) || !StringUtils.hasText(post.getBody())) {
+            throw new Exception("Cần có tiêu đề và nội dung trước khi đăng");
+        }
+        post.setStatus("published");
+        post.setPostedAt(Timestamp.valueOf(LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"))));
+        postRepository.save(post);
+        return true;
     }
 
     @Override
@@ -310,6 +353,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
     private PostDTO basePostDTO(Posts post, String meId) {
         PostDTO dto = new PostDTO();
         dto.setPostId(post.getPostId());
+        dto.setStatus(post.getStatus());
         dto.setUserCreatedPost(post.getUserPost().getUserPostId().getUserId());
         Users author = post.getUserPost().getUsers();
         if (author != null) {

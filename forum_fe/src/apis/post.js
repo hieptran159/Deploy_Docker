@@ -24,6 +24,14 @@ export const createdPost = (data) => {
     return authApiFormData.post("/post/new", data);
 }
 
+export const getDrafts = () => {
+    return authApi.get('/post/drafts');
+}
+
+export const publishPost = (id) => {
+    return authApi.patch(`/post/publish/${id}`);
+}
+
 export const updatePost = (id, data) => {
     return authApiFormData.patch(`/post/update/${id}`, data);
 }

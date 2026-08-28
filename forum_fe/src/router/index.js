@@ -130,6 +130,15 @@ const routers = [
 	},
 
 	{
+		path: '/drafts',
+		component: () =>
+			import(
+				"@/pages/Drafts.vue"
+			),
+		beforeEnter: handleBeforeEnter
+	},
+
+	{
 		path: '/admin',
 		component: () =>
 			import(

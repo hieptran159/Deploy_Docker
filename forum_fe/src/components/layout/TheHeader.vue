@@ -148,12 +148,13 @@ const options = computed(() => {
         { id: 2, text: "Bạn bè", icon: "group" },
         { id: 3, text: "Tìm người dùng", icon: "search" },
         { id: 5, text: "Đã lưu", icon: "bookmark" },
+        { id: 6, text: "Bản nháp", icon: "doc" },
     ];
     if (isAdmin.value) base.push({ id: 4, text: "Quản trị", icon: "preferences" });
     return base;
 })
 
-const routeById = { 0: '/', 1: '/chat', 2: '/follow', 3: '/users', 4: '/admin', 5: '/saved' };
+const routeById = { 0: '/', 1: '/chat', 2: '/follow', 3: '/users', 4: '/admin', 5: '/saved', 6: '/drafts' };
 
 // bấm logo -> tải lại toàn bộ trang chủ (F5)
 const goHomeReload = () => {

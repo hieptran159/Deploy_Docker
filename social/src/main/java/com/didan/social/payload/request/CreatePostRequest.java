@@ -12,8 +12,23 @@ public class CreatePostRequest {
     private MultipartFile postImg = null;
     @JsonProperty(required = true)
     private String body;
+    // "true" -> lưu bản nháp (không lên feed)
+    @JsonProperty(required = false)
+    private String draft;
 
     public CreatePostRequest() {
+    }
+
+    public String getDraft() {
+        return draft;
+    }
+
+    public void setDraft(String draft) {
+        this.draft = draft;
+    }
+
+    public boolean isDraft() {
+        return "true".equalsIgnoreCase(draft) || "1".equals(draft);
     }
 
     public CreatePostRequest(String title, MultipartFile postImg, String body) {

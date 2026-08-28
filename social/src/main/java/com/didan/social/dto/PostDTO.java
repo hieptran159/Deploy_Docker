@@ -12,6 +12,7 @@ public class PostDTO {
     private String postImg;
     private String body;
     private String postedAt;
+    private String status;
     private int likesQuantity;
     private List<String> userLikedPost;
     private int commentsQuantity;
@@ -33,6 +34,14 @@ public class PostDTO {
         this.userLikedPost = userLikedPost;
         this.commentsQuantity = commentsQuantity;
         this.comments = comments;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
     }
 
     public String getAuthorName() {

@@ -97,6 +97,14 @@ uses `./mvnw install -DskipTests`. No frontend tests.
   (`PostRepository.findFeedExcludingAuthors` / `countFeedExcludingAuthors` /
   `searchByKeywordExcludingAuthors`, used only when the exclude set is non-empty — `NOT IN`
   with an empty collection is avoided). Guests (no `me`) get no filtering.
+- Draft posts: `Posts.status` (`null`/`"published"` = live, `"draft"` = draft). Every feed
+  and search query carries `PostRepository.PUBLISHED` (`p.status IS NULL OR p.status =
+  'published'`) so drafts never leak; `countPublished()` backs `feedPageInfo`. `createPost`
+  reads `CreatePostRequest.draft` (`"true"`/`"1"`) — a draft only needs title **or** body,
+  saved as `"draft"`. `getPostById` returns null for a `draft` unless the caller is its
+  author. `GET /post/drafts` (mine), `PATCH /post/publish/{id}` (author-only; requires
+  title+body, bumps `postedAt` to now). FE: `CreatePost.vue` "Lưu nháp" button, `/drafts`
+  page (edit via `EditPost` popup / publish / delete), header tab id 6.
 - Notifications: `entity/Notifications` (plain columns, no JPA relations; table
   auto-created by `ddl-auto=update`). `NotificationService.push(...)` is fire-and-forget
   and swallows its own errors so it never breaks the caller. `pushUnique` dedups on
@@ -151,10 +159,11 @@ uses `./mvnw install -DskipTests`. No frontend tests.
 ## Frontend architecture notes
 
 - Entry `src/main.js` → `App.vue` → `src/router/index.js`. Routes (all under
-  `beforeEnter` guard except auth pages): `/`, `/login`, `/signup`, `/forgot-password`,
-  `/post/:id`, `/follow` (Friends page: friends / incoming / outgoing tabs),
-  `/users` (user search), `/user/:id` (profile),
-  `/profile/edit`, `/chat`, `/admin`. Guard gates on `Token` + `UserId` in
+  `beforeEnter` guard **except** `/`, `/post/:id`, and the auth pages — those two are
+  public for guests, see the security note): `/`, `/login`, `/signup`, `/forgot-password`,
+  `/post/:id`, `/follow` (Friends page: friends / incoming / outgoing / **blocked** tabs),
+  `/users` (user search), `/user/:id` (profile), `/profile/edit`, `/chat`, `/admin`,
+  `/saved`, `/notifications`, `/drafts`. Guard gates on `Token` + `UserId` in
   `localStorage`. No admin flag is exposed at login, so admin status is probed by
   calling `/admin/blacklist` (a GET only admins can run) after login and on header
   mount; the result is cached in `localStorage.isAdmin` and drives both the "Quản trị"
