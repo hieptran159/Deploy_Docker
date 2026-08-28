@@ -135,6 +135,24 @@
                     </table>
                 </div>
             </div>
+
+            <div class="card">
+                <div class="section-title">Nhật ký quản trị</div>
+                <div v-if="!logs.length" class="state">Chưa có hoạt động nào</div>
+                <div v-for="l in logs" :key="l.id" class="border-b last:border-b-0 py-2 text-sm flex flex-wrap gap-x-2 items-baseline">
+                    <span class="font-semibold">{{ l.adminName }}</span>
+                    <span class="px-1.5 py-0.5 rounded bg-[var(--brand-soft)] text-[var(--brand)] text-xs font-semibold">
+                        {{ ACTION_LABEL[l.action] || l.action }}
+                    </span>
+                    <span v-if="l.detail" class="muted">{{ l.detail }}</span>
+                    <span v-if="l.targetId" class="muted text-xs">({{ l.targetType }} {{ String(l.targetId).slice(0, 8) }})</span>
+                    <span class="muted text-xs ml-auto">{{ timeAgo(l.createdAt) }}</span>
+                </div>
+                <div v-if="logs.length" class="pt-2 text-center">
+                    <button v-if="logsHasMore" class="link text-sm" @click="loadMoreLogs">Xem thêm</button>
+                    <span v-else class="muted text-xs">Đã hết</span>
+                </div>
+            </div>
         </template>
     </div>
 </template>
@@ -143,7 +161,7 @@
 import { DxTextBox, DxButton } from 'devextreme-vue';
 import { onMounted, ref, inject } from 'vue';
 import { useRouter } from 'vue-router';
-import { getBlacklist, grantAdmin, banUser, unbanUser, getAdminStats } from '@/apis/admin';
+import { getBlacklist, grantAdmin, banUser, unbanUser, getAdminStats, getAdminLogs } from '@/apis/admin';
 import { getReports, handleReport, removeReportedTarget, restoreReportedTarget } from '@/apis/report';
 import { timeAgo } from '@/js/helper';
 
@@ -182,6 +200,33 @@ const loadStats = async () => {
     } catch (e) { stats.value = null; }
 };
 
+const LOG_SIZE = 30;
+const logs = ref([]);
+const logPage = ref(0);
+const logsHasMore = ref(true);
+const ACTION_LABEL = {
+    GRANT_ADMIN: 'Cấp quyền admin',
+    BAN_USER: 'Chặn người dùng',
+    UNBAN_USER: 'Bỏ chặn người dùng',
+    HANDLE_REPORT: 'Xử lý báo cáo',
+    REMOVE_TARGET: 'Xoá nội dung bị báo cáo',
+    RESTORE_TARGET: 'Khôi phục bài viết',
+};
+
+const loadLogs = async (reset = false) => {
+    if (reset) { logPage.value = 0; logsHasMore.value = true; }
+    try {
+        const batch = (await getAdminLogs(logPage.value, LOG_SIZE))?.data?.data || [];
+        logs.value = reset ? batch : [...logs.value, ...batch];
+        logsHasMore.value = batch.length === LOG_SIZE;
+        logPage.value += 1;
+    } catch (e) {
+        if (reset) logs.value = [];
+        logsHasMore.value = false;
+    }
+};
+const loadMoreLogs = () => loadLogs(false);
+
 const barH = (c) => {
     const max = Math.max(1, ...(stats.value?.postsPerDay || []).map((p) => p.count));
     return Math.round((c / max) * 100) + '%';
@@ -204,6 +249,7 @@ const doHandle = async (r, status) => {
         await handleReport(r.reportId, status);
         toast?.(status === 'RESOLVED' ? 'Đã đánh dấu xử lý' : 'Đã bỏ qua');
         await loadReports();
+        loadLogs(true);
     } catch (e) {
         showDialog?.('Thông báo', e?.description || 'Thao tác thất bại');
     }
@@ -214,6 +260,7 @@ const doRestore = async (r) => {
         await restoreReportedTarget(r.reportId);
         toast?.('Đã khôi phục bài viết');
         await loadReports();
+        loadLogs(true);
     } catch (e) {
         showDialog?.('Thông báo', e?.description || 'Khôi phục thất bại');
     }
@@ -226,6 +273,7 @@ const doRemove = (r) => {
             await removeReportedTarget(r.reportId);
             toast?.('Đã xoá nội dung');
             await loadReports();
+        loadLogs(true);
         } catch (e) {
             showDialog?.('Thông báo', e?.description || 'Xoá thất bại');
         }
@@ -251,6 +299,7 @@ const doGrant = () => {
             await grantAdmin(uid);
             toast?.('Đã cấp quyền admin');
             grantId.value = '';
+            loadLogs(true);
         } catch (e) {
             showDialog('Thông báo', e?.description || 'Cấp quyền thất bại');
         }
@@ -266,6 +315,7 @@ const doBan = (userId) => {
             toast?.('Đã chặn người dùng');
             banId.value = '';
             await loadBlacklist();
+            loadLogs(true);
         } catch (e) {
             showDialog('Thông báo', e?.description || 'Chặn thất bại');
         }
@@ -278,11 +328,12 @@ const doUnban = (userId) => {
             await unbanUser(userId);
             toast?.('Đã bỏ chặn');
             await loadBlacklist();
+            loadLogs(true);
         } catch (e) {
             showDialog('Thông báo', e?.description || 'Bỏ chặn thất bại');
         }
     });
 }
 
-onMounted(() => { loadStats(); loadBlacklist(); loadReports(); });
+onMounted(() => { loadStats(); loadBlacklist(); loadReports(); loadLogs(true); });
 </script>

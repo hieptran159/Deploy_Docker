@@ -13,7 +13,9 @@ import com.didan.social.repository.ConversationRepository;
 import com.didan.social.repository.MessageRepository;
 import com.didan.social.repository.PostRepository;
 import com.didan.social.repository.ReportRepository;
+import com.didan.social.repository.AdminLogRepository;
 import com.didan.social.repository.UserRepository;
+import com.didan.social.service.AdminLogService;
 import com.didan.social.service.AdminService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,6 +44,8 @@ public class AdminServiceImpl implements AdminService {
     private final BookmarkRepository bookmarkRepository;
     private final BlockRepository blockRepository;
     private final ReportRepository reportRepository;
+    private final AdminLogRepository adminLogRepository;
+    private final AdminLogService adminLogService;
     private final Logger logger = LoggerFactory.getLogger(AdminServiceImpl.class);
     @Autowired
     public AdminServiceImpl(AuthorizePathServiceImpl authorizePathService, UserRepository userRepository,
@@ -49,7 +53,8 @@ public class AdminServiceImpl implements AdminService {
                             PostRepository postRepository, CommentRepository commentRepository,
                             ConversationRepository conversationRepository, MessageRepository messageRepository,
                             BookmarkRepository bookmarkRepository, BlockRepository blockRepository,
-                            ReportRepository reportRepository) {
+                            ReportRepository reportRepository, AdminLogRepository adminLogRepository,
+                            AdminLogService adminLogService) {
         this.authorizePathService = authorizePathService;
         this.userRepository = userRepository;
         this.blacklistUserRepository = blacklistUserRepository;
@@ -61,6 +66,17 @@ public class AdminServiceImpl implements AdminService {
         this.bookmarkRepository = bookmarkRepository;
         this.blockRepository = blockRepository;
         this.reportRepository = reportRepository;
+        this.adminLogRepository = adminLogRepository;
+        this.adminLogService = adminLogService;
+    }
+
+    @Override
+    public java.util.List<com.didan.social.entity.AdminLog> getLogs(int page, int size) throws Exception {
+        authAdmin();
+        if (page < 0) page = 0;
+        if (size < 1) size = 30;
+        if (size > 100) size = 100;
+        return adminLogRepository.findByOrderByCreatedAtDesc(org.springframework.data.domain.PageRequest.of(page, size));
     }
 
     @Override
@@ -116,6 +132,7 @@ public class AdminServiceImpl implements AdminService {
         }
         user_grant.setIsAdmin(1);
         userRepository.save(user_grant);
+        adminLogService.record("GRANT_ADMIN", "USER", userIdGranted, user_grant.getFullName());
         return true;
     }
 
@@ -164,8 +181,8 @@ public class AdminServiceImpl implements AdminService {
                 LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
                 Date nowSql = Timestamp.valueOf(now);
                 blacklistUser.setBlockedAt(nowSql);
-                System.out.println(1);
                 blacklistUserRepository.save(blacklistUser);
+                adminLogService.record("BAN_USER", "USER", userId, user_block.getFullName());
                 return true;
             }
         } else {
@@ -177,6 +194,7 @@ public class AdminServiceImpl implements AdminService {
             Date nowSql = Timestamp.valueOf(now);
             newUser.setBlockedAt(nowSql);
             blacklistUserRepository.save(newUser);
+            adminLogService.record("BAN_USER", "USER", userId, user_block.getFullName());
             return true;
         }
     }
@@ -199,6 +217,7 @@ public class AdminServiceImpl implements AdminService {
                 blacklistUser.setBlockedAt(null);
                 blacklistUser.setReportedQuantity(0);
                 blacklistUserRepository.save(blacklistUser);
+                adminLogService.record("UNBAN_USER", "USER", userId, user_unblock.getFullName());
                 return true;
             } else {
                 logger.error("User has not been blocked");

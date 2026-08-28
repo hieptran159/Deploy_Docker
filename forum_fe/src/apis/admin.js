@@ -18,6 +18,10 @@ export const getAdminStats = () => {
     return authApi.get('/admin/stats');
 }
 
+export const getAdminLogs = (page = 0, size = 30) => {
+    return authApi.get(`/admin/logs?page=${page}&size=${size}`);
+}
+
 export const grantAdmin = (userId) => {
     return authApi.patch(`/admin/grant?userId=${encodeURIComponent(userId)}`);
 }

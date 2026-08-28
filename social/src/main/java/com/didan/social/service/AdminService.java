@@ -12,4 +12,6 @@ public interface AdminService {
     boolean unblockUser(String userId) throws Exception;
     // Số liệu tổng quan cho bảng điều khiển admin
     java.util.Map<String, Object> getStats() throws Exception;
+    // Nhật ký hành động admin (mới nhất trước), phân trang
+    java.util.List<com.didan.social.entity.AdminLog> getLogs(int page, int size) throws Exception;
 }

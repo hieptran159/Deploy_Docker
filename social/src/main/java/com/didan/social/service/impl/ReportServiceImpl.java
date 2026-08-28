@@ -9,6 +9,7 @@ import com.didan.social.repository.CommentRepository;
 import com.didan.social.repository.PostRepository;
 import com.didan.social.repository.ReportRepository;
 import com.didan.social.repository.UserRepository;
+import com.didan.social.service.AdminLogService;
 import com.didan.social.service.AuthorizePathService;
 import com.didan.social.service.CommentService;
 import com.didan.social.service.PostService;
@@ -39,6 +40,7 @@ public class ReportServiceImpl implements ReportService {
     private final UserService userService;
     private final PostService postService;
     private final CommentService commentService;
+    private final AdminLogService adminLogService;
 
     // Bài viết đạt số báo cáo OPEN >= ngưỡng này sẽ tự ẩn khỏi feed (0 = tắt).
     @Value("${app.moderation.post-autohide-threshold:3}")
@@ -48,7 +50,8 @@ public class ReportServiceImpl implements ReportService {
     public ReportServiceImpl(ReportRepository reportRepository, UserRepository userRepository,
                              PostRepository postRepository, CommentRepository commentRepository,
                              AuthorizePathService authorizePathService, UserService userService,
-                             PostService postService, CommentService commentService) {
+                             PostService postService, CommentService commentService,
+                             AdminLogService adminLogService) {
         this.reportRepository = reportRepository;
         this.userRepository = userRepository;
         this.postRepository = postRepository;
@@ -57,6 +60,7 @@ public class ReportServiceImpl implements ReportService {
         this.userService = userService;
         this.postService = postService;
         this.commentService = commentService;
+        this.adminLogService = adminLogService;
     }
 
     private Users requireAdmin() throws Exception {
@@ -187,6 +191,7 @@ public class ReportServiceImpl implements ReportService {
         r.setHandledBy(admin.getUserId());
         r.setHandledAt(Timestamp.valueOf(LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"))));
         reportRepository.save(r);
+        adminLogService.record("HANDLE_REPORT", r.getTargetType(), r.getTargetId(), s);
         return true;
     }
 
@@ -207,6 +212,7 @@ public class ReportServiceImpl implements ReportService {
         }
         // đóng mọi báo cáo OPEN cùng đối tượng
         resolveOpenFor(type, r.getTargetId(), admin.getUserId());
+        adminLogService.record("REMOVE_TARGET", type, r.getTargetId(), null);
         return true;
     }
 
@@ -223,6 +229,7 @@ public class ReportServiceImpl implements ReportService {
         p.setStatus("published");
         postRepository.save(p);
         resolveOpenFor("POST", r.getTargetId(), admin.getUserId());
+        adminLogService.record("RESTORE_TARGET", "POST", r.getTargetId(), null);
         return true;
     }
 

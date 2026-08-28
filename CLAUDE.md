@@ -97,6 +97,7 @@ uses `./mvnw install -DskipTests`. No frontend tests.
   (`PostRepository.findFeedExcludingAuthors` / `countFeedExcludingAuthors` /
   `searchByKeywordExcludingAuthors`, used only when the exclude set is non-empty — `NOT IN`
   with an empty collection is avoided). Guests (no `me`) get no filtering.
+- Admin audit log: `entity/AdminLog` (table `admin_logs`, `ddl-auto`). `service/AdminLogService.record(action,targetType,targetId,detail)` is a standalone bean, fire-and-forget (swallows its own errors), called from `AdminServiceImpl` (`GRANT_ADMIN`/`BAN_USER`/`UNBAN_USER`) and `ReportServiceImpl` (`HANDLE_REPORT`/`REMOVE_TARGET`/`RESTORE_TARGET`) after the action succeeds. `GET /admin/logs?page=&size=` (`AdminService.getLogs`, admin-gated, newest first). FE: "Nhật ký quản trị" card in `AdminPage.vue` with "Xem thêm".
 - Auto-hide: `Posts.status = "hidden"` is set by `ReportServiceImpl.create` when a POST
   reaches `app.moderation.post-autohide-threshold` (`MOD_POST_AUTOHIDE`, default 3) OPEN
   reports — the `PUBLISHED` predicate then drops it from feed/search. `getPostById` shows

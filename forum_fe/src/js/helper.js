@@ -2,6 +2,11 @@
 function parseDate(input) {
     if (!input) return null;
     if (input instanceof Date) return input;
+    // epoch millis (số hoặc chuỗi toàn số) - vd Jackson serialize java.util.Date
+    if (typeof input === 'number' || /^\d{10,}$/.test(String(input))) {
+        const d = new Date(Number(input));
+        return Number.isNaN(d.getTime()) ? null : d;
+    }
     const d = new Date(String(input).replace(' ', 'T'));
     return Number.isNaN(d.getTime()) ? null : d;
 }
