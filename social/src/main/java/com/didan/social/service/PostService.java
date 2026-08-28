@@ -19,6 +19,10 @@ public interface PostService {
     // Tổng số trang của feed (kích thước trang 10)
     java.util.Map<String, Object> feedPageInfo() throws Exception;
 
+    // Bảng tin bạn bè: bài + lượt chia sẻ của bạn bè (đã chấp nhận) và của chính mình
+    List<PostDTO> getFriendsFeed(int index) throws Exception;
+    java.util.Map<String, Object> friendsFeedPageInfo() throws Exception;
+
     // Lấy bài viết theo id
     PostDTO getPostById(String postId) throws Exception;
 

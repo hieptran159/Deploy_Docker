@@ -38,6 +38,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
     private final com.didan.social.service.NotificationService notificationService;
     private final com.didan.social.repository.BlockRepository blockRepository;
     private final com.didan.social.repository.RepostRepository repostRepository;
+    private final com.didan.social.service.FollowService followService;
     @Autowired
     public PostServiceImpl(PostRepository postRepository,
                        UserPostRepository userPostRepository,
@@ -48,7 +49,8 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
                        AuthorizePathService authorizePathService,
                        com.didan.social.service.NotificationService notificationService,
                        com.didan.social.repository.BlockRepository blockRepository,
-                       com.didan.social.repository.RepostRepository repostRepository
+                       com.didan.social.repository.RepostRepository repostRepository,
+                       com.didan.social.service.FollowService followService
     ){
         this.postRepository = postRepository;
         this.userPostRepository = userPostRepository;
@@ -60,6 +62,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         this.notificationService = notificationService;
         this.blockRepository = blockRepository;
         this.repostRepository = repostRepository;
+        this.followService = followService;
     }
 
     // Điền repostCount + reposted cho danh sách DTO bằng 2 truy vấn gộp (không N+1)
@@ -147,9 +150,42 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
     public List<PostDTO> getAllPostsByPage(int index) throws Exception {
         if (index < 1) index = 1;
         String meId = currentUserOrNull();
-        java.util.Collection<String> ex = feedExcludeParam(meId);
-        List<Object[]> rows = postRepository.feedPage(ex, 10, (index - 1) * 10);
-        if (rows.isEmpty()) {
+        List<Object[]> rows = postRepository.feedPage(feedExcludeParam(meId), 10, (index - 1) * 10);
+        return buildFeedFromRows(rows, meId);
+    }
+
+    @Override
+    public List<PostDTO> getFriendsFeed(int index) throws Exception {
+        if (index < 1) index = 1;
+        String meId = authorizePathService.getUserIdAuthoried();
+        List<Object[]> rows = postRepository.friendFeedPage(friendFeedIds(meId), 10, (index - 1) * 10);
+        return buildFeedFromRows(rows, meId);
+    }
+
+    @Override
+    public java.util.Map<String, Object> friendsFeedPageInfo() throws Exception {
+        String meId = authorizePathService.getUserIdAuthoried();
+        long total = postRepository.friendFeedCount(friendFeedIds(meId));
+        int totalPages = (int) Math.max(1, Math.ceil(total / 10.0));
+        java.util.Map<String, Object> m = new java.util.HashMap<>();
+        m.put("total", total);
+        m.put("pageSize", 10);
+        m.put("totalPages", totalPages);
+        return m;
+    }
+
+    // Bạn bè (đã chấp nhận) + chính mình, bỏ tài khoản đang vô hiệu hoá. Luôn khác rỗng (có meId).
+    private java.util.Collection<String> friendFeedIds(String meId) {
+        java.util.Set<String> ids = new java.util.HashSet<>(followService.friendIdsOf(meId));
+        ids.add(meId);
+        ids.removeAll(userRepository.findDeactivatedIds());
+        ids.add(meId); // giữ lại mình kể cả khi tự vô hiệu hoá (xem feed của chính mình)
+        return ids;
+    }
+
+    // Dựng danh sách PostDTO từ các dòng feed [pid, sort_t, is_repost]
+    private List<PostDTO> buildFeedFromRows(List<Object[]> rows, String meId) {
+        if (rows == null || rows.isEmpty()) {
             logger.info("No posts are here");
             return Collections.emptyList();
         }

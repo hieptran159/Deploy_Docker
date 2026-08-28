@@ -25,7 +25,10 @@
                 </div>
             </div>
 
-            <div v-if="!isMe" class="flex flex-col gap-2 flex-none">
+            <div v-if="isMe" class="flex flex-col gap-2 flex-none">
+                <DxButton type="default" icon="edit" text="Chỉnh sửa hồ sơ" @click="route.push('/profile/edit')" />
+            </div>
+            <div v-else class="flex flex-col gap-2 flex-none">
                 <template v-if="fStatus === 'blocked_out'">
                     <span class="text-xs muted">Bạn đã chặn người này</span>
                     <DxButton type="normal" stylingMode="outlined" text="Bỏ chặn" @click="doUnblock" />

@@ -1,5 +1,41 @@
 <template>
     <div class="page">
+        <!-- Xem trước hồ sơ công khai -->
+        <div class="card card--flush overflow-hidden">
+            <div class="h-28 sm:h-36 w-full bg-[var(--brand-soft)]">
+                <img v-if="previewCover" :src="previewCover" class="w-full h-full object-cover" @error="prevCoverOk = false" />
+            </div>
+            <div class="p-4 flex items-center gap-4 -mt-10">
+                <img
+                    v-if="previewAvatar"
+                    :src="previewAvatar"
+                    class="size-20 rounded-full object-cover ring-4 ring-[var(--surface)] bg-gray-100 flex-none"
+                    @error="prevAvatarOk = false"
+                />
+                <div v-else class="avatar-fallback size-20 text-2xl ring-4 ring-[var(--surface)] flex-none">
+                    {{ (profile.fullName || '?')[0] }}
+                </div>
+                <div class="min-w-0 flex-1 pt-8">
+                    <div class="font-bold text-lg truncate">
+                        {{ profile.fullName || '—' }}
+                        <span v-if="visible.nickname && profile.nickname" class="text-sm muted font-normal">({{ profile.nickname }})</span>
+                    </div>
+                    <div v-if="visible.slogan && profile.slogan" class="text-sm italic muted truncate">“{{ profile.slogan }}”</div>
+                    <div class="text-xs muted mt-0.5">Đây là những gì người khác nhìn thấy.</div>
+                </div>
+            </div>
+            <div class="px-4 pb-4 flex flex-wrap gap-x-5 gap-y-1 text-sm">
+                <span v-if="visible.phone && profile.phone"><span class="muted">SĐT:</span> {{ profile.phone }}</span>
+                <span v-if="visible.address && profile.address"><span class="muted">Địa chỉ:</span> {{ profile.address }}</span>
+                <span v-if="visible.hobbies && profile.hobbies" class="whitespace-pre-wrap"><span class="muted">Sở thích:</span> {{ profile.hobbies }}</span>
+            </div>
+            <div class="px-4 pb-4">
+                <DxButton stylingMode="outlined" icon="user" text="Xem trang công khai của tôi" @click="route.push('/user/' + myId)" />
+            </div>
+        </div>
+
+        <div class="section-title text-base mt-1">Cài đặt tài khoản</div>
+
         <div class="card">
             <div class="section-title">Thông tin cá nhân</div>
             <p class="muted text-sm mb-3">
@@ -93,7 +129,7 @@
 <script setup>
 import { DxButton, DxTextBox, DxTextArea } from 'devextreme-vue';
 import { useRouter } from 'vue-router';
-import { inject, onMounted, ref } from 'vue';
+import { computed, inject, onMounted, ref } from 'vue';
 import { editUser, updateProfile, getUserInfo, deleteAccount, deactivateAccount, updateCover } from '@/apis/user';
 import { LOCALKEYS, getItemLocal, setItemLocal, delItemLocal } from '@/storages/localStorage';
 import { IMAGE_BASE } from '@/config';
@@ -113,6 +149,13 @@ const fields = [
 
 const profile = ref({ fullName: '', nickname: '', phone: '', address: '', hobbies: '', slogan: '' });
 const visible = ref({ nickname: true, phone: false, address: false, hobbies: true, slogan: true });
+
+const myId = getItemLocal(LOCALKEYS.USER_ID);
+const rawUser = ref({});
+const prevAvatarOk = ref(true);
+const prevCoverOk = ref(true);
+const previewAvatar = computed(() => (prevAvatarOk.value && rawUser.value.avtUrl ? IMAGE_BASE + rawUser.value.avtUrl : ''));
+const previewCover = computed(() => (prevCoverOk.value && rawUser.value.coverUrl ? IMAGE_BASE + rawUser.value.coverUrl : ''));
 
 const currentPassword = ref("");
 const newEmail = ref("");
@@ -134,6 +177,9 @@ const requirePassword = () => {
 const loadProfile = async () => {
     try {
         const d = (await getUserInfo(getItemLocal(LOCALKEYS.USER_ID)))?.data?.data || {};
+        rawUser.value = d;
+        prevAvatarOk.value = true;
+        prevCoverOk.value = true;
         profile.value.fullName = d.fullName || '';
         for (const f of fields) profile.value[f.key] = d[f.key] || '';
         visible.value = {

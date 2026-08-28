@@ -8,6 +8,14 @@ export const getFeedPages = () => {
     return authApi.get('/post/pages');
 }
 
+export const getFriendsFeed = (page = 1) => {
+    return authApi.get(`/post/feed/friends?page=${page}`);
+}
+
+export const getFriendsFeedPages = () => {
+    return authApi.get('/post/feed/friends/pages');
+}
+
 export const getPostById = (id) => {
     return authApi.get(`/post/${id}`);
 }

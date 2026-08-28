@@ -130,6 +130,16 @@ uses `./mvnw install -DskipTests`. No frontend tests.
   Notification type `REPOST` (added to FE `notifTarget.POST_TYPES`). The old
   `findAllPostByCommentAtOrPostAt` / `findFeedExcludingAuthors` / `countFeedExcludingAuthors`
   / `countPublished` JPQL methods are now unused by the feed but kept.
+- Friends feed: `GET /post/feed/friends?page=` + `/post/feed/friends/pages`
+  (`PostService.getFriendsFeed` / `friendsFeedPageInfo`). Same grouped-UNION as the main
+  feed but `PostRepository.FRIEND_FEED_UNION` filters `IN (:ids)` where ids =
+  `followService.friendIdsOf(me) ∪ {me}` minus deactivated (always non-empty). Original
+  rows require the author be a friend; repost rows require the **reposter** be a friend.
+  `PostServiceImpl` now injects `FollowService`; row→DTO building is shared via
+  `buildFeedFromRows`. FE `Home.vue` has an "Tất cả" / "Bạn bè" tab (login only).
+- `EditProfile.vue` opens with a public-profile **preview card** (cover/avatar/name/public
+  fields + link to `/user/{me}`) above a "Cài đặt tài khoản" heading; `UserProfile.vue`
+  shows a "Chỉnh sửa hồ sơ" button on your own profile.
 - Draft posts: `Posts.status` (`null`/`"published"` = live, `"draft"` = draft). Every feed
   and search query carries `PostRepository.PUBLISHED` (`p.status IS NULL OR p.status =
   'published'`) so drafts never leak; `countPublished()` backs `feedPageInfo`. `createPost`

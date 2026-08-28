@@ -32,8 +32,20 @@
         </div>
 
         <div class="card">
+            <div v-if="isLogin" class="flex gap-1 mb-3">
+                <button
+                    class="px-3 py-1.5 rounded-lg text-sm font-semibold"
+                    :class="feedMode === 'all' ? 'bg-[var(--brand-soft)] text-[var(--brand)]' : 'muted'"
+                    @click="setFeedMode('all')"
+                >Tất cả</button>
+                <button
+                    class="px-3 py-1.5 rounded-lg text-sm font-semibold"
+                    :class="feedMode === 'friends' ? 'bg-[var(--brand-soft)] text-[var(--brand)]' : 'muted'"
+                    @click="setFeedMode('friends')"
+                >Bạn bè</button>
+            </div>
             <div class="flex items-center gap-2 mb-3">
-                <span class="section-title mb-0 flex-1">Bài đăng mới nhất</span>
+                <span class="section-title mb-0 flex-1">{{ feedMode === 'friends' ? 'Từ bạn bè' : 'Bài đăng mới nhất' }}</span>
                 <DxButton
                     v-if="isLogin"
                     icon="bookmark"
@@ -65,7 +77,8 @@
 
             <div v-if="loading && !posts.length" class="state">Đang tải…</div>
             <div v-else-if="!posts.length" class="state">
-                {{ searchMode ? 'Không tìm thấy bài viết nào' : 'Chưa có bài viết nào' }}
+                {{ searchMode ? 'Không tìm thấy bài viết nào'
+                    : (feedMode === 'friends' ? 'Bạn bè của bạn chưa đăng hay chia sẻ gì' : 'Chưa có bài viết nào') }}
             </div>
 
             <div v-for="post in posts" :key="post.postId" class="border-b last:border-b-0">
@@ -101,7 +114,7 @@
 <script setup>
 import Post from '../../components/Post/Post.vue';
 import { DxButton, DxPopup, DxTextBox } from 'devextreme-vue';
-import { getListPostApi, searchPost, getFeedPages } from '@/apis/post';
+import { getListPostApi, searchPost, getFeedPages, getFriendsFeed, getFriendsFeedPages } from '@/apis/post';
 import { computed, inject, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import BaseAvatar from '@/components/BaseAvatar.vue';
@@ -116,10 +129,23 @@ const totalPages = ref(1);
 const gotoPage = ref(currentPage.value);
 const ishowCreatePost = ref(false);
 const loading = ref(false);
+const feedMode = ref(isLogin.value ? 'all' : 'all'); // 'all' | 'friends'
+
+const setFeedMode = (m) => {
+    if (feedMode.value === m) return;
+    feedMode.value = m;
+    if (currentPage.value !== 1) {
+        router.push({ query: { ...router.currentRoute.value.query, page: 1 } });
+    } else {
+        getListPost();
+    }
+    loadPageInfo();
+}
 
 const loadPageInfo = async () => {
     try {
-        totalPages.value = (await getFeedPages())?.data?.data?.totalPages || 1;
+        const fn = feedMode.value === 'friends' ? getFriendsFeedPages : getFeedPages;
+        totalPages.value = (await fn())?.data?.data?.totalPages || 1;
     } catch (e) { totalPages.value = 1; }
 }
 
@@ -148,7 +174,8 @@ function pageFromQuery() {
 const getListPost = async () => {
     loading.value = true;
     try {
-        const data = await getListPostApi(currentPage.value);
+        const fn = (feedMode.value === 'friends' && isLogin.value) ? getFriendsFeed : getListPostApi;
+        const data = await fn(currentPage.value);
         posts.value = data?.data?.data || [];
     } catch (e) {
         posts.value = [];

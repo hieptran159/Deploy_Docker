@@ -69,6 +69,23 @@ public interface PostRepository extends JpaRepository<Posts, String> {
     @Query(value = "SELECT COUNT(DISTINCT u.pid) FROM (" + FEED_UNION + ") u", nativeQuery = true)
     long feedCount(@Param("ex") Collection<String> ex);
 
+    // Bảng tin bạn bè: bài gốc của người trong :ids + lượt chia sẻ do người trong :ids thực hiện.
+    String FRIEND_FEED_UNION =
+        "SELECT p.post_id AS pid, p.posted_at AS t, 0 AS is_repost " +
+        "FROM posts p JOIN user_posts up ON up.post_id = p.post_id " +
+        "WHERE (p.status IS NULL OR p.status = 'published') AND up.user_id IN (:ids) " +
+        "UNION ALL " +
+        "SELECT rp.post_id AS pid, rp.created_at AS t, 1 AS is_repost " +
+        "FROM reposts rp JOIN posts p2 ON p2.post_id = rp.post_id " +
+        "WHERE (p2.status IS NULL OR p2.status = 'published') AND rp.user_id IN (:ids)";
+
+    @Query(value = "SELECT u.pid, MAX(u.t) AS sort_t, MAX(u.is_repost) AS is_repost FROM (" + FRIEND_FEED_UNION
+                 + ") u GROUP BY u.pid ORDER BY sort_t DESC, u.pid ASC LIMIT :lim OFFSET :off", nativeQuery = true)
+    List<Object[]> friendFeedPage(@Param("ids") Collection<String> ids, @Param("lim") int lim, @Param("off") int off);
+
+    @Query(value = "SELECT COUNT(DISTINCT u.pid) FROM (" + FRIEND_FEED_UNION + ") u", nativeQuery = true)
+    long friendFeedCount(@Param("ids") Collection<String> ids);
+
     // Join all the tables to get the post, user, likes, comments and sub-comments
     @EntityGraph(attributePaths = {"userPost", "postLikes", "userComments", "userComments.comments"}, type = EntityGraph.EntityGraphType.FETCH)
     Posts findFirstByPostId(String postId);
