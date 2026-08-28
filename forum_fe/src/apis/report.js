@@ -16,3 +16,7 @@ export const handleReport = (reportId, status) => {
 export const removeReportedTarget = (reportId) => {
     return authApi.post(`/report/admin/${reportId}/remove-target`);
 }
+
+export const restoreReportedTarget = (reportId) => {
+    return authApi.post(`/report/admin/${reportId}/restore-target`);
+}

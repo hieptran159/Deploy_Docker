@@ -7,6 +7,7 @@ public class ReportDTO {
     private String targetType;
     private String targetId;
     private String targetPreview;   // tiêu đề bài / trích bình luận / tên user
+    private String targetStatus;    // với POST: published | hidden | deleted
     private String reason;
     private String status;
     private String createdAt;
@@ -24,6 +25,8 @@ public class ReportDTO {
     public void setTargetId(String targetId) { this.targetId = targetId; }
     public String getTargetPreview() { return targetPreview; }
     public void setTargetPreview(String targetPreview) { this.targetPreview = targetPreview; }
+    public String getTargetStatus() { return targetStatus; }
+    public void setTargetStatus(String targetStatus) { this.targetStatus = targetStatus; }
     public String getReason() { return reason; }
     public void setReason(String reason) { this.reason = reason; }
     public String getStatus() { return status; }

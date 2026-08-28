@@ -157,13 +157,20 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
             logger.info("No post is here");
             return null;
         }
-        // Bản nháp chỉ chủ bài mới xem được
-        if ("draft".equals(post.getStatus())) {
+        // Bản nháp: chỉ chủ bài. Bài bị ẩn (nhiều báo cáo): chủ bài hoặc admin.
+        String st = post.getStatus();
+        if ("draft".equals(st) || "hidden".equals(st)) {
             String meId = currentUserOrNull();
             String authorId = post.getUserPost() != null && post.getUserPost().getUsers() != null
                     ? post.getUserPost().getUsers().getUserId() : null;
-            if (meId == null || !meId.equals(authorId)) {
-                logger.info("Draft not visible to this user");
+            boolean isAuthor = meId != null && meId.equals(authorId);
+            boolean isAdmin = false;
+            if (!isAuthor && meId != null && "hidden".equals(st)) {
+                Users me = userRepository.findFirstByUserId(meId);
+                isAdmin = me != null && me.getIsAdmin() == 1;
+            }
+            if (!isAuthor && !isAdmin) {
+                logger.info("Post {} not visible to this user", st);
                 return null;
             }
         }

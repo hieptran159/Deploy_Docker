@@ -15,6 +15,7 @@ import com.didan.social.service.PostService;
 import com.didan.social.service.ReportService;
 import com.didan.social.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.sql.Timestamp;
@@ -38,6 +39,10 @@ public class ReportServiceImpl implements ReportService {
     private final UserService userService;
     private final PostService postService;
     private final CommentService commentService;
+
+    // Bài viết đạt số báo cáo OPEN >= ngưỡng này sẽ tự ẩn khỏi feed (0 = tắt).
+    @Value("${app.moderation.post-autohide-threshold:3}")
+    private int autoHideThreshold;
 
     @Autowired
     public ReportServiceImpl(ReportRepository reportRepository, UserRepository userRepository,
@@ -73,13 +78,14 @@ public class ReportServiceImpl implements ReportService {
             throw new Exception("Thiếu đối tượng báo cáo");
         }
 
+        Posts postTarget = null;
         if ("USER".equals(type)) {
             if (me.equals(targetId)) throw new Exception("Không thể tự báo cáo mình");
             // tận dụng kiểm tra + tăng bộ đếm blacklist sẵn có
             userService.reportUser(targetId);
         } else if ("POST".equals(type)) {
-            Posts p = postRepository.findFirstByPostId(targetId);
-            if (p == null) throw new Exception("Không tìm thấy bài viết");
+            postTarget = postRepository.findFirstByPostId(targetId);
+            if (postTarget == null) throw new Exception("Không tìm thấy bài viết");
         } else {
             Comments c = commentRepository.findByCommentId(targetId);
             if (c == null) throw new Exception("Không tìm thấy bình luận");
@@ -100,6 +106,19 @@ public class ReportServiceImpl implements ReportService {
         r.setStatus("OPEN");
         r.setCreatedAt(Timestamp.valueOf(LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"))));
         reportRepository.save(r);
+
+        // Tự ẩn bài viết khi số báo cáo OPEN đạt ngưỡng
+        if (postTarget != null && autoHideThreshold > 0) {
+            String st = postTarget.getStatus();
+            boolean live = st == null || "published".equals(st);
+            if (live) {
+                long open = reportRepository.countByTargetTypeAndTargetIdAndStatus("POST", targetId, "OPEN");
+                if (open >= autoHideThreshold) {
+                    postTarget.setStatus("hidden");
+                    postRepository.save(postTarget);
+                }
+            }
+        }
         return true;
     }
 
@@ -125,6 +144,10 @@ public class ReportServiceImpl implements ReportService {
             d.setTargetPreview(previewOf(r.getTargetType(), r.getTargetId()));
             d.setSameTargetOpenCount(
                     reportRepository.countByTargetTypeAndTargetIdAndStatus(r.getTargetType(), r.getTargetId(), "OPEN"));
+            if ("POST".equals(r.getTargetType())) {
+                Posts p = postRepository.findFirstByPostId(r.getTargetId());
+                d.setTargetStatus(p != null ? (p.getStatus() == null ? "published" : p.getStatus()) : "deleted");
+            }
             out.add(d);
         }
         return out;
@@ -183,15 +206,36 @@ public class ReportServiceImpl implements ReportService {
             throw new Exception("Chỉ xoá được nội dung bài viết / bình luận. Với người dùng hãy dùng chức năng chặn.");
         }
         // đóng mọi báo cáo OPEN cùng đối tượng
+        resolveOpenFor(type, r.getTargetId(), admin.getUserId());
+        return true;
+    }
+
+    @Override
+    public boolean restoreReportedTarget(String reportId) throws Exception {
+        Users admin = requireAdmin();
+        Reports r = reportRepository.findById(reportId).orElse(null);
+        if (r == null) throw new Exception("Không tìm thấy báo cáo");
+        if (!"POST".equals(r.getTargetType())) {
+            throw new Exception("Chỉ khôi phục được bài viết bị ẩn");
+        }
+        Posts p = postRepository.findFirstByPostId(r.getTargetId());
+        if (p == null) throw new Exception("Không tìm thấy bài viết");
+        p.setStatus("published");
+        postRepository.save(p);
+        resolveOpenFor("POST", r.getTargetId(), admin.getUserId());
+        return true;
+    }
+
+    // Đánh dấu RESOLVED mọi báo cáo OPEN của cùng đối tượng
+    private void resolveOpenFor(String type, String targetId, String adminId) {
         Date now = Timestamp.valueOf(LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh")));
         for (Reports open : reportRepository.findTop300ByStatusOrderByCreatedAtDesc("OPEN")) {
-            if (type.equals(open.getTargetType()) && r.getTargetId().equals(open.getTargetId())) {
+            if (type.equals(open.getTargetType()) && targetId.equals(open.getTargetId())) {
                 open.setStatus("RESOLVED");
-                open.setHandledBy(admin.getUserId());
+                open.setHandledBy(adminId);
                 open.setHandledAt(now);
                 reportRepository.save(open);
             }
         }
-        return true;
     }
 }

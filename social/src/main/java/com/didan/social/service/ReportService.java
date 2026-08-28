@@ -16,4 +16,7 @@ public interface ReportService {
 
     // Admin: xoá luôn nội dung bị báo cáo (POST | COMMENT) + đóng mọi báo cáo OPEN cùng đối tượng
     boolean removeReportedTarget(String reportId) throws Exception;
+
+    // Admin: khôi phục bài viết bị ẩn (tự động do nhiều báo cáo) + đóng mọi báo cáo OPEN cùng bài
+    boolean restoreReportedTarget(String reportId) throws Exception;
 }

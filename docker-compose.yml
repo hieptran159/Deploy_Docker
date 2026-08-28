@@ -68,6 +68,8 @@ services:
       UPLOAD_MULTIPART_MAX: ${UPLOAD_MULTIPART_MAX:-12MB}
       UPLOAD_MAX_DIMENSION: ${UPLOAD_MAX_DIMENSION:-1600}
       UPLOAD_JPEG_QUALITY: ${UPLOAD_JPEG_QUALITY:-0.82}
+      # Tự ẩn bài khi đạt số báo cáo OPEN này (0 = tắt)
+      MOD_POST_AUTOHIDE: ${MOD_POST_AUTOHIDE:-3}
     ports:
       - "${BACKEND_PORT:-8081}:8081"
       - "${SOCKET_PORT:-8082}:8082"

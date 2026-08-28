@@ -75,6 +75,8 @@
                             <span v-if="r.sameTargetOpenCount > 1" class="text-xs text-[var(--danger)] font-semibold">
                                 · {{ r.sameTargetOpenCount }} báo cáo
                             </span>
+                            <span v-if="r.targetStatus === 'hidden'"
+                                class="ml-1 px-1.5 py-0.5 rounded bg-orange-50 text-orange-600 text-[11px] font-bold">đã tự ẩn</span>
                         </div>
                         <div class="text-xs muted mt-0.5">
                             {{ r.reporterName }} · {{ timeAgo(r.createdAt) }}
@@ -83,6 +85,8 @@
                         </div>
                     </div>
                     <div v-if="r.status === 'OPEN'" class="flex gap-1 flex-none">
+                        <DxButton v-if="r.targetStatus === 'hidden'" text="Khôi phục" type="success" stylingMode="outlined"
+                            @click="() => doRestore(r)" />
                         <DxButton v-if="r.targetType !== 'USER'" text="Xoá nội dung" type="danger" stylingMode="outlined"
                             @click="() => doRemove(r)" />
                         <DxButton text="Đã xử lý" stylingMode="outlined" @click="() => doHandle(r, 'RESOLVED')" />
@@ -140,7 +144,7 @@ import { DxTextBox, DxButton } from 'devextreme-vue';
 import { onMounted, ref, inject } from 'vue';
 import { useRouter } from 'vue-router';
 import { getBlacklist, grantAdmin, banUser, unbanUser, getAdminStats } from '@/apis/admin';
-import { getReports, handleReport, removeReportedTarget } from '@/apis/report';
+import { getReports, handleReport, removeReportedTarget, restoreReportedTarget } from '@/apis/report';
 import { timeAgo } from '@/js/helper';
 
 const router = useRouter();
@@ -202,6 +206,16 @@ const doHandle = async (r, status) => {
         await loadReports();
     } catch (e) {
         showDialog?.('Thông báo', e?.description || 'Thao tác thất bại');
+    }
+}
+
+const doRestore = async (r) => {
+    try {
+        await restoreReportedTarget(r.reportId);
+        toast?.('Đã khôi phục bài viết');
+        await loadReports();
+    } catch (e) {
+        showDialog?.('Thông báo', e?.description || 'Khôi phục thất bại');
     }
 }
 

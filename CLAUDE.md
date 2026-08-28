@@ -97,6 +97,13 @@ uses `./mvnw install -DskipTests`. No frontend tests.
   (`PostRepository.findFeedExcludingAuthors` / `countFeedExcludingAuthors` /
   `searchByKeywordExcludingAuthors`, used only when the exclude set is non-empty — `NOT IN`
   with an empty collection is avoided). Guests (no `me`) get no filtering.
+- Auto-hide: `Posts.status = "hidden"` is set by `ReportServiceImpl.create` when a POST
+  reaches `app.moderation.post-autohide-threshold` (`MOD_POST_AUTOHIDE`, default 3) OPEN
+  reports — the `PUBLISHED` predicate then drops it from feed/search. `getPostById` shows
+  a `hidden` post only to its author or an admin. `ReportDTO.targetStatus` carries the
+  post status into the admin queue; `POST /report/admin/{id}/restore-target`
+  (`restoreReportedTarget`) sets it back to `published` and resolves that post's OPEN
+  reports (shared `resolveOpenFor` helper with `removeReportedTarget`).
 - Draft posts: `Posts.status` (`null`/`"published"` = live, `"draft"` = draft). Every feed
   and search query carries `PostRepository.PUBLISHED` (`p.status IS NULL OR p.status =
   'published'`) so drafts never leak; `countPublished()` backs `feedPageInfo`. `createPost`
