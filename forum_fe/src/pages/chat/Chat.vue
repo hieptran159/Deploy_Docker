@@ -63,8 +63,9 @@
                         @click="() => openConversation(c)">
                         <div class="flex items-center gap-1.5">
                             <span class="relative flex-none">
-                                <img v-if="c.avatarUrl" :src="IMAGE_BASE + c.avatarUrl"
-                                    class="size-7 rounded-full object-cover bg-gray-100" @error="(e) => e.target.style.display = 'none'" />
+                                <img v-if="c.avatarUrl" :src="IMAGE_BASE + c.avatarUrl" :key="c.avatarUrl"
+                                    class="size-7 rounded-full object-cover bg-gray-100"
+                                    @load="(e) => e.target.style.display = ''" @error="(e) => e.target.style.display = 'none'" />
                                 <span v-else class="inline-flex size-7 items-center justify-center rounded-full bg-gray-100 text-sm">{{ isDm(c.conversationName) ? '💬' : '👥' }}</span>
                                 <span v-if="dmPeerOnline(c)"
                                     class="absolute -bottom-0.5 -right-0.5 size-2 rounded-full bg-green-500 ring-1 ring-white"></span>
@@ -93,8 +94,9 @@
                 <template v-else>
                     <div class="p-3 border-b flex items-center gap-3">
                         <span class="relative flex-none">
-                            <img v-if="active.avatarUrl" :src="IMAGE_BASE + active.avatarUrl"
-                                class="size-9 rounded-full object-cover bg-gray-100" @error="(e) => e.target.style.display = 'none'" />
+                            <img v-if="active.avatarUrl" :src="IMAGE_BASE + active.avatarUrl" :key="active.avatarUrl"
+                                class="size-9 rounded-full object-cover bg-gray-100"
+                                @load="(e) => e.target.style.display = ''" @error="(e) => e.target.style.display = 'none'" />
                             <span v-else class="inline-flex size-9 items-center justify-center rounded-full bg-gray-100">{{ isDm(active.conversationName) ? '💬' : '👥' }}</span>
                             <button v-if="!isDm(active.conversationName)"
                                 class="absolute -bottom-1 -right-1 size-5 rounded-full bg-[var(--brand)] text-white text-[10px] leading-5 text-center shadow"

@@ -516,7 +516,9 @@ public class ChatServiceImpl implements ChatService {
         if (org.springframework.util.StringUtils.hasText(conversation.getAvatarUrl())) {
             try { fileUploadsService.deleteFile(conversation.getAvatarUrl()); } catch (Exception ignore) {}
         }
-        String fileName = fileUploadsService.storeFile(avatar, "conversation", conversationId);
+        // Tên file duy nhất mỗi lần đổi -> URL thay đổi -> client không dính cache ảnh cũ
+        String fileName = fileUploadsService.storeFile(avatar, "conversation",
+                conversationId + "-" + System.currentTimeMillis());
         String url = "conversation/" + fileName;
         conversation.setAvatarUrl(url);
         conversationRepository.save(conversation);
