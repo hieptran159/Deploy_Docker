@@ -63,10 +63,11 @@
                         @click="() => openConversation(c)">
                         <div class="flex items-center gap-1.5">
                             <span class="relative flex-none">
-                                <img v-if="c.avatarUrl" :src="IMAGE_BASE + c.avatarUrl" :key="c.avatarUrl"
+                                <img v-if="convAvatar(c)" :src="convAvatar(c)" :key="convAvatar(c)"
                                     class="size-7 rounded-full object-cover bg-gray-100"
                                     @load="(e) => e.target.style.display = ''" @error="(e) => e.target.style.display = 'none'" />
-                                <span v-else class="inline-flex size-7 items-center justify-center rounded-full bg-gray-100 text-sm">{{ isDm(c.conversationName) ? '💬' : '👥' }}</span>
+                                <span v-else-if="isDm(c.conversationName)" class="avatar-fallback size-7 text-xs">{{ (displayName(c) || '?')[0] }}</span>
+                                <span v-else class="inline-flex size-7 items-center justify-center rounded-full bg-gray-100 text-sm">👥</span>
                                 <span v-if="dmPeerOnline(c)"
                                     class="absolute -bottom-0.5 -right-0.5 size-2 rounded-full bg-green-500 ring-1 ring-white"></span>
                             </span>
@@ -94,10 +95,11 @@
                 <template v-else>
                     <div class="p-3 border-b flex items-center gap-3">
                         <span class="relative flex-none">
-                            <img v-if="active.avatarUrl" :src="IMAGE_BASE + active.avatarUrl" :key="active.avatarUrl"
+                            <img v-if="convAvatar(active)" :src="convAvatar(active)" :key="convAvatar(active)"
                                 class="size-9 rounded-full object-cover bg-gray-100"
                                 @load="(e) => e.target.style.display = ''" @error="(e) => e.target.style.display = 'none'" />
-                            <span v-else class="inline-flex size-9 items-center justify-center rounded-full bg-gray-100">{{ isDm(active.conversationName) ? '💬' : '👥' }}</span>
+                            <span v-else-if="isDm(active.conversationName)" class="avatar-fallback size-9">{{ (displayName(active) || '?')[0] }}</span>
+                            <span v-else class="inline-flex size-9 items-center justify-center rounded-full bg-gray-100">👥</span>
                             <button v-if="!isDm(active.conversationName)"
                                 class="absolute -bottom-1 -right-1 size-5 rounded-full bg-[var(--brand)] text-white text-[10px] leading-5 text-center shadow"
                                 title="Đổi ảnh nhóm" @click="groupAvatarInput?.click()">✎</button>
@@ -296,6 +298,17 @@ const messages = ref([]);
 const active = ref(null);
 const connected = ref(false);
 const dmNames = ref({});
+const dmAvatars = ref({});   // conversationId -> avtUrl của người kia trong DM
+
+// Ảnh đại diện hiển thị cho 1 hội thoại: DM -> avatar người kia; nhóm -> avatar nhóm
+const convAvatar = (c) => {
+    if (!c) return '';
+    if (isDm(c.conversationName)) {
+        const a = dmAvatars.value[c.conversationId];
+        return a && !String(a).includes('null') ? IMAGE_BASE + a : '';
+    }
+    return c.avatarUrl ? IMAGE_BASE + c.avatarUrl : '';
+};
 
 const searchName = ref('');
 const draft = ref('');
@@ -417,8 +430,9 @@ const resolveDmNames = async () => {
         const otherId = otherIdFromDm(c.conversationName);
         if (!otherId) continue;
         try {
-            const res = await getUserInfo(otherId);
-            dmNames.value = { ...dmNames.value, [c.conversationId]: res?.data?.data?.fullName || 'Tin nhắn riêng' };
+            const u = (await getUserInfo(otherId))?.data?.data || {};
+            dmNames.value = { ...dmNames.value, [c.conversationId]: u.fullName || 'Tin nhắn riêng' };
+            dmAvatars.value = { ...dmAvatars.value, [c.conversationId]: u.avtUrl || '' };
         } catch (e) { /* ignore */ }
     }
 }
