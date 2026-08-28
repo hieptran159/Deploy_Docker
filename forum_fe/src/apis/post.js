@@ -52,6 +52,10 @@ export const getRepostsOf = (userId) => {
     return authApi.get(`/post/reposts/${userId}`);
 }
 
+export const getPostsByUser = (userId, page = 0, size = 10) => {
+    return authApi.get(`/post/by-user/${userId}?page=${page}&size=${size}`);
+}
+
 export const updatePost = (id, data) => {
     return authApiFormData.patch(`/post/update/${id}`, data);
 }

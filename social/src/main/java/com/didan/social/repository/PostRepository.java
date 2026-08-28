@@ -47,6 +47,14 @@ public interface PostRepository extends JpaRepository<Posts, String> {
          + "ORDER BY p.postedAt DESC, p.postId ASC")
     List<Posts> findDraftsOfAuthor(@Param("uid") String uid);
 
+    // Lịch sử bài đã đăng của 1 người dùng (mới nhất trước), phân trang
+    @Query("SELECT p FROM posts p WHERE " + PUBLISHED + " AND p.userPost.users.userId = :uid "
+         + "ORDER BY p.postedAt DESC, p.postId ASC")
+    List<Posts> findPublishedByAuthor(@Param("uid") String uid, Pageable pageable);
+
+    @Query("SELECT COUNT(p) FROM posts p WHERE " + PUBLISHED + " AND p.userPost.users.userId = :uid")
+    long countPublishedByAuthor(@Param("uid") String uid);
+
     // Feed hợp nhất: bài gốc (posted_at, is_repost=0) + lượt chia sẻ (created_at, is_repost=1).
     // Gộp theo post_id -> mỗi bài chỉ 1 dòng. Vì thời điểm repost luôn > posted_at,
     // MAX(t) = thời điểm repost mới nhất nếu có repost, ngược lại là posted_at.

@@ -293,6 +293,24 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
     }
 
     @Override
+    public java.util.Map<String, Object> getPostsByUser(String userId, int page, int size) throws Exception {
+        if (page < 0) page = 0;
+        if (size < 1) size = 10;
+        if (size > 50) size = 50;
+        String meId = currentUserOrNull();
+        List<Posts> posts = postRepository.findPublishedByAuthor(userId, PageRequest.of(page, size));
+        List<PostDTO> items = posts.stream().map(p -> toListDTO(p, meId)).collect(Collectors.toList());
+        applyRepostInfo(items, meId);
+        long total = postRepository.countPublishedByAuthor(userId);
+        java.util.Map<String, Object> m = new java.util.HashMap<>();
+        m.put("items", items);
+        m.put("total", total);
+        m.put("page", page);
+        m.put("totalPages", (int) Math.max(1, Math.ceil(total / (double) size)));
+        return m;
+    }
+
+    @Override
     public List<PostDTO> getRepostsOf(String userId) throws Exception {
         java.util.List<com.didan.social.entity.Reposts> rows = repostRepository.findByRepostId_UserIdOrderByCreatedAtDesc(userId);
         if (rows.isEmpty()) return Collections.emptyList();

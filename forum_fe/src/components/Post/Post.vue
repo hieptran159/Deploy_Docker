@@ -1,7 +1,10 @@
 <template>
   <div>
     <div v-if="post?.repostedBy" class="flex items-center gap-1.5 text-xs muted pt-2 pl-1">
-        <span>🔁</span>
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" />
+            <polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 0 1-4 4H3" />
+        </svg>
         <span><b class="text-[var(--text)]">{{ isMyRepost ? 'Bạn' : post.repostedBy }}</b> đã chia sẻ</span>
     </div>
     <div v-if="post?.repostNote" class="text-sm pl-1 pt-1 whitespace-pre-wrap">{{ post.repostNote }}</div>
@@ -38,14 +41,24 @@
             </span>
             <button
                 v-if="canRepost"
-                class="px-2 py-1 rounded-full font-semibold transition"
+                class="px-2 py-1 rounded-full font-semibold transition inline-flex items-center gap-1"
                 :class="post?.reposted ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'"
                 :title="post?.reposted ? 'Bỏ chia sẻ' : 'Chia sẻ'"
                 :disabled="busy"
                 @click.stop="toggleRepost"
-            >🔁 {{ post?.repostCount ?? 0 }}</button>
-            <span v-else-if="post?.repostCount" class="px-2 py-1 rounded-full bg-emerald-50 text-emerald-600 font-semibold">
-                🔁 {{ post.repostCount }}
+            >
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" />
+                    <polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 0 1-4 4H3" />
+                </svg>
+                {{ post?.repostCount ?? 0 }}
+            </button>
+            <span v-else-if="post?.repostCount" class="px-2 py-1 rounded-full bg-emerald-50 text-emerald-600 font-semibold inline-flex items-center gap-1">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" />
+                    <polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 0 1-4 4H3" />
+                </svg>
+                {{ post.repostCount }}
             </span>
         </div>
     </div>

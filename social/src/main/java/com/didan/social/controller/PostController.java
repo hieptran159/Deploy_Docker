@@ -273,6 +273,25 @@ public class PostController {
         }
     }
 
+    @Operation(summary = "Lịch sử bài đã đăng của một người dùng (mới nhất trước, phân trang)",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @GetMapping("/by-user/{user_id}")
+    public ResponseEntity<?> postsByUser(@PathVariable("user_id") String userId,
+                                         @RequestParam(defaultValue = "0") int page,
+                                         @RequestParam(defaultValue = "10") int size){
+        ResponseData payload = new ResponseData();
+        try {
+            payload.setData(postService.getPostsByUser(userId, page, size));
+            payload.setDescription("OK");
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e){
+            payload.setSuccess(false);
+            payload.setStatusCode(500);
+            payload.setDescription(e.getMessage());
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
     @Operation(summary = "Danh sách bài mà một người dùng đã chia sẻ", security = @SecurityRequirement(name = "bearerAuth"))
     @GetMapping("/reposts/{user_id}")
     public ResponseEntity<?> repostsOf(@PathVariable("user_id") String userId){

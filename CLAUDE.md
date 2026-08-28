@@ -140,6 +140,11 @@ uses `./mvnw install -DskipTests`. No frontend tests.
 - `EditProfile.vue` opens with a public-profile **preview card** (cover/avatar/name/public
   fields + link to `/user/{me}`) above a "Cài đặt tài khoản" heading; `UserProfile.vue`
   shows a "Chỉnh sửa hồ sơ" button on your own profile.
+- `GET /post/by-user/{userId}?page=&size=` (`PostService.getPostsByUser`) — a user's
+  **published** posts, newest first, `{items,total,page,totalPages}`. `UserProfile.vue` now
+  renders the "Bài viết" and "Đã chia sẻ" sections with the shared `<Post>` card (was N
+  individual `getPostById` calls) + "Xem thêm". The repost glyph is an inline Feather
+  "repeat" SVG (not the 🔁 emoji) in `Post.vue` / `PostDetail.vue`.
 - Draft posts: `Posts.status` (`null`/`"published"` = live, `"draft"` = draft). Every feed
   and search query carries `PostRepository.PUBLISHED` (`p.status IS NULL OR p.status =
   'published'`) so drafts never leak; `countPublished()` backs `feedPageInfo`. `createPost`

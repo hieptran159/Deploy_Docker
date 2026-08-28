@@ -21,7 +21,7 @@
                 <div class="muted truncate">{{ user?.email }}</div>
                 <div class="flex flex-wrap gap-x-5 gap-y-1 mt-2 text-sm">
                     <span class="link" @click="goFriends"><b>{{ friendCount }}</b> bạn bè</span>
-                    <span><b>{{ user?.posts ?? 0 }}</b> bài viết</span>
+                    <span><b>{{ postsTotal || user?.posts || 0 }}</b> bài viết</span>
                 </div>
             </div>
 
@@ -66,32 +66,23 @@
         </div>
 
         <div class="card">
-            <div class="section-title">Bài viết</div>
-            <div v-if="loading" class="state">Đang tải…</div>
+            <div class="section-title">Bài viết {{ postsTotal ? `(${postsTotal})` : '' }}</div>
+            <div v-if="loading && !posts.length" class="state">Đang tải…</div>
             <div v-else-if="!posts.length" class="state">Chưa có bài viết</div>
-            <div
-                v-for="post in posts"
-                :key="post.postId"
-                class="border rounded-xl p-3 my-2 cursor-pointer hover:bg-gray-50 transition"
-                @click="() => route.push('/post/' + post.postId)"
-            >
-                <div class="font-semibold text-[#2577b1]">{{ post.title }}</div>
-                <div class="muted text-sm line-clamp-2">{{ post.body }}</div>
+            <div v-for="post in posts" :key="post.postId" class="border-b last:border-b-0">
+                <Post :post="post" />
+            </div>
+            <div v-if="postsPage < postsTotalPages" class="pt-3 text-center">
+                <button class="link text-sm" :disabled="loading" @click="loadPosts(false)">
+                    {{ loading ? 'Đang tải…' : 'Xem thêm' }}
+                </button>
             </div>
         </div>
 
         <div v-if="reposts.length" class="card">
-            <div class="section-title">Đã chia sẻ</div>
-            <div
-                v-for="post in reposts"
-                :key="'rp-' + post.postId"
-                class="border rounded-xl p-3 my-2 cursor-pointer hover:bg-gray-50 transition"
-                @click="() => route.push('/post/' + post.postId)"
-            >
-                <div class="text-xs muted mb-1">🔁 chia sẻ · {{ timeAgo(post.repostedAt) }}</div>
-                <div v-if="post.repostNote" class="text-sm mb-1">{{ post.repostNote }}</div>
-                <div class="font-semibold text-[#2577b1]">{{ post.title }}</div>
-                <div class="muted text-sm line-clamp-2">{{ post.body }}</div>
+            <div class="section-title">Đã chia sẻ ({{ reposts.length }})</div>
+            <div v-for="post in reposts" :key="'rp-' + post.postId" class="border-b last:border-b-0">
+                <Post :post="post" />
             </div>
         </div>
     </div>
@@ -103,8 +94,8 @@ import { onMounted, ref, computed, watch, inject } from 'vue';
 import { useRouter } from 'vue-router';
 import { getUserInfo } from '@/apis/user';
 import { sendReport } from '@/apis/report';
-import { getPostById, getRepostsOf } from '@/apis/post';
-import { timeAgo } from '@/js/helper';
+import { getPostsByUser, getRepostsOf } from '@/apis/post';
+import Post from '@/components/Post/Post.vue';
 import {
     friendStatus, getFriends, sendFriendRequest, cancelFriendRequest,
     acceptFriendRequest, declineFriendRequest, unfriend,
@@ -123,9 +114,13 @@ const route = useRouter();
 const myId = getItemLocal(LOCALKEYS.USER_ID);
 const userId = computed(() => route.currentRoute.value.params.id);
 
+const POSTS_SIZE = 10;
 const user = ref(null);
 const posts = ref([]);
 const reposts = ref([]);
+const postsPage = ref(0);
+const postsTotal = ref(0);
+const postsTotalPages = ref(1);
 const avatarOk = ref(true);
 const loading = ref(false);
 const fStatus = ref('none');       // none|pending_out|pending_in|friends|self
@@ -148,27 +143,35 @@ const refreshStatus = async () => {
     }
 }
 
+const loadPosts = async (reset = false) => {
+    if (reset) { postsPage.value = 0; posts.value = []; }
+    loading.value = true;
+    try {
+        const d = (await getPostsByUser(userId.value, postsPage.value, POSTS_SIZE))?.data?.data || {};
+        const batch = d.items || [];
+        posts.value = reset ? batch : [...posts.value, ...batch];
+        postsTotal.value = d.total ?? posts.value.length;
+        postsTotalPages.value = d.totalPages ?? 1;
+        postsPage.value += 1;
+    } catch (e) {
+        if (reset) posts.value = [];
+    } finally {
+        loading.value = false;
+    }
+}
+
 const load = async () => {
     user.value = null;
-    posts.value = [];
     reposts.value = [];
     avatarOk.value = true;
-    loading.value = true;
     getRepostsOf(userId.value).then((r) => { reposts.value = r?.data?.data || []; }).catch(() => { reposts.value = []; });
     try {
         const res = await getUserInfo(userId.value);
         user.value = res?.data?.data || null;
-        const ids = user.value?.postId || [];
-        const results = await Promise.allSettled(ids.map((id) => getPostById(id)));
-        posts.value = results
-            .filter((r) => r.status === "fulfilled")
-            .map((r) => r.value?.data?.data)
-            .filter(Boolean);
     } catch (error) {
         console.log(error);
-    } finally {
-        loading.value = false;
     }
+    await loadPosts(true);
     refreshStatus();
 }
 

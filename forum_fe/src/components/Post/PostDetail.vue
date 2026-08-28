@@ -60,14 +60,20 @@
                             :text="bookmarked ? 'Đã lưu' : 'Lưu'"
                             @click="toggleBookmarkBtn"
                         />
-                        <DxButton
+                        <button
                             v-if="isLogin && post?.userCreatedPost !== getItemLocal(LOCALKEYS.USER_ID)"
-                            icon="refresh"
-                            :type="post?.reposted ? 'success' : 'normal'"
-                            :styling-mode="post?.reposted ? 'contained' : 'outlined'"
-                            :text="(post?.reposted ? 'Đã chia sẻ' : 'Chia sẻ') + (post?.repostCount ? ` (${post.repostCount})` : '')"
+                            class="inline-flex items-center gap-1.5 rounded-lg px-3 h-9 text-sm font-semibold border transition"
+                            :class="post?.reposted
+                                ? 'bg-emerald-600 border-emerald-600 text-white'
+                                : 'border-[var(--border)] hover:bg-gray-50'"
                             @click="toggleRepost"
-                        />
+                        >
+                            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" />
+                                <polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 0 1-4 4H3" />
+                            </svg>
+                            {{ (post?.reposted ? 'Đã chia sẻ' : 'Chia sẻ') + (post?.repostCount ? ` (${post.repostCount})` : '') }}
+                        </button>
                     </div>
                 </div>
             </div>
