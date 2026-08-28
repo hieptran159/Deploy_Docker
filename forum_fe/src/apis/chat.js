@@ -55,3 +55,15 @@ export const editMessage = (messageId, content) => {
 export const recallMessage = (messageId) => {
     return authApi.delete(`/chat/message/${messageId}`);
 }
+
+export const reactMessage = (messageId, emoji) => {
+    return authApi.post(`/chat/message/${messageId}/react?emoji=${encodeURIComponent(emoji)}`);
+}
+
+export const unreactMessage = (messageId) => {
+    return authApi.delete(`/chat/message/${messageId}/react`);
+}
+
+export const setConversationAvatar = (conversationId, file) => {
+    return authApiFormData.patch(`/chat/conversation/${conversationId}/avatar`, { avatar: file });
+}

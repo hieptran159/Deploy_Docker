@@ -31,6 +31,13 @@ public interface ChatService {
     List<MessageDTO> getAllMessagesInConversation(String conversationId) throws Exception;
     // Sửa nội dung 1 tin nhắn (chỉ chủ tin nhắn, tin chưa thu hồi)
     MessageDTO editMessage(String messageId, String content) throws Exception;
+
+    // Thả / bỏ cảm xúc cho tin nhắn; trả về map emoji -> số lượt sau thao tác
+    java.util.Map<String, Long> reactMessage(String messageId, String emoji) throws Exception;
+    java.util.Map<String, Long> unreactMessage(String messageId) throws Exception;
+
+    // Đặt ảnh đại diện nhóm; trả về đường dẫn ảnh đã lưu
+    String setConversationAvatar(String conversationId, org.springframework.web.multipart.MultipartFile avatar) throws Exception;
     // Thu hồi 1 tin nhắn (chỉ chủ tin nhắn)
     MessageDTO recallMessage(String messageId) throws Exception;
     // Đổi tên nhóm (người gọi phải là thành viên, không áp dụng cho DM)

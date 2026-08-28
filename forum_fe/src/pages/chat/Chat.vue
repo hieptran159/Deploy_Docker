@@ -61,9 +61,11 @@
                         class="px-3 py-2.5 cursor-pointer border-b transition hover:bg-gray-50"
                         :class="{ 'bg-[var(--brand-soft)]': active?.conversationId === c.conversationId }"
                         @click="() => openConversation(c)">
-                        <div class="flex items-center gap-1">
+                        <div class="flex items-center gap-1.5">
                             <span class="relative flex-none">
-                                {{ isDm(c.conversationName) ? '💬' : '👥' }}
+                                <img v-if="c.avatarUrl" :src="IMAGE_BASE + c.avatarUrl"
+                                    class="size-7 rounded-full object-cover bg-gray-100" @error="(e) => e.target.style.display = 'none'" />
+                                <span v-else class="inline-flex size-7 items-center justify-center rounded-full bg-gray-100 text-sm">{{ isDm(c.conversationName) ? '💬' : '👥' }}</span>
                                 <span v-if="dmPeerOnline(c)"
                                     class="absolute -bottom-0.5 -right-0.5 size-2 rounded-full bg-green-500 ring-1 ring-white"></span>
                             </span>
@@ -90,6 +92,15 @@
                 </div>
                 <template v-else>
                     <div class="p-3 border-b flex items-center gap-3">
+                        <span class="relative flex-none">
+                            <img v-if="active.avatarUrl" :src="IMAGE_BASE + active.avatarUrl"
+                                class="size-9 rounded-full object-cover bg-gray-100" @error="(e) => e.target.style.display = 'none'" />
+                            <span v-else class="inline-flex size-9 items-center justify-center rounded-full bg-gray-100">{{ isDm(active.conversationName) ? '💬' : '👥' }}</span>
+                            <button v-if="!isDm(active.conversationName)"
+                                class="absolute -bottom-1 -right-1 size-5 rounded-full bg-[var(--brand)] text-white text-[10px] leading-5 text-center shadow"
+                                title="Đổi ảnh nhóm" @click="groupAvatarInput?.click()">✎</button>
+                            <input ref="groupAvatarInput" type="file" accept="image/*" class="hidden" @change="onGroupAvatar" />
+                        </span>
                         <div class="min-w-0 flex-1">
                             <div v-if="renaming" class="flex items-center gap-1">
                                 <DxTextBox v-model="renameText" class="flex-1" @enter-key="saveRename" />
@@ -142,13 +153,17 @@
                             </div>
 
                             <template v-else>
-                                <div class="flex items-end gap-1"
+                                <div class="flex items-end gap-1 relative"
                                     :class="m.senderId === myId ? 'flex-row' : 'flex-row-reverse'">
-                                    <!-- nút sửa / thu hồi cho tin của mình -->
-                                    <div v-if="canModify(m)"
-                                        class="flex-none flex gap-0.5 opacity-0 group-hover:opacity-100 transition">
-                                        <button class="text-[11px] muted hover:text-[var(--text)] px-1" @click="startEdit(m)">Sửa</button>
-                                        <button class="text-[11px] muted hover:text-[var(--danger)] px-1" @click="confirmRecall(m)">Thu hồi</button>
+                                    <!-- nút sửa / thu hồi / thả cảm xúc -->
+                                    <div v-if="!m.recalled && !String(m.messageId || '').startsWith('local-')"
+                                        class="flex-none flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition">
+                                        <button class="text-sm px-1 hover:scale-125 transition" title="Thả cảm xúc"
+                                            @click="reactPickFor = reactPickFor === m.messageId ? null : m.messageId">🙂</button>
+                                        <template v-if="canModify(m)">
+                                            <button class="text-[11px] muted hover:text-[var(--text)] px-1" @click="startEdit(m)">Sửa</button>
+                                            <button class="text-[11px] muted hover:text-[var(--danger)] px-1" @click="confirmRecall(m)">Thu hồi</button>
+                                        </template>
                                     </div>
                                     <div
                                         class="px-3 py-2 rounded-2xl text-sm shadow-sm"
@@ -166,7 +181,27 @@
                                                 @click="openLightbox(IMAGE_BASE + m.messageImg)" />
                                         </template>
                                     </div>
+
+                                    <!-- bảng chọn emoji -->
+                                    <div v-if="reactPickFor === m.messageId"
+                                        class="absolute -top-9 z-30 flex gap-0.5 bg-white border rounded-full shadow px-1.5 py-1"
+                                        :class="m.senderId === myId ? 'right-0' : 'left-0'">
+                                        <button v-for="e in REACT_EMOJIS" :key="e"
+                                            class="text-lg leading-none hover:scale-125 transition"
+                                            @click="toggleMsgReaction(m, e)">{{ e }}</button>
+                                    </div>
                                 </div>
+
+                                <!-- chips cảm xúc -->
+                                <div v-if="m.reactions && Object.keys(m.reactions).length"
+                                    class="flex gap-1 mt-0.5 flex-wrap"
+                                    :class="m.senderId === myId ? 'justify-end' : 'justify-start'">
+                                    <button v-for="(cnt, e) in m.reactions" :key="e"
+                                        class="text-[11px] px-1.5 py-0.5 rounded-full border transition"
+                                        :class="m.myReaction === e ? 'bg-[var(--brand-soft)] border-[var(--brand)]' : 'bg-white border-[var(--border)]'"
+                                        @click="toggleMsgReaction(m, e)">{{ e }} {{ cnt }}</button>
+                                </div>
+
                                 <span class="text-[11px] muted mt-0.5">
                                     <template v-if="idx === lastMineIndex && !m.recalled">{{ otherSeen ? 'Đã xem · ' : 'Đã gửi · ' }}</template>{{ formatTime(m.sentAt) }}
                                 </span>
@@ -234,6 +269,7 @@ import {
     getMyConversations, searchConversations, getMessages,
     createConversation, joinConversation, leaveConversation, sendMessageRest, addMember, getMembers,
     editMessage, recallMessage, renameConversation, removeMember,
+    reactMessage, unreactMessage, setConversationAvatar,
 } from '@/apis/chat';
 import { getUserInfo } from '@/apis/user';
 import { getFriends } from '@/apis/friend';
@@ -280,10 +316,43 @@ const addResults = ref([]);
 // sửa / thu hồi tin nhắn
 const editingId = ref(null);
 const editText = ref('');
+const REACT_EMOJIS = ['👍', '❤️', '😆', '😮', '😢', '😡'];
+const reactPickFor = ref(null);
+
+const toggleMsgReaction = async (m, emoji) => {
+    reactPickFor.value = null;
+    if (!m?.messageId || String(m.messageId).startsWith('local-')) return;
+    const removing = m.myReaction === emoji;
+    try {
+        const res = removing ? await unreactMessage(m.messageId) : await reactMessage(m.messageId, emoji);
+        m.reactions = res?.data?.data || {};
+        m.myReaction = removing ? null : emoji;
+    } catch (e) {
+        showDialog?.('Thông báo', e?.description || 'Không thả được cảm xúc');
+    }
+};
 
 // đổi tên nhóm
 const renaming = ref(false);
 const renameText = ref('');
+const groupAvatarInput = ref(null);
+
+const onGroupAvatar = async (e) => {
+    const f = e.target.files[0];
+    e.target.value = '';
+    if (!f || !active.value?.conversationId) return;
+    try {
+        const url = (await setConversationAvatar(active.value.conversationId, f))?.data?.data?.avatarUrl;
+        if (url) {
+            active.value.avatarUrl = url;
+            const c = conversations.value.find((x) => x.conversationId === active.value.conversationId);
+            if (c) c.avatarUrl = url;
+        }
+        toast?.('Đã cập nhật ảnh nhóm');
+    } catch (err) {
+        showDialog?.('Thông báo', err?.description || 'Cập nhật ảnh nhóm thất bại');
+    }
+};
 
 // typing / seen / presence
 const otherTyping = ref(false);
@@ -694,6 +763,17 @@ const connectSocket = (conversationId) => {
     });
     socket.on('seen', () => { otherSeen.value = true; otherOnline.value = true; });
     socket.on('message_updated', (dto) => { applyUpdated(dto); });
+    socket.on('message_reaction', (p) => {
+        if (!p?.messageId) return;
+        const msg = messages.value.find((x) => x.messageId === p.messageId);
+        if (msg) msg.reactions = p.reactions || {};
+    });
+    socket.on('conversation_avatar', (p) => {
+        if (!p?.conversationId) return;
+        if (active.value?.conversationId === p.conversationId) active.value.avatarUrl = p.avatarUrl;
+        const c = conversations.value.find((x) => x.conversationId === p.conversationId);
+        if (c) c.avatarUrl = p.avatarUrl;
+    });
     socket.on('conversation_renamed', (p) => {
         if (p && p.conversationId) setConvName(p.conversationId, p.conversationName);
     });

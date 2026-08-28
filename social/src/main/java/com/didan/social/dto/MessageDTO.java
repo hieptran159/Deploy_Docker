@@ -8,9 +8,16 @@ public class MessageDTO {
     private String conversationId;
     private String senderId;
     private Boolean recalled;
+    private java.util.Map<String, Long> reactions;  // emoji -> số lượt
+    private String myReaction;                       // emoji của người xem hiện tại (null nếu chưa thả)
 
     public MessageDTO() {
     }
+
+    public java.util.Map<String, Long> getReactions() { return reactions; }
+    public void setReactions(java.util.Map<String, Long> reactions) { this.reactions = reactions; }
+    public String getMyReaction() { return myReaction; }
+    public void setMyReaction(String myReaction) { this.myReaction = myReaction; }
 
     public MessageDTO(String messageId, String content, String messageImg, String sentAt, String conversationId, String senderId) {
         this.messageId = messageId;

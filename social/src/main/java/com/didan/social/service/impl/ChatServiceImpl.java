@@ -35,6 +35,7 @@ public class ChatServiceImpl implements ChatService {
     private final com.didan.social.service.MessageNotifier messageNotifier;
     private final com.didan.social.service.FollowService followService;
     private final RealtimeGateway realtimeGateway;
+    private final com.didan.social.repository.MessageReactionRepository messageReactionRepository;
     @Autowired
     public ChatServiceImpl(ConversationRepository conversationRepository,
                            UserRepository userRepository,
@@ -44,7 +45,8 @@ public class ChatServiceImpl implements ChatService {
                            AuthorizePathService authorizePathService,
                            com.didan.social.service.MessageNotifier messageNotifier,
                            com.didan.social.service.FollowService followService,
-                           RealtimeGateway realtimeGateway){
+                           RealtimeGateway realtimeGateway,
+                           com.didan.social.repository.MessageReactionRepository messageReactionRepository){
         this.conversationRepository = conversationRepository;
         this.userRepository = userRepository;
         this.participantRepository = participantRepository;
@@ -54,6 +56,7 @@ public class ChatServiceImpl implements ChatService {
         this.messageNotifier = messageNotifier;
         this.followService = followService;
         this.realtimeGateway = realtimeGateway;
+        this.messageReactionRepository = messageReactionRepository;
     }
 
     @Override
@@ -310,6 +313,7 @@ public class ChatServiceImpl implements ChatService {
             ConversationDTO conversationDTO = new ConversationDTO();
             conversationDTO.setConversationId(conversation.getConversationId());
             conversationDTO.setConversationName(conversation.getConversationName());
+            conversationDTO.setAvatarUrl(conversation.getAvatarUrl());
             conversationDTO.setCreatedAt(conversation.getCreatedAt().toString());
             Messages last = lastByConv.get(conversation.getConversationId());
             if (last != null) {
@@ -339,6 +343,7 @@ public class ChatServiceImpl implements ChatService {
             ConversationDTO conversationDTO = new ConversationDTO();
             conversationDTO.setConversationId(conversation.getConversationId());
             conversationDTO.setConversationName(conversation.getConversationName());
+            conversationDTO.setAvatarUrl(conversation.getAvatarUrl());
             conversationDTO.setCreatedAt(conversation.getCreatedAt().toString());
             conversationDTOs.add(conversationDTO);
         }
@@ -366,7 +371,69 @@ public class ChatServiceImpl implements ChatService {
         for (Messages message : messages){
             messageDTOs.add(toDTO(message, conversationId));
         }
+        // Gắn cảm xúc theo lô (1 truy vấn cho cả hội thoại)
+        java.util.List<String> ids = messageDTOs.stream().map(MessageDTO::getMessageId).collect(java.util.stream.Collectors.toList());
+        java.util.Map<String, java.util.Map<String, Long>> counts = new java.util.HashMap<>();
+        java.util.Map<String, String> mine = new java.util.HashMap<>();
+        if (!ids.isEmpty()) {
+            for (com.didan.social.entity.MessageReactions r : messageReactionRepository.findByMessageReactionId_MessageIdIn(ids)) {
+                String mid = r.getMessageReactionId().getMessageId();
+                counts.computeIfAbsent(mid, k -> new java.util.LinkedHashMap<>()).merge(r.getEmoji(), 1L, Long::sum);
+                if (userId.equals(r.getMessageReactionId().getUserId())) mine.put(mid, r.getEmoji());
+            }
+        }
+        for (MessageDTO d : messageDTOs) {
+            d.setReactions(counts.getOrDefault(d.getMessageId(), java.util.Collections.emptyMap()));
+            d.setMyReaction(mine.get(d.getMessageId()));
+        }
         return messageDTOs;
+    }
+
+    @Override
+    public java.util.Map<String, Long> reactMessage(String messageId, String emoji) throws Exception {
+        String userId = authorizePathService.getUserIdAuthoried();
+        Messages message = messageRepository.findById(messageId).orElse(null);
+        if (message == null) throw new Exception("Không tìm thấy tin nhắn");
+        String convId = message.getConversations() != null ? message.getConversations().getConversationId() : null;
+        if (convId == null || participantRepository.findFirstByConversations_ConversationIdAndUsers_UserId(convId, userId) == null) {
+            throw new Exception("Bạn không ở trong hội thoại này");
+        }
+        String e = emoji == null ? "" : emoji.trim();
+        if (e.isEmpty() || e.length() > 16) throw new Exception("Emoji không hợp lệ");
+        com.didan.social.entity.MessageReactions row = messageReactionRepository
+                .findByMessageReactionId_MessageIdAndMessageReactionId_UserId(messageId, userId);
+        if (row == null) {
+            row = new com.didan.social.entity.MessageReactions(
+                    new com.didan.social.entity.keys.MessageReactionId(messageId, userId), e);
+        } else {
+            row.setEmoji(e);
+        }
+        messageReactionRepository.save(row);
+        return broadcastReactions(convId, messageId);
+    }
+
+    @Override
+    public java.util.Map<String, Long> unreactMessage(String messageId) throws Exception {
+        String userId = authorizePathService.getUserIdAuthoried();
+        Messages message = messageRepository.findById(messageId).orElse(null);
+        if (message == null) throw new Exception("Không tìm thấy tin nhắn");
+        String convId = message.getConversations() != null ? message.getConversations().getConversationId() : null;
+        messageReactionRepository.deleteByMessageReactionId_MessageIdAndMessageReactionId_UserId(messageId, userId);
+        return broadcastReactions(convId, messageId);
+    }
+
+    private java.util.Map<String, Long> broadcastReactions(String convId, String messageId) {
+        java.util.Map<String, Long> counts = new java.util.LinkedHashMap<>();
+        for (com.didan.social.entity.MessageReactions r : messageReactionRepository.findByMessageReactionId_MessageId(messageId)) {
+            counts.merge(r.getEmoji(), 1L, Long::sum);
+        }
+        if (convId != null) {
+            java.util.Map<String, Object> p = new java.util.HashMap<>();
+            p.put("messageId", messageId);
+            p.put("reactions", counts);
+            try { realtimeGateway.toRoom(convId, "message_reaction", p); } catch (Exception ignore) {}
+        }
+        return counts;
     }
 
     private MessageDTO toDTO(Messages message, String conversationId) {
@@ -434,6 +501,30 @@ public class ChatServiceImpl implements ChatService {
         p.put("conversationName", newName.trim());
         realtimeGateway.toRoom(conversationId, "conversation_renamed", p);
         return true;
+    }
+
+    @Override
+    public String setConversationAvatar(String conversationId, org.springframework.web.multipart.MultipartFile avatar) throws Exception {
+        String me = authorizePathService.getUserIdAuthoried();
+        Conversations conversation = conversationRepository.findFirstByConversationId(conversationId);
+        if (conversation == null) throw new Exception("Không tìm thấy nhóm");
+        if (isDm(conversation)) throw new Exception("Tin nhắn riêng không đặt được ảnh nhóm");
+        if (participantRepository.findFirstByConversations_ConversationIdAndUsers_UserId(conversationId, me) == null) {
+            throw new Exception("Bạn không ở trong nhóm này");
+        }
+        if (avatar == null || avatar.isEmpty()) throw new Exception("Chưa chọn ảnh");
+        if (org.springframework.util.StringUtils.hasText(conversation.getAvatarUrl())) {
+            try { fileUploadsService.deleteFile(conversation.getAvatarUrl()); } catch (Exception ignore) {}
+        }
+        String fileName = fileUploadsService.storeFile(avatar, "conversation", conversationId);
+        String url = "conversation/" + fileName;
+        conversation.setAvatarUrl(url);
+        conversationRepository.save(conversation);
+        Map<String, Object> p = new HashMap<>();
+        p.put("conversationId", conversationId);
+        p.put("avatarUrl", url);
+        try { realtimeGateway.toRoom(conversationId, "conversation_avatar", p); } catch (Exception ignore) {}
+        return url;
     }
 
     @Override

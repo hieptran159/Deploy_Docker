@@ -14,6 +14,9 @@ public class Conversations {
     @Column(name = "conversation_name", nullable = false, length = 100)
     private String conversationName;
 
+    @Column(name = "avatar_url", length = 255)
+    private String avatarUrl;
+
     @Column(name = "created_at", nullable = false)
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdAt;
@@ -48,6 +51,14 @@ public class Conversations {
 
     public void setConversationName(String conversationName) {
         this.conversationName = conversationName;
+    }
+
+    public String getAvatarUrl() {
+        return avatarUrl;
+    }
+
+    public void setAvatarUrl(String avatarUrl) {
+        this.avatarUrl = avatarUrl;
     }
 
     public Date getCreatedAt() {

@@ -168,6 +168,16 @@ uses `./mvnw install -DskipTests`. No frontend tests.
   Types: `FRIEND_REQUEST`, `FRIEND_ACCEPT`, `COMMENT` (targetId=postId), `COMMENT_LIKE`,
   `POST_LIKE`, `MESSAGE` (targetId=conversationId). `/auth/signin` returns `isAdmin`
   ("0"/"1") so the client no longer probes `/admin/blacklist` at login.
+- Chat message reactions: `entity/MessageReactions` (table `message_reactions`, key
+  `message_id`+`user_id`, `emoji` col, `ddl-auto`). `POST /chat/message/{id}/react?emoji=`
+  (upsert, participant-only) / `DELETE /chat/message/{id}/react` — both return the new
+  `{emoji: count}` map and broadcast `message_reaction` to the room.
+  `getAllMessagesInConversation` batch-loads reactions into `MessageDTO.reactions` +
+  `myReaction`. FE `Chat.vue`: 🙂 hover button → 6-emoji picker, chips under the bubble.
+- Group chat avatar: `Conversations.avatarUrl` (`ddl-auto`). `PATCH
+  /chat/conversation/{id}/avatar` (multipart `avatar`, participant-only, non-DM) →
+  `storeFile(.., "conversation", id)`, broadcasts `conversation_avatar`. `ConversationDTO`
+  carries `avatarUrl`; FE shows it in the sidebar rows + chat header (✎ overlay to change).
 - Chat socket (`SocketModule`, netty-socketio :8082): events `send_message`→`get_message`,
   `typing`, `seen`, `presence {userId,online}` (broadcast on join/leave; on join the new
   client is also told who is already present). `SocketService.broadcastExcept` relays to

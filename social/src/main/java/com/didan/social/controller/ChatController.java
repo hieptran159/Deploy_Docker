@@ -159,6 +159,26 @@ public class ChatController {
         }
     }
 
+    // Đặt ảnh đại diện nhóm
+    @Operation(summary = "Đặt ảnh đại diện nhóm", security = @SecurityRequirement(name = "bearerAuth"))
+    @PatchMapping(value = "/conversation/{conversation_id}/avatar", consumes = {org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE})
+    public ResponseEntity<?> setConversationAvatar(@PathVariable("conversation_id") String conversationId,
+                                                   @RequestParam("avatar") org.springframework.web.multipart.MultipartFile avatar){
+        ResponseData payload = new ResponseData();
+        try {
+            java.util.Map<String, String> d = new java.util.HashMap<>();
+            d.put("avatarUrl", chatService.setConversationAvatar(conversationId, avatar));
+            payload.setData(d);
+            payload.setDescription("Đã cập nhật ảnh nhóm");
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e){
+            payload.setSuccess(false);
+            payload.setStatusCode(500);
+            payload.setDescription(e.getMessage());
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
     // Join Conversation
     @Operation(summary = "Join conversation to chat",
             description = "Enter the id conversation to join",
@@ -249,6 +269,40 @@ public class ChatController {
             return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
         }
     }
+    // Thả cảm xúc cho tin nhắn
+    @Operation(summary = "Thả cảm xúc cho tin nhắn", security = @SecurityRequirement(name = "bearerAuth"))
+    @PostMapping("/message/{message_id}/react")
+    public ResponseEntity<?> reactMessage(@PathVariable("message_id") String messageId,
+                                          @RequestParam("emoji") String emoji){
+        ResponseData payload = new ResponseData();
+        try {
+            payload.setData(chatService.reactMessage(messageId, emoji));
+            payload.setDescription("OK");
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e){
+            payload.setSuccess(false);
+            payload.setStatusCode(500);
+            payload.setDescription(e.getMessage());
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
+    @Operation(summary = "Bỏ cảm xúc đã thả cho tin nhắn", security = @SecurityRequirement(name = "bearerAuth"))
+    @DeleteMapping("/message/{message_id}/react")
+    public ResponseEntity<?> unreactMessage(@PathVariable("message_id") String messageId){
+        ResponseData payload = new ResponseData();
+        try {
+            payload.setData(chatService.unreactMessage(messageId));
+            payload.setDescription("OK");
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e){
+            payload.setSuccess(false);
+            payload.setStatusCode(500);
+            payload.setDescription(e.getMessage());
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
     // Recall (unsend) Message
     @Operation(summary = "Recall your message",
             description = "Only the sender can recall the message",

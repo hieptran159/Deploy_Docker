@@ -4,6 +4,7 @@ package com.didan.social.dto;
 public class ConversationDTO {
     private String conversationId;
     private String conversationName;
+    private String avatarUrl;
     private String createdAt;
     private String lastMessage;
     private String lastMessageImg;
@@ -33,6 +34,14 @@ public class ConversationDTO {
 
     public void setConversationName(String conversationName) {
         this.conversationName = conversationName;
+    }
+
+    public String getAvatarUrl() {
+        return avatarUrl;
+    }
+
+    public void setAvatarUrl(String avatarUrl) {
+        this.avatarUrl = avatarUrl;
     }
 
     public String getCreatedAt() {
