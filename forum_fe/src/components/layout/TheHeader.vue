@@ -83,7 +83,7 @@
             <div v-if="isLogin" class="row-actions">
                 <div
                     class="flex items-center gap-2 cursor-pointer px-2 py-1 rounded-lg hover:bg-gray-100"
-                    @click="() => route.push('/profile/edit')"
+                    @click="goMyProfile"
                 >
                     <BaseAvatar
                         :link-avt="getItemLocal(LOCALKEYS.LINK_AVT)"
@@ -94,6 +94,7 @@
                         {{ getItemLocal(LOCALKEYS.USER_NAME) }}
                     </span>
                 </div>
+                <DxButton icon="preferences" hint="Cài đặt" type="normal" stylingMode="text" @click="() => route.push('/profile/edit')" />
                 <DxButton icon="runner" hint="Đăng xuất" type="normal" stylingMode="text" @click="logout" />
             </div>
 
@@ -169,6 +170,10 @@ const goHomeReload = () => {
 };
 const selectChange = (e) => { route.push(routeById[e.itemData.id] || '/'); }
 const signUp = () => route.push('/signup');
+const goMyProfile = () => {
+    const id = getItemLocal(LOCALKEYS.USER_ID);
+    route.push(id ? '/user/' + id : '/profile/edit');
+};
 
 const logout = async () => {
     try { await logoutApi(); } catch (e) { console.log(e); }
