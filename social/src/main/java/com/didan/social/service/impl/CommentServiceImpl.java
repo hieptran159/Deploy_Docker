@@ -304,7 +304,7 @@ public class CommentServiceImpl extends ConvertDTO implements CommentService {
             String fileName = fileUploadsService.storeFile(editCommentRequest.getCommentImg(), "comment", commentId);
             comment.setCommentImg("comment/"+fileName);
         }
-        comment.setEditedAt(new java.util.Date());
+        comment.setEditedAt(Timestamp.valueOf(LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"))));
         commentRepository.save(comment);
         CommentDTO commentDTO = new CommentDTO();
         commentDTO.setCommentId(comment.getCommentId());

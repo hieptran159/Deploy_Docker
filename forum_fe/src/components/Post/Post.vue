@@ -8,34 +8,47 @@
         <span><b class="text-[var(--text)]">{{ isMyRepost ? 'Bạn' : post.repostedBy }}</b> đã chia sẻ</span>
     </div>
     <div v-if="post?.repostNote" class="text-sm pl-1 pt-1 whitespace-pre-wrap">{{ post.repostNote }}</div>
-    <div class="flex gap-3 py-3 cursor-pointer group" @click="viewDetail">
-        <img
-            v-show="showAvatar"
-            :src="linkAvt"
-            class="size-10 rounded-full object-cover flex-none bg-gray-100"
-            @error="avatarErrored = true"
-            @load="avatarErrored = false"
-        />
-        <div v-if="!showAvatar" class="avatar-fallback size-10 text-base">
-            {{ (userCreatedPost || '?')[0] }}
-        </div>
 
-        <div class="min-w-0 flex-1">
-            <div class="font-semibold text-[15px] text-[#2577b1] truncate group-hover:underline">
-                {{ post?.title }}
+    <div class="py-3 cursor-pointer group" @click="viewDetail">
+        <!-- dòng tác giả -->
+        <div class="flex items-center gap-2">
+            <img
+                v-show="showAvatar"
+                :src="linkAvt"
+                class="size-9 rounded-full object-cover flex-none bg-gray-100"
+                @error="avatarErrored = true"
+                @load="avatarErrored = false"
+            />
+            <div v-if="!showAvatar" class="avatar-fallback size-9 text-sm flex-none">
+                {{ (userCreatedPost || '?')[0] }}
             </div>
-            <div class="text-sm muted mt-0.5">
-                bởi
-                <span class="link" @click.stop="goProfile">{{ userCreatedPost || '—' }}</span>
+            <div class="text-sm muted min-w-0 truncate">
+                <span class="link font-medium text-[var(--text)]" @click.stop="goProfile">{{ userCreatedPost || '—' }}</span>
                 · {{ calculateTimeDifference(post?.postedAt) }} trước
-                <span v-if="post?.editedAt" class="muted">· đã chỉnh sửa</span>
+                <span v-if="post?.editedAt">· đã chỉnh sửa</span>
                 <span v-if="post?.visibility === 'friends'" class="ml-1 px-1.5 py-0.5 rounded bg-gray-100 text-[11px] font-semibold">👥 Bạn bè</span>
                 <span v-else-if="post?.visibility === 'private'" class="ml-1 px-1.5 py-0.5 rounded bg-gray-100 text-[11px] font-semibold">🔒 Chỉ mình tôi</span>
             </div>
-            <div v-if="excerpt" class="text-sm text-[var(--text)] mt-1 line-clamp-2">{{ excerpt }}</div>
         </div>
 
-        <div class="flex items-center gap-2 flex-none self-center text-xs">
+        <!-- nội dung: tiêu đề + trích đoạn, full-width -->
+        <div class="font-semibold text-base text-[#2577b1] mt-2 group-hover:underline">
+            {{ post?.title }}
+        </div>
+        <div v-if="excerpt" class="text-sm text-[var(--text)] mt-1 line-clamp-3 whitespace-pre-wrap">{{ excerpt }}</div>
+
+        <!-- hashtag -->
+        <div v-if="hashtags.length" class="flex flex-wrap gap-1.5 mt-2">
+            <button
+                v-for="t in hashtags"
+                :key="t"
+                class="text-xs font-semibold text-[var(--brand)] bg-[var(--brand-soft)] rounded-full px-2 py-0.5 hover:underline"
+                @click.stop="goTag(t)"
+            >#{{ t }}</button>
+        </div>
+
+        <!-- thanh thao tác -->
+        <div class="flex items-center gap-2 mt-2.5 text-xs">
             <button
                 v-if="isMyPost"
                 class="px-2 py-1 rounded-full font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 inline-flex items-center gap-1"
@@ -80,14 +93,6 @@
                 {{ post.repostCount }}
             </span>
         </div>
-    </div>
-    <div v-if="hashtags.length" class="flex flex-wrap gap-1.5 pb-2 pl-1 -mt-1">
-        <button
-            v-for="t in hashtags"
-            :key="t"
-            class="text-xs font-semibold text-[var(--brand)] bg-[var(--brand-soft)] rounded-full px-2 py-0.5 hover:underline"
-            @click.stop="goTag(t)"
-        >#{{ t }}</button>
     </div>
 
     <DxPopup
@@ -156,7 +161,7 @@ const showAvatar = computed(() => {
 
 const excerpt = computed(() => {
     const b = (post.value?.body || '').trim();
-    return b.length > 140 ? b.slice(0, 140) + '…' : b;
+    return b.length > 240 ? b.slice(0, 240) + '…' : b;
 });
 
 const hashtags = computed(() => post.value?.hashtags || []);

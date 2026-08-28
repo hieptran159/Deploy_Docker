@@ -1,5 +1,5 @@
 <template>
-    <div class="page">
+    <div class="page page--wide">
         <div class="card">
             <div class="flex items-center gap-3 mb-4">
                 <span class="section-title mb-0 flex-1">Tìm người dùng</span>
