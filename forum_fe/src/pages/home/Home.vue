@@ -32,15 +32,29 @@
         </div>
 
         <div class="card">
-            <div class="flex items-center gap-3 mb-3">
+            <div class="flex items-center gap-2 mb-3">
                 <span class="section-title mb-0 flex-1">Bài đăng mới nhất</span>
+                <DxButton
+                    v-if="isLogin"
+                    icon="bookmark"
+                    hint="Đã lưu"
+                    stylingMode="text"
+                    @click="router.push('/saved')"
+                />
+                <DxButton
+                    v-if="isLogin"
+                    icon="doc"
+                    hint="Bản nháp"
+                    stylingMode="text"
+                    @click="router.push('/drafts')"
+                />
                 <DxTextBox
                     v-model="searchText"
                     @enter-key="handleSearch"
                     @value-changed="onSearchChanged"
                     placeholder="Tìm bài viết…"
                     :show-clear-button="true"
-                    width="220"
+                    width="200"
                 />
             </div>
 

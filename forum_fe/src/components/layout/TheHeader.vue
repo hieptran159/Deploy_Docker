@@ -102,18 +102,6 @@
                 <DxButton type="default" stylingMode="contained" @click="() => route.push('/login')">Đăng nhập</DxButton>
             </div>
         </div>
-
-        <!-- Hàng phụ, tách hẳn xuống dưới thanh header -->
-        <div v-if="isLogin" class="app-header__sub">
-            <div class="app-header__sub-inner">
-                <DxTabs
-                    :selected-index="moreIndex"
-                    :dataSource="moreTabs"
-                    styling-mode="secondary"
-                    @item-click="selectChange"
-                />
-            </div>
-        </div>
     </header>
 </template>
 
@@ -163,13 +151,7 @@ const primaryTabs = computed(() => {
     if (isAdmin.value) base.push({ id: 4, text: "Quản trị", icon: "preferences" });
     return base;
 })
-// Hàng thứ 2 (xuống dòng)
-const moreTabs = [
-    { id: 5, text: "Đã lưu", icon: "bookmark" },
-    { id: 6, text: "Bản nháp", icon: "doc" },
-];
-
-const routeById = { 0: '/', 1: '/chat', 2: '/follow', 3: '/users', 4: '/admin', 5: '/saved', 6: '/drafts' };
+const routeById = { 0: '/', 1: '/chat', 2: '/follow', 3: '/users', 4: '/admin' };
 
 const currentTabId = computed(() => {
     const p = route.currentRoute.value.path;
@@ -179,7 +161,6 @@ const currentTabId = computed(() => {
     return -1;
 });
 const primaryIndex = computed(() => primaryTabs.value.findIndex((t) => t.id === currentTabId.value));
-const moreIndex = computed(() => moreTabs.findIndex((t) => t.id === currentTabId.value));
 
 // bấm logo -> tải lại toàn bộ trang chủ (F5)
 const goHomeReload = () => {
