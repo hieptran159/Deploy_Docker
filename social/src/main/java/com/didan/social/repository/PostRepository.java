@@ -22,6 +22,12 @@ public interface PostRepository extends JpaRepository<Posts, String> {
             + " OR p.userPost.users.userId = :me"
             + " OR (p.visibility = 'friends' AND p.userPost.users.userId IN :vids))";
 
+    // Nạp bài theo id KÈM tác giả trong 1 truy vấn. Cần vì Posts.userPost là @OneToOne(mappedBy)
+    // nghịch đảo -> Hibernate KHÔNG thể lazy/batch, mỗi bài = 1 SELECT phụ (N+1) khi dựng feed.
+    @EntityGraph(attributePaths = {"userPost", "userPost.users"})
+    List<Posts> findByPostIdIn(Collection<String> ids);
+
+    @EntityGraph(attributePaths = {"userPost", "userPost.users"})
     @Query("SELECT p FROM posts p WHERE " + PUBLISHED + " AND " + VISIBLE + " ORDER BY p.postedAt DESC, p.postId ASC")
     List<Posts> findAllPost(@Param("vids") Collection<String> vids, @Param("me") String me);
 
@@ -37,11 +43,13 @@ public interface PostRepository extends JpaRepository<Posts, String> {
     List<Object[]> countPostsPerDaySince(@Param("since") java.sql.Timestamp since);
 
     // Bản nháp của một người dùng (mới nhất trước)
+    @EntityGraph(attributePaths = {"userPost", "userPost.users"})
     @Query("SELECT p FROM posts p WHERE p.status = 'draft' AND p.userPost.users.userId = :uid "
          + "ORDER BY p.postedAt DESC, p.postId ASC")
     List<Posts> findDraftsOfAuthor(@Param("uid") String uid);
 
     // Lịch sử bài đã đăng của 1 người dùng (mới nhất trước), phân trang; lọc theo quyền xem của người xem
+    @EntityGraph(attributePaths = {"userPost", "userPost.users"})
     @Query("SELECT p FROM posts p WHERE " + PUBLISHED + " AND " + VISIBLE
          + " AND p.userPost.users.userId = :uid ORDER BY p.postedAt DESC, p.postId ASC")
     List<Posts> findPublishedByAuthor(@Param("uid") String uid, @Param("vids") Collection<String> vids,
@@ -101,15 +109,16 @@ public interface PostRepository extends JpaRepository<Posts, String> {
     @EntityGraph(attributePaths = {"userPost", "postLikes", "userComments", "userComments.comments"}, type = EntityGraph.EntityGraphType.FETCH)
     Posts findFirstByPostId(String postId);
 
-    // Tìm kiếm không phân biệt hoa thường, phân trang. Bỏ @EntityGraph nặng (fetch-join
-    // comments/likes tạo tích Descartes) - toListDTO chỉ cần author + likes, đã có
-    // default_batch_fetch_size lo phần nạp theo lô.
+    // Tìm kiếm không phân biệt hoa thường, phân trang. Chỉ fetch-join tác giả (to-one, an toàn
+    // với Pageable); comments/likes để default_batch_fetch_size nạp theo lô, tránh tích Descartes.
+    @EntityGraph(attributePaths = {"userPost", "userPost.users"})
     @Query("SELECT p FROM posts p WHERE " + PUBLISHED + " AND " + VISIBLE
          + " AND (lower(p.title) LIKE lower(concat('%', :q, '%')) "
          + "OR lower(p.body) LIKE lower(concat('%', :q, '%'))) ORDER BY p.postedAt DESC, p.postId ASC")
     List<Posts> searchByKeyword(@Param("q") String q, @Param("vids") Collection<String> vids,
                                 @Param("me") String me, Pageable pageable);
 
+    @EntityGraph(attributePaths = {"userPost", "userPost.users"})
     @Query("SELECT p FROM posts p WHERE " + PUBLISHED + " AND " + VISIBLE
          + " AND (lower(p.title) LIKE lower(concat('%', :q, '%')) "
          + "OR lower(p.body) LIKE lower(concat('%', :q, '%'))) AND p.userPost.users.userId NOT IN :ex "

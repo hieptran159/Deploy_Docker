@@ -77,6 +77,13 @@ services:
       UPLOAD_JPEG_QUALITY: ${UPLOAD_JPEG_QUALITY:-0.82}
       # Tự ẩn bài khi đạt số báo cáo OPEN này (0 = tắt)
       MOD_POST_AUTOHIDE: ${MOD_POST_AUTOHIDE:-3}
+      # Kích thước connection pool (mặc định hợp lý; chỉ set khi cần)
+      DB_POOL_MAX: ${DB_POOL_MAX:-15}
+      DB_POOL_MIN: ${DB_POOL_MIN:-5}
+      # Ghi log "Session Metrics" mỗi request để soi số truy vấn / thời gian. Chỉ bật khi chẩn đoán.
+      JPA_STATS: ${JPA_STATS:-false}
+      # Ghi đè tham số JDBC nếu cần (mặc định đã tắt TLS nội bộ + bật cache prepared-statement)
+      MYSQL_PARAMS: ${MYSQL_PARAMS:-useSSL=false&allowPublicKeyRetrieval=true&cachePrepStmts=true&useServerPrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048&useLocalSessionState=true&useLocalTransactionState=true&rewriteBatchedStatements=true&cacheServerConfiguration=true&serverTimezone=Asia/Ho_Chi_Minh}
     ports:
       - "${BACKEND_PORT:-8081}:8081"
       - "${SOCKET_PORT:-8082}:8082"

@@ -233,7 +233,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
             if (r[2] != null && ((Number) r[2]).intValue() == 1) repostPids.add(pid);
         }
         java.util.Map<String, Posts> byId = new java.util.HashMap<>();
-        for (Posts p : postRepository.findAllById(new java.util.LinkedHashSet<>(pidOrder))) byId.put(p.getPostId(), p);
+        for (Posts p : postRepository.findByPostIdIn(new java.util.LinkedHashSet<>(pidOrder))) byId.put(p.getPostId(), p);
 
         // Với các bài xuất hiện dạng "đã chia sẻ": lấy lượt repost mới nhất (ai chia sẻ + ghi chú)
         java.util.Map<String, com.didan.social.entity.Reposts> latestRepost = new java.util.HashMap<>();
@@ -442,7 +442,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
             Users sharer = userRepository.findFirstByUserId(userId);
             java.util.List<String> pids = rows.stream().map(r -> r.getRepostId().getPostId()).collect(Collectors.toList());
             java.util.Map<String, Posts> byId = new java.util.HashMap<>();
-            for (Posts p : postRepository.findAllById(pids)) byId.put(p.getPostId(), p);
+            for (Posts p : postRepository.findByPostIdIn(pids)) byId.put(p.getPostId(), p);
             for (com.didan.social.entity.Reposts r : rows) {
                 Posts p = byId.get(r.getRepostId().getPostId());
                 if (p == null) continue;
