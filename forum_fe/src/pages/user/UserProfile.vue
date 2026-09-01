@@ -145,15 +145,22 @@ const coverUrl = computed(() => (user.value?.coverUrl ? IMAGE_BASE + user.value.
 const hasInfo = computed(() => !!(user.value?.phone || user.value?.address || user.value?.hobbies));
 
 const refreshStatus = async () => {
-    try {
-        friendCount.value = (await getFriends(userId.value))?.data?.data?.quantity || 0;
-    } catch (e) { friendCount.value = 0; }
-    if (isMe.value) { fStatus.value = 'self'; return; }
-    try {
-        fStatus.value = (await friendStatus(userId.value))?.data?.data?.status || 'none';
-    } catch (e) {
-        fStatus.value = 'none';
+    // 2 call độc lập -> chạy song song
+    const tasks = [
+        getFriends(userId.value)
+            .then((r) => { friendCount.value = r?.data?.data?.quantity || 0; })
+            .catch(() => { friendCount.value = 0; }),
+    ];
+    if (isMe.value) {
+        fStatus.value = 'self';
+    } else {
+        tasks.push(
+            friendStatus(userId.value)
+                .then((r) => { fStatus.value = r?.data?.data?.status || 'none'; })
+                .catch(() => { fStatus.value = 'none'; })
+        );
     }
+    await Promise.all(tasks);
 }
 
 const loadPosts = async (reset = false) => {
@@ -195,15 +202,16 @@ const load = async () => {
     user.value = null;
     reposts.value = [];
     avatarOk.value = true;
+    // 4 nhóm dữ liệu độc lập -> phát cùng lúc thay vì nối đuôi
     loadReposts(true);
+    loadPosts(true);
+    refreshStatus();
     try {
         const res = await getUserInfo(userId.value);
         user.value = res?.data?.data || null;
     } catch (error) {
         console.log(error);
     }
-    await loadPosts(true);
-    refreshStatus();
 }
 
 const wrap = (fn, okMsg) => async () => {

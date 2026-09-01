@@ -454,16 +454,18 @@ const dmPeerOnline = (c) => {
 }
 
 const resolveDmNames = async () => {
-    for (const c of conversations.value) {
-        if (!isDm(c.conversationName) || dmNames.value[c.conversationId]) continue;
+    const targets = conversations.value.filter(
+        (c) => isDm(c.conversationName) && !dmNames.value[c.conversationId] && otherIdFromDm(c.conversationName)
+    );
+    // chạy song song thay vì tuần tự từng DM
+    await Promise.all(targets.map(async (c) => {
         const otherId = otherIdFromDm(c.conversationName);
-        if (!otherId) continue;
         try {
             const u = (await getUserInfo(otherId))?.data?.data || {};
             dmNames.value = { ...dmNames.value, [c.conversationId]: u.fullName || 'Tin nhắn riêng' };
             dmAvatars.value = { ...dmAvatars.value, [c.conversationId]: u.avtUrl || '' };
         } catch (e) { /* ignore */ }
-    }
+    }));
 }
 
 const displayName = (c) => {
@@ -522,17 +524,21 @@ const bumpConversation = (convId, { content = '', messageImg = null, senderId = 
 const friends = ref([]);
 const loadFriends = async () => {
     try {
-        const ids = (await getFriends(myId))?.data?.data?.userId || [];
-        const out = [];
-        for (const id of ids) {
+        const data = (await getFriends(myId))?.data?.data || {};
+        // backend đã trả kèm tên -> khỏi gọi /user/{id} cho từng người
+        if (Array.isArray(data.users) && data.users.length) {
+            friends.value = data.users.map((u) => ({ userId: u.userId, fullName: u.fullName || u.userId }));
+            return;
+        }
+        const ids = data.userId || [];
+        friends.value = await Promise.all(ids.map(async (id) => {
             try {
                 const u = await getUserInfo(id);
-                out.push({ userId: id, fullName: u?.data?.data?.fullName || id });
+                return { userId: id, fullName: u?.data?.data?.fullName || id };
             } catch (e) {
-                out.push({ userId: id, fullName: id });
+                return { userId: id, fullName: id };
             }
-        }
-        friends.value = out;
+        }));
     } catch (e) {
         friends.value = [];
     }

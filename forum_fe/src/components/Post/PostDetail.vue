@@ -470,9 +470,9 @@ const teardownPostSocket = () => {
 onMounted(async() => {
     activePostId.value = id.value;
     loadUsers();
-    await getDataPostById();
-    await loadComments(true);
     loadBookmark();
+    // bài + bình luận độc lập nhau -> tải song song
+    await Promise.all([getDataPostById(), loadComments(true)]);
     // đang xem bài này -> đánh dấu đã đọc các thông báo bình luận / thích của bài
     markPostNotifsRead();
     connectPostSocket();
