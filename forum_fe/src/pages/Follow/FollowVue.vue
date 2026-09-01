@@ -113,21 +113,27 @@ const setTab = (t) => {
     load();
 }
 
+// tên+avatar kèm sẵn trong response danh sách (backend trả `users`) -> khỏi gọi /user/{id}
+let briefCache = {};
+
 const hydrate = async (ids) => {
-    const out = [];
-    for (const id of ids) {
+    // Chạy song song thay vì tuần tự; id nào đã có trong briefCache thì không gọi mạng.
+    return Promise.all(ids.map(async (id) => {
+        const b = briefCache[id];
+        if (b) {
+            return { id, name: b.fullName || id, avatar: b.avtUrl ? IMAGE_BASE + b.avtUrl : '' };
+        }
         try {
             const u = await getUserInfo(id);
-            out.push({
+            return {
                 id,
                 name: u?.data?.data?.fullName || id,
                 avatar: u?.data?.data?.avtUrl ? IMAGE_BASE + u.data.data.avtUrl : '',
-            });
+            };
         } catch (e) {
-            out.push({ id, name: id, avatar: '' });
+            return { id, name: id, avatar: '' };
         }
-    }
-    return out;
+    }));
 }
 
 const loadIncomingCount = async () => {
@@ -142,26 +148,33 @@ const load = async () => {
     loading.value = true;
     list.value = [];
     allIds.value = [];
+    briefCache = {};
     try {
-        let ids = [];
+        let data = {};
         if (tab.value === 'friends') {
-            ids = (await getFriends(targetUser.value))?.data?.data?.userId || [];
+            data = (await getFriends(targetUser.value))?.data?.data || {};
         } else if (tab.value === 'incoming') {
-            ids = (await getIncomingRequests())?.data?.data?.userId || [];
+            data = (await getIncomingRequests())?.data?.data || {};
         } else if (tab.value === 'blocked') {
-            ids = (await getBlockedUsers())?.data?.data?.userId || [];
+            data = (await getBlockedUsers())?.data?.data || {};
         } else {
-            ids = (await getOutgoingRequests())?.data?.data?.userId || [];
+            data = (await getOutgoingRequests())?.data?.data || {};
+        }
+        const ids = data.userId || [];
+        if (Array.isArray(data.users)) {
+            for (const u of data.users) if (u?.userId) briefCache[u.userId] = u;
         }
         allIds.value = ids;
         list.value = await hydrate(ids.slice(0, PAGE));
+        // đang ở tab "incoming" thì lấy luôn số đếm từ đây, khỏi gọi thêm request
+        if (tab.value === 'incoming') incomingCount.value = ids.length;
     } catch (e) {
         list.value = [];
         allIds.value = [];
     } finally {
         loading.value = false;
     }
-    loadIncomingCount();
+    if (tab.value !== 'incoming') loadIncomingCount();
 }
 
 const loadMore = async () => {
@@ -248,8 +261,7 @@ const confirmUnfriend = (item) => {
 const clearFriendNotifs = async () => {
     if (!isMe.value) return;
     try {
-        await markReadByType('FRIEND_REQUEST');
-        await markReadByType('FRIEND_ACCEPT');
+        await Promise.all([markReadByType('FRIEND_REQUEST'), markReadByType('FRIEND_ACCEPT')]);
         bumpNotifRefresh();
     } catch (e) { /* ignore */ }
 };

@@ -59,6 +59,27 @@ public class FollowServiceImpl implements FollowService {
         return u;
     }
 
+    // Nạp tên + avatar cho danh sách id bằng 1 truy vấn gộp, giữ nguyên thứ tự.
+    private FollowDTO withUsers(FollowDTO dto) {
+        List<String> ids = dto.getUserId();
+        if (ids == null || ids.isEmpty()) {
+            dto.setUsers(new ArrayList<>());
+            return dto;
+        }
+        Map<String, Users> byId = new HashMap<>();
+        for (Users u : userRepository.findAllById(ids)) byId.put(u.getUserId(), u);
+        List<FollowDTO.UserBrief> briefs = new ArrayList<>(ids.size());
+        for (String id : ids) {
+            Users u = byId.get(id);
+            briefs.add(new FollowDTO.UserBrief(
+                    id,
+                    u != null ? u.getFullName() : id,
+                    u != null ? u.getAvtUrl() : ""));
+        }
+        dto.setUsers(briefs);
+        return dto;
+    }
+
     @Override
     public boolean areFriends(String a, String b) {
         if (a == null || b == null || a.equals(b)) return false;
@@ -177,7 +198,7 @@ public class FollowServiceImpl implements FollowService {
             String other = userId.equals(a) ? b : a;
             if (other != null && !ids.contains(other)) ids.add(other);
         }
-        return new FollowDTO(ids.size(), ids);
+        return withUsers(new FollowDTO(ids.size(), ids));
     }
 
     @Override
@@ -187,7 +208,7 @@ public class FollowServiceImpl implements FollowService {
         for (Followers f : followRepository.findAllByUsers2_UserIdAndStatus(me, PENDING)) {
             if (f.getUsers1() != null) ids.add(f.getUsers1().getUserId());
         }
-        return new FollowDTO(ids.size(), ids);
+        return withUsers(new FollowDTO(ids.size(), ids));
     }
 
     @Override
@@ -197,7 +218,7 @@ public class FollowServiceImpl implements FollowService {
         for (Followers f : followRepository.findAllByUsers1_UserIdAndStatus(me, PENDING)) {
             if (f.getUsers2() != null) ids.add(f.getUsers2().getUserId());
         }
-        return new FollowDTO(ids.size(), ids);
+        return withUsers(new FollowDTO(ids.size(), ids));
     }
 
     // ----- Chặn người dùng -----
@@ -233,7 +254,7 @@ public class FollowServiceImpl implements FollowService {
     public FollowDTO getBlocked() throws Exception {
         String me = authorizePathService.getUserIdAuthoried();
         List<String> ids = blockRepository.blockedIdsOf(me);
-        return new FollowDTO(ids.size(), ids);
+        return withUsers(new FollowDTO(ids.size(), ids));
     }
 
     @Override
