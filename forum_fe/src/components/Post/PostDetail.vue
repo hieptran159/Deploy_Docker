@@ -37,7 +37,7 @@
             <div class="font-bold text-3xl leading-snug text-[var(--accent)] mt-2">{{ post?.title }}</div>
 
             <!-- nội dung -->
-            <div class="my-3 whitespace-pre-wrap">{{ post?.body }}</div>
+            <div class="my-3"><LinkText :text="post?.body || ''" /></div>
 
             <div v-if="post?.hashtags?.length" class="flex flex-wrap gap-1.5 mb-3">
                 <button
@@ -188,6 +188,7 @@ import ReactionBar from '@/components/ReactionBar.vue';
 import { LOCALKEYS, getItemLocal } from '@/storages/localStorage';
 import { activePostId, bumpNotifRefresh } from '@/storages/appState';
 import EditPost from '@/components/Post/EditPost.vue';
+import LinkText from '@/components/LinkText.vue';
 import { IMAGE_BASE, SOCKET_URL } from '@/config';
 import { io } from 'socket.io-client';
 

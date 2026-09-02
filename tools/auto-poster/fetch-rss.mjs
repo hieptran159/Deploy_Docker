@@ -173,7 +173,7 @@ async function main() {
         const title = it.title.replace(/["\r\n]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200);
         const body =
             (it.summary ? it.summary.slice(0, 900).trim() : title) +
-            (it.link ? `\n\nNguồn: ${it.link}` : '');
+            (it.link ? `\n\nNguồn bài viết gốc: ${it.link}` : '');
         const md =
             `---\n` +
             `title: "${title}"\n` +
