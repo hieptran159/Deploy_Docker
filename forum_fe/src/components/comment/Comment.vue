@@ -39,7 +39,7 @@
                     @react="reactComment"
                     @unreact="unreactComment"
                 />
-                <template v-if="!isReply && isLogin">
+                <template v-if="isLogin">
                     <button class="link" @click="showReply = !showReply">Trả lời</button>
                 </template>
                 <template v-if="isOwner">
@@ -60,13 +60,19 @@
                 <DxButton stylingMode="text" text="Huỷ" @click="() => { showReply = false; replyText = '' }" />
             </div>
 
-            <!-- danh sách trả lời -->
-            <div v-if="replies.length" class="mt-2 pl-3 border-l-2 border-[var(--border)] flex flex-col gap-3">
+            <!-- danh sách trả lời (đệ quy, không giới hạn cấp) -->
+            <div
+                v-if="replies.length"
+                class="mt-2 flex flex-col gap-3 border-[var(--border)]"
+                :class="depth < 6 ? 'pl-3 border-l-2' : 'pl-1 border-l'"
+            >
                 <Comment
                     v-for="r in replies"
                     :key="r.commentId"
                     :commentProps="r"
+                    :replies="r.replies || []"
                     :is-reply="true"
+                    :depth="depth + 1"
                     :post-id="postId"
                     @refresh="() => emits('refresh')"
                 />
@@ -106,6 +112,7 @@ const props = defineProps({
     commentProps: { type: Object },
     replies: { type: Array, default: () => [] },
     isReply: { type: Boolean, default: false },
+    depth: { type: Number, default: 0 },
     postId: { type: String, default: '' },
 })
 

@@ -302,18 +302,26 @@ const loadComments = async (reset) => {
     }
 }
 
-// gom bình luận thành cây 1 cấp: gốc (mới -> cũ), trả lời (cũ -> mới)
+// gom bình luận thành cây LỒNG KHÔNG GIỚI HẠN CẤP: gốc (mới -> cũ), trả lời (cũ -> mới)
 const threadedComments = computed(() => {
     const all = commentItems.value;
     const ids = new Set(all.map((c) => c.commentId));
-    const children = {};
+    const childrenOf = {};
     const roots = [];
     for (const c of all) {
-        if (c.parentId && ids.has(c.parentId)) (children[c.parentId] ||= []).push(c);
+        if (c.parentId && ids.has(c.parentId)) (childrenOf[c.parentId] ||= []).push(c);
         else roots.push(c);
     }
     const asc = (a, b) => new Date(a.commentAt) - new Date(b.commentAt);
-    return roots.map((r) => ({ ...r, replies: (children[r.commentId] || []).slice().sort(asc) }));
+    const build = (node, seen) => {
+        if (seen.has(node.commentId)) return { ...node, replies: [] };
+        seen.add(node.commentId);
+        return {
+            ...node,
+            replies: (childrenOf[node.commentId] || []).slice().sort(asc).map((k) => build(k, seen)),
+        };
+    };
+    return roots.map((r) => build(r, new Set()));
 });
 
 const addCommentEmoji = (e) => { contentPost.value = (contentPost.value || '') + e; };

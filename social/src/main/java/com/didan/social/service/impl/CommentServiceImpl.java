@@ -90,7 +90,7 @@ public class CommentServiceImpl extends ConvertDTO implements CommentService {
         if (size < 1 || size > 100) size = 20;
         List<CommentDTO> all = getCommentsInPost(postId); // đã kèm reaction, sắp mới -> cũ
 
-        // gom cây 1 cấp
+        // gom theo cha (không giới hạn độ sâu)
         java.util.Set<String> ids = new java.util.HashSet<>();
         for (CommentDTO c : all) ids.add(c.getCommentId());
         List<CommentDTO> roots = new ArrayList<>();
@@ -100,7 +100,7 @@ public class CommentServiceImpl extends ConvertDTO implements CommentService {
             if (pid != null && ids.contains(pid)) {
                 children.computeIfAbsent(pid, k -> new ArrayList<>()).add(c);
             } else {
-                roots.add(c);
+                roots.add(c); // parentId null hoặc cha đã bị xoá -> coi là gốc
             }
         }
         int total = roots.size();
@@ -108,13 +108,22 @@ public class CommentServiceImpl extends ConvertDTO implements CommentService {
         int from = Math.min((page - 1) * size, total);
         int to = Math.min(from + size, total);
 
+        // Với mỗi bình luận gốc của trang: trả kèm TOÀN BỘ nhánh con ở mọi cấp (DFS, cũ -> mới).
+        // FE tự dựng lại cây từ parentId nên thứ tự phẳng chỉ cần ổn định.
         List<CommentDTO> items = new ArrayList<>();
         for (CommentDTO root : roots.subList(from, to)) {
-            items.add(root);
-            List<CommentDTO> reps = children.get(root.getCommentId());
-            if (reps != null) {
-                reps.sort(Comparator.comparing(CommentDTO::getCommentAt)); // trả lời: cũ -> mới
-                items.addAll(reps);
+            java.util.Deque<CommentDTO> stack = new java.util.ArrayDeque<>();
+            stack.push(root);
+            java.util.Set<String> seen = new java.util.HashSet<>();
+            while (!stack.isEmpty()) {
+                CommentDTO cur = stack.pop();
+                if (!seen.add(cur.getCommentId())) continue; // chống vòng lặp phòng hờ
+                items.add(cur);
+                List<CommentDTO> kids = children.get(cur.getCommentId());
+                if (kids != null) {
+                    kids.sort(Comparator.comparing(CommentDTO::getCommentAt)); // cũ -> mới
+                    for (int i = kids.size() - 1; i >= 0; i--) stack.push(kids.get(i));
+                }
             }
         }
 
@@ -145,7 +154,7 @@ public class CommentServiceImpl extends ConvertDTO implements CommentService {
             logger.error("No post is here");
             throw new Exception("No post is here");
         }
-        // trả lời bình luận: chuẩn hoá về tối đa 1 cấp
+        // trả lời bình luận: lồng KHÔNG giới hạn cấp -> gắn thẳng vào bình luận cha
         String parentId = null;
         String parentAuthorId = null;
         if (StringUtils.hasText(createCommentRequest.getParentId())) {
@@ -154,8 +163,7 @@ public class CommentServiceImpl extends ConvertDTO implements CommentService {
                     : userCommentRepository.findFirstByComments_CommentId(parent.getCommentId());
             if (parent != null && parentUc != null && parentUc.getPosts() != null
                     && postId.equals(parentUc.getPosts().getPostId())) {
-                // nếu cha cũng là 1 câu trả lời -> gắn vào bình luận gốc của nó
-                parentId = StringUtils.hasText(parent.getParentId()) ? parent.getParentId() : parent.getCommentId();
+                parentId = parent.getCommentId();
                 parentAuthorId = parentUc.getUsers() != null ? parentUc.getUsers().getUserId() : null;
             }
         }
