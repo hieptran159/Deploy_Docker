@@ -12,6 +12,6 @@ https://vnexpress.net/rss/tin-moi-nhat.rss
 # https://vnexpress.net/rss/suc-khoe.rss
 
 # --- Báo khác (bỏ '#' để dùng) ---
-# https://tuoitre.vn/rss/tin-moi-nhat.rss
+https://tuoitre.vn/rss/tin-moi-nhat.rss
 # https://thanhnien.vn/rss/home.rss
 # https://dantri.com.vn/rss/home.rss
