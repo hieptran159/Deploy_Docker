@@ -156,12 +156,48 @@ public class PostController {
         }
     }
     // Bản nháp của tôi
-    @Operation(summary = "Danh sách bản nháp của tôi", security = @SecurityRequirement(name = "bearerAuth"))
+    @Operation(summary = "Danh sách bản nháp của tôi (phân trang)", security = @SecurityRequirement(name = "bearerAuth"))
     @GetMapping("/drafts")
-    public ResponseEntity<?> myDrafts(){
+    public ResponseEntity<?> myDrafts(@RequestParam(defaultValue = "0") int page,
+                                      @RequestParam(defaultValue = "20") int size){
         ResponseData payload = new ResponseData();
         try {
-            payload.setData(postService.getMyDrafts());
+            payload.setData(postService.getMyDrafts(page, size));
+            payload.setDescription("OK");
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e){
+            payload.setSuccess(false);
+            payload.setStatusCode(500);
+            payload.setDescription(e.getMessage());
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
+    @Operation(summary = "Đăng TẤT CẢ bản nháp của tôi", security = @SecurityRequirement(name = "bearerAuth"))
+    @PatchMapping("/drafts/publish-all")
+    public ResponseEntity<?> publishAllDrafts(){
+        ResponseData payload = new ResponseData();
+        try {
+            payload.setData(postService.publishAllDrafts());
+            payload.setDescription("OK");
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e){
+            payload.setSuccess(false);
+            payload.setStatusCode(500);
+            payload.setDescription(e.getMessage());
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
+    @Operation(summary = "Xoá TẤT CẢ bản nháp của tôi", security = @SecurityRequirement(name = "bearerAuth"))
+    @DeleteMapping("/drafts/all")
+    public ResponseEntity<?> deleteAllDrafts(){
+        ResponseData payload = new ResponseData();
+        try {
+            int n = postService.deleteAllDrafts();
+            java.util.Map<String, Object> d = new java.util.HashMap<>();
+            d.put("deleted", n);
+            payload.setData(d);
             payload.setDescription("OK");
             return new ResponseEntity<>(payload, HttpStatus.OK);
         } catch (Exception e){

@@ -48,6 +48,14 @@ public interface PostRepository extends JpaRepository<Posts, String> {
          + "ORDER BY p.postedAt DESC, p.postId ASC")
     List<Posts> findDraftsOfAuthor(@Param("uid") String uid);
 
+    @EntityGraph(attributePaths = {"userPost", "userPost.users"})
+    @Query("SELECT p FROM posts p WHERE p.status = 'draft' AND p.userPost.users.userId = :uid "
+         + "ORDER BY p.postedAt DESC, p.postId ASC")
+    List<Posts> findDraftsOfAuthor(@Param("uid") String uid, Pageable pageable);
+
+    @Query("SELECT COUNT(p) FROM posts p WHERE p.status = 'draft' AND p.userPost.users.userId = :uid")
+    long countDraftsOfAuthor(@Param("uid") String uid);
+
     // Lịch sử bài đã đăng của 1 người dùng (mới nhất trước), phân trang; lọc theo quyền xem của người xem
     @EntityGraph(attributePaths = {"userPost", "userPost.users"})
     @Query("SELECT p FROM posts p WHERE " + PUBLISHED + " AND " + VISIBLE

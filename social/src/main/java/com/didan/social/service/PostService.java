@@ -26,10 +26,14 @@ public interface PostService {
     // Lấy bài viết theo id
     PostDTO getPostById(String postId) throws Exception;
 
-    // Bản nháp của tôi
-    List<PostDTO> getMyDrafts() throws Exception;
+    // Bản nháp của tôi (phân trang, mới nhất trước); trả {items,total,page,totalPages}
+    java.util.Map<String, Object> getMyDrafts(int page, int size) throws Exception;
     // Đăng một bản nháp (đổi status + cập nhật postedAt = bây giờ)
     boolean publishPost(String postId) throws Exception;
+    // Đăng TẤT CẢ bản nháp của tôi có đủ tiêu đề + nội dung; trả {published,skipped}
+    java.util.Map<String, Object> publishAllDrafts() throws Exception;
+    // Xoá TẤT CẢ bản nháp của tôi; trả số đã xoá
+    int deleteAllDrafts() throws Exception;
 
     // Chia sẻ (repost) bài viết
     boolean repost(String postId, String note) throws Exception;

@@ -85,6 +85,7 @@ const CFG = {
     stateFile: path.resolve(HERE, process.env.STATE_FILE || '.state.json'),
     bypassHeader: process.env.BYPASS_HEADER || 'X-Auto-Poster',
     bypassToken: process.env.BYPASS_TOKEN || '',
+    draftLimit: Number(process.env.DRAFT_LIMIT || 0),  // >0: tạm dừng đăng khi số nháp đạt ngưỡng
 };
 
 async function jsonOf(res) {
@@ -130,6 +131,15 @@ async function login() {
         throw new Error(`Đăng nhập thất bại (HTTP ${res.status}): ${j?.description || j?._raw || 'không rõ'}\n` +
             `  API_URL="${CFG.apiUrl}"  email="${email || '(trống)'}"  password=${password.length} ký tự${hint}`);
     }
+}
+
+// Số bản nháp hiện có của tài khoản bot (dùng cho ngưỡng DRAFT_LIMIT)
+async function draftCount(tok) {
+    try {
+        const res = await hit(`${CFG.apiUrl}/post/drafts?page=0&size=1`, { headers: { Authorization: `Bearer ${tok.access}` } });
+        const j = await jsonOf(res);
+        return Number(j?.data?.total ?? 0);
+    } catch (e) { return 0; }
 }
 
 async function refresh(tok) {
@@ -267,7 +277,18 @@ async function main() {
             summary.skipped++; continue;
         }
 
-        if (!tok) { try { tok = await login(); console.log(`✓ đăng nhập: ${tok.userId}\n`); } catch (err) { console.error(err.message); process.exit(1); } }
+        if (!tok) {
+            try { tok = await login(); console.log(`✓ đăng nhập: ${tok.userId}`); } catch (err) { console.error(err.message); process.exit(1); }
+            if (CFG.draftLimit > 0) {
+                const n = await draftCount(tok);
+                if (n >= CFG.draftLimit) {
+                    console.log(`\n⏸  Đang có ${n} bản nháp (≥ giới hạn ${CFG.draftLimit}) — tạm dừng đăng.\n   Vào /drafts duyệt bớt (hoặc "Đăng tất cả"/"Xoá tất cả") rồi chạy lại.`);
+                    process.exit(0);
+                }
+                console.log(`  (bản nháp hiện có: ${n}/${CFG.draftLimit})`);
+            }
+            console.log('');
+        }
 
         try {
             const postId = await createPost(tok, e.buildForm);

@@ -358,12 +358,55 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
     }
 
     @Override
-    public List<PostDTO> getMyDrafts() throws Exception {
+    public java.util.Map<String, Object> getMyDrafts(int page, int size) throws Exception {
+        String meId = authorizePathService.getUserIdAuthoried();
+        if (page < 0) page = 0;
+        if (size < 1) size = 20;
+        if (size > 50) size = 50;
+        List<Posts> drafts = postRepository.findDraftsOfAuthor(meId, PageRequest.of(page, size));
+        List<PostDTO> items = drafts.stream().map(p -> toListDTO(p, meId)).collect(Collectors.toList());
+        applyHashtags(items);
+        long total = postRepository.countDraftsOfAuthor(meId);
+        java.util.Map<String, Object> m = new java.util.HashMap<>();
+        m.put("items", items);
+        m.put("total", total);
+        m.put("page", page);
+        m.put("totalPages", (int) Math.max(1, Math.ceil(total / (double) size)));
+        return m;
+    }
+
+    @Transactional
+    @Override
+    public java.util.Map<String, Object> publishAllDrafts() throws Exception {
+        String meId = authorizePathService.getUserIdAuthoried();
+        Date now = Timestamp.valueOf(LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh")));
+        int published = 0, skipped = 0;
+        for (Posts p : postRepository.findDraftsOfAuthor(meId)) {
+            if (!StringUtils.hasText(p.getTitle()) || !StringUtils.hasText(p.getBody())) { skipped++; continue; }
+            p.setStatus("published");
+            p.setPostedAt(now);
+            postRepository.save(p);
+            published++;
+        }
+        java.util.Map<String, Object> m = new java.util.HashMap<>();
+        m.put("published", published);
+        m.put("skipped", skipped);
+        return m;
+    }
+
+    @Transactional
+    @Override
+    public int deleteAllDrafts() throws Exception {
         String meId = authorizePathService.getUserIdAuthoried();
         List<Posts> drafts = postRepository.findDraftsOfAuthor(meId);
-        List<PostDTO> out = drafts.stream().map(p -> toListDTO(p, meId)).collect(Collectors.toList());
-        applyHashtags(out);
-        return out;
+        for (Posts p : drafts) {
+            postHashtagRepository.deleteByPostHashtagId_PostId(p.getPostId());
+            if (StringUtils.hasText(p.getPostImg())) {
+                try { fileUploadsService.deleteFile(p.getPostImg()); } catch (Exception ignore) {}
+            }
+            postRepository.delete(p);
+        }
+        return drafts.size();
     }
 
     @Override

@@ -32,12 +32,20 @@ export const createdPost = (data) => {
     return authApiFormData.post("/post/new", data);
 }
 
-export const getDrafts = () => {
-    return authApi.get('/post/drafts');
+export const getDrafts = (page = 0, size = 20) => {
+    return authApi.get(`/post/drafts?page=${page}&size=${size}`);
 }
 
 export const publishPost = (id) => {
     return authApi.patch(`/post/publish/${id}`);
+}
+
+export const publishAllDrafts = () => {
+    return authApi.patch('/post/drafts/publish-all');
+}
+
+export const deleteAllDrafts = () => {
+    return authApi.delete('/post/drafts/all');
 }
 
 export const repostPost = (id, note = '') => {
