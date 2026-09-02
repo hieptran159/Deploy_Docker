@@ -1,20 +1,13 @@
 name: auto-post
 
-# Đăng các file tools/auto-poster/content/*.md lên forum.
-# Cần 2 secret (Settings → Secrets and variables → Actions → tab "Secrets",
-# KHÔNG phải "Variables"):
-#   FORUM_BOT_EMAIL     email tài khoản bot
-#   FORUM_BOT_PASSWORD  mật khẩu tài khoản bot
-# API_URL để thẳng bên dưới (không nhạy cảm).
+# ⚠️ TẮT tự động: Cloudflare "Bot fight mode" (gói free) chặn IP của GitHub runner
+# bằng managed challenge (403), rule WAF "Skip" không bỏ qua được. Đường chính là
+# cron trên máy Ubuntu (tools/auto-poster/README.md mục B).
+# Chỉ giữ workflow này để chạy TAY, và chỉ dùng được nếu bạn TẮT Bot fight mode
+# (Cloudflare → Security → Settings) rồi thêm 2 secret FORUM_BOT_EMAIL / FORUM_BOT_PASSWORD.
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'tools/auto-poster/content/**'   # commit file .md mới -> đăng ngay
-  schedule:
-    - cron: '17 * * * *'      # mỗi giờ, phút thứ 17 (giờ UTC) — mạng an toàn
-  workflow_dispatch: {}       # cho phép bấm chạy tay
+  workflow_dispatch: {}       # chỉ chạy tay từ tab Actions
 
 concurrency:
   group: auto-post
