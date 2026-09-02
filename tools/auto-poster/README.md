@@ -108,27 +108,21 @@ trở lại repo để lần sau không đăng trùng. Bấm **Run workflow** đ
 ### B. cron trên máy Ubuntu (khuyên dùng — gọi `localhost`, không đụng Cloudflare)
 
 `.env` trên máy đó đặt `API_URL=http://localhost:8081` + `BOT_EMAIL` + `BOT_PASSWORD`.
-Máy không cần Node — chạy qua Docker. Script wrapper `run.sh`:
+Máy không cần Node — chạy qua Docker. Dùng luôn `run.sh` trong repo (có `flock` chống
+chạy chồng + `git reset --hard origin/main` để không kẹt vì sửa tay):
 
 ```bash
-cat > /home/hp/Deploy_Docker/tools/auto-poster/run.sh <<'EOF'
-#!/bin/bash
-set -e
-cd /home/hp/Deploy_Docker && git pull -q
-docker run --rm -v /home/hp/Deploy_Docker/tools/auto-poster:/app -w /app \
-  --network deploy_docker_app-network -e API_URL=http://backend:8081 node:20-alpine \
-  sh -c '[ -f feeds.txt ] && node fetch-rss.mjs || true; node post.mjs'
-# xoá file RSS đã đăng cũ hơn 14 ngày cho gọn
-find /home/hp/Deploy_Docker/tools/auto-poster/content -name 'rss-*.md' -mtime +14 -delete
-EOF
 chmod +x /home/hp/Deploy_Docker/tools/auto-poster/run.sh
 
 # cron mỗi 30 phút
 ( crontab -l 2>/dev/null; echo '*/30 * * * * /home/hp/Deploy_Docker/tools/auto-poster/run.sh >> /home/hp/auto-poster.log 2>&1' ) | crontab -
 
 # xoay vòng file log cho khỏi phình
-sudo cp tools/auto-poster/auto-poster.logrotate /etc/logrotate.d/auto-poster
+sudo cp /home/hp/Deploy_Docker/tools/auto-poster/auto-poster.logrotate /etc/logrotate.d/auto-poster
 ```
+
+`run.sh` giả định repo ở `/home/hp/Deploy_Docker` và network Docker là
+`deploy_docker_app-network` — sửa 2 biến đầu file nếu khác.
 
 Dung lượng: log container đã giới hạn 10MB×3 trong `docker-compose.yml`; binary log
 MySQL giữ 7 ngày (`--binlog-expire-logs-seconds` trong compose). DB tăng ~50MB/tháng
@@ -137,7 +131,9 @@ với nhịp 4 bài / 15 phút — không đáng kể.
 ## Ghi chú kỹ thuật
 
 - Xác thực: đăng nhập lại mỗi lần chạy (`/auth/signin`, giới hạn 20 lần/5 phút — thừa dùng).
-  Gặp `401` giữa chừng → tự gọi `/auth/refresh` một lần rồi thử lại.
+  Gặp `401` giữa chừng → thử `/auth/refresh`, hỏng thì **đăng nhập lại** (tối đa 3 lần/lượt).
+  Backend blacklist token cũ mỗi lần login, nên **không chạy 2 tiến trình poster song song**
+  (đã có `flock` trong `run.sh`).
 - `POST /post/new` là **multipart** (không phải JSON). Ảnh được server tự thu nhỏ về 1600px.
 - `#hashtag` trong tiêu đề/nội dung được backend tự index — dùng để lọc/thống kê bài bot.
 - `/post/**` không bị rate-limit; `POST_DELAY_MS` chỉ để rải cho tự nhiên.

@@ -156,12 +156,31 @@ async function refresh(tok) {
     return false;
 }
 
+// Khôi phục phiên khi bị 401 giữa chừng: thử refresh trước, hỏng thì ĐĂNG NHẬP LẠI.
+// (login của backend blacklist token cũ -> nếu có tiến trình khác login xen vào,
+//  cả access lẫn refresh của ta đều chết, chỉ login lại mới cứu được.)
+let reauths = 0;
+async function reauth(tok) {
+    if (tok.refresh && (await refresh(tok))) return true;
+    if (reauths >= 3) return false;
+    reauths++;
+    try {
+        const fresh = await login();
+        tok.access = fresh.access; tok.refresh = fresh.refresh; tok.userId = fresh.userId;
+        console.log(`  ↻ đăng nhập lại (lần ${reauths}) do 401 giữa chừng`);
+        return true;
+    } catch (e) {
+        console.log(`  ✗ đăng nhập lại thất bại: ${e.message.split('\n')[0]}`);
+        return false;
+    }
+}
+
 // buildForm: hàm dựng lại FormData mỗi lần gọi (body multipart không tái sử dụng được sau retry)
 async function createPost(tok, buildForm) {
     let res = await hit(`${CFG.apiUrl}/post/new`, {
         method: 'POST', headers: { Authorization: `Bearer ${tok.access}` }, body: await buildForm(),
     });
-    if (res.status === 401 && tok.refresh && (await refresh(tok))) {
+    if (res.status === 401 && (await reauth(tok))) {
         res = await hit(`${CFG.apiUrl}/post/new`, {
             method: 'POST', headers: { Authorization: `Bearer ${tok.access}` }, body: await buildForm(),
         });
