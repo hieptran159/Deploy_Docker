@@ -1,6 +1,6 @@
 # auto-poster
 
-Công cụ đăng bài tự động lên forum từ các file Markdown. MVP, **không cần `npm install`** (Node ≥ 18).
+Đăng bài tự động lên forum từ file Markdown. MVP, **không cần `npm install`** (Node ≥ 18).
 
 ## Cài đặt
 
@@ -12,18 +12,20 @@ cp .env.example .env
 
 ## Viết bài
 
-Mỗi bài là 1 file `content/<slug>.md` với frontmatter:
+Thư mục `content/` để trống sẵn. Mỗi bài là 1 file `content/<slug>.md`:
 
 ```markdown
 ---
 title: Tiêu đề bài viết          # bỏ trống -> lấy dòng "# ..." đầu tiên, hoặc tên file
 visibility: public               # public | friends | private
 tags: [thongbao, huongdan]       # tuỳ chọn -> tự chèn #tag xuống cuối body nếu thiếu
-image: ./banner.png              # tuỳ chọn -> chỉ .png/.jpg/.jpeg, ≤10MB
+image: ./banner.png              # tuỳ chọn -> cùng thư mục file .md, chỉ .png/.jpg/.jpeg ≤10MB
 publish: false                   # false = đăng BẢN NHÁP (mặc định) | true = xuất bản luôn
 ---
 Nội dung ở đây, text thuần (không HTML). Xuống dòng thoải mái.
 ```
+
+Xem `examples/` để lấy mẫu.
 
 ## Chạy
 
@@ -45,30 +47,32 @@ Lần chạy sau: file đã có trong state → **bỏ qua**. Sửa nội dung f
 
 ## Chạy định kỳ
 
-**cron (máy Ubuntu):**
+### A. GitHub Actions (khuyên dùng — không cần đụng server)
+
+Workflow `.github/workflows/auto-post.yml` chạy mỗi giờ. Chỉ cần thêm 3 secret ở
+**Settings → Secrets and variables → Actions**:
+
+| Secret | Giá trị |
+|---|---|
+| `FORUM_API_URL` | `https://api.hipe.id.vn` |
+| `FORUM_BOT_EMAIL` | email tài khoản bot |
+| `FORUM_BOT_PASSWORD` | mật khẩu tài khoản bot |
+
+Quy trình: commit file `.md` mới vào `content/` → workflow đăng → tự commit `.state.json`
+trở lại repo để lần sau không đăng trùng. Bấm **Run workflow** để chạy tay.
+
+### B. cron trên máy Ubuntu (backend gọi nội bộ, nhanh hơn)
+
+`.env` trên máy đó nên đặt `API_URL=http://localhost:8081`. Nếu chưa có Node, chạy bằng Docker:
+
 ```cron
-*/30 * * * * cd /home/hp/Deploy_Docker/tools/auto-poster && /usr/bin/node post.mjs >> poster.log 2>&1
+# crontab -e  — mỗi 30 phút
+*/30 * * * * docker run --rm -v /home/hp/Deploy_Docker/tools/auto-poster:/app -w /app \
+  --network deploy_docker_app-network -e API_URL=http://backend:8081 \
+  node:20-alpine node post.mjs >> /home/hp/auto-poster.log 2>&1
 ```
 
-**GitHub Actions** (nội dung commit vào repo):
-```yaml
-on:
-  schedule: [{ cron: '0 * * * *' }]
-  workflow_dispatch:
-jobs:
-  post:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 20 }
-      - run: node post.mjs
-        working-directory: tools/auto-poster
-        env:
-          API_URL: ${{ secrets.FORUM_API_URL }}
-          BOT_EMAIL: ${{ secrets.FORUM_BOT_EMAIL }}
-          BOT_PASSWORD: ${{ secrets.FORUM_BOT_PASSWORD }}
-```
+(Có Node sẵn thì đơn giản hơn: `*/30 * * * * cd /home/hp/Deploy_Docker/tools/auto-poster && node post.mjs >> ~/auto-poster.log 2>&1`)
 
 ## Ghi chú kỹ thuật
 

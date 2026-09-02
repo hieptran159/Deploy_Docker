@@ -1,0 +1,52 @@
+name: auto-post
+
+# Đăng các file tools/auto-poster/content/*.md lên forum theo lịch.
+# Cần 3 secret trong repo (Settings → Secrets and variables → Actions):
+#   FORUM_API_URL       vd: https://api.hipe.id.vn
+#   FORUM_BOT_EMAIL     email tài khoản bot
+#   FORUM_BOT_PASSWORD  mật khẩu tài khoản bot
+
+on:
+  schedule:
+    - cron: '17 * * * *'      # mỗi giờ, phút thứ 17 (giờ UTC)
+  workflow_dispatch: {}       # cho phép bấm chạy tay
+
+concurrency:
+  group: auto-post           # không chạy chồng lên nhau
+  cancel-in-progress: false
+
+permissions:
+  contents: write            # để commit .state.json trở lại repo
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Đăng bài
+        working-directory: tools/auto-poster
+        env:
+          API_URL: ${{ secrets.FORUM_API_URL }}
+          BOT_EMAIL: ${{ secrets.FORUM_BOT_EMAIL }}
+          BOT_PASSWORD: ${{ secrets.FORUM_BOT_PASSWORD }}
+        run: node post.mjs
+
+      - name: Lưu .state.json (chống đăng trùng lần sau)
+        if: always()
+        run: |
+          cd tools/auto-poster
+          [ -f .state.json ] || exit 0
+          git add -f .state.json
+          if git diff --cached --quiet; then
+            echo "Không có bài mới."
+          else
+            git config user.name  "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git commit -m "auto-post: cập nhật .state.json [skip ci]"
+            git push
+          fi
