@@ -57,23 +57,28 @@
                     @react="reactPost"
                     @unreact="unreactPost"
                 />
-                <DxButton
+                <button
                     v-if="isLogin"
-                    icon="bookmark"
-                    :type="bookmarked ? 'success' : 'normal'"
-                    :styling-mode="bookmarked ? 'contained' : 'outlined'"
-                    :text="bookmarked ? 'Đã lưu' : 'Lưu'"
+                    type="button"
+                    class="act-pill"
+                    :class="{ 'is-on': bookmarked }"
+                    :title="bookmarked ? 'Bỏ lưu' : 'Lưu bài viết'"
                     @click="toggleBookmarkBtn"
-                />
+                >
+                    <svg viewBox="0 0 24 24" :fill="bookmarked ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+                    </svg>
+                    {{ bookmarked ? 'Đã lưu' : 'Lưu' }}
+                </button>
                 <button
                     v-if="isLogin && post?.userCreatedPost !== getItemLocal(LOCALKEYS.USER_ID)"
-                    class="inline-flex items-center gap-1.5 rounded-lg px-3 h-9 text-sm font-semibold border transition"
-                    :class="post?.reposted
-                        ? 'bg-emerald-600 border-emerald-600 text-white'
-                        : 'border-[var(--border)] hover:bg-gray-50'"
+                    type="button"
+                    class="act-pill"
+                    :class="{ 'is-on': post?.reposted }"
+                    :title="post?.reposted ? 'Bỏ chia sẻ' : 'Chia sẻ'"
                     @click="toggleRepost"
                 >
-                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" />
                         <polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 0 1-4 4H3" />
                     </svg>

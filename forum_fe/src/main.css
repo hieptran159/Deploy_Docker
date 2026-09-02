@@ -86,7 +86,29 @@ html, body {
 }
 .link:hover { text-decoration: underline; }
 
-.row-actions { display: flex; gap: 8px; align-items: center; }
+.row-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+/* Nút hành động dưới bài viết — đồng bộ kích thước Thích / Lưu / Chia sẻ.
+   Khớp với .reaction-trigger trong ReactionBar.vue. */
+.act-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.2;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background .15s, border-color .15s, color .15s;
+}
+.act-pill:hover { background: var(--brand-soft); }
+.act-pill:disabled { opacity: .55; cursor: default; }
+.act-pill.is-on { border-color: currentColor; background: var(--brand-soft); color: var(--brand); }
+.act-pill svg { display: block; width: 16px; height: 16px; }
 
 /* letter avatar fallback used across the app */
 .avatar-fallback {
