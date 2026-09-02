@@ -124,7 +124,14 @@ chmod +x /home/hp/Deploy_Docker/tools/auto-poster/run.sh
 
 # cron mỗi 30 phút
 ( crontab -l 2>/dev/null; echo '*/30 * * * * /home/hp/Deploy_Docker/tools/auto-poster/run.sh >> /home/hp/auto-poster.log 2>&1' ) | crontab -
+
+# xoay vòng file log cho khỏi phình
+sudo cp tools/auto-poster/auto-poster.logrotate /etc/logrotate.d/auto-poster
 ```
+
+Dung lượng: log container đã giới hạn 10MB×3 trong `docker-compose.yml`; binary log
+MySQL giữ 7 ngày (`--binlog-expire-logs-seconds` trong compose). DB tăng ~50MB/tháng
+với nhịp 4 bài / 15 phút — không đáng kể.
 
 ## Ghi chú kỹ thuật
 

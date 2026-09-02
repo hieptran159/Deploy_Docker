@@ -1,0 +1,12 @@
+# Xoay vòng log của cron auto-poster.
+# Cài:  sudo cp tools/auto-poster/auto-poster.logrotate /etc/logrotate.d/auto-poster
+# (sửa đường dẫn bên dưới nếu log không nằm ở /home/hp/auto-poster.log)
+/home/hp/auto-poster.log {
+    weekly
+    rotate 4
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+}

@@ -26,6 +26,9 @@ services:
     container_name: forum-db
     restart: unless-stopped
     logging: *default-logging
+    # Giữ binary log 7 ngày thay vì mặc định 30 ngày (đủ cho khôi phục sự cố, đỡ phình đĩa).
+    command:
+      - --binlog-expire-logs-seconds=604800
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-tranhiep12345}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-socialapp}
