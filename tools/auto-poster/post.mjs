@@ -102,8 +102,11 @@ async function hit(url, opts = {}) {
     try {
         return await fetch(url, opts);
     } catch (e) {
-        const why = e?.cause?.code || e?.cause?.message || e.message;
-        throw new Error(`Không kết nối được ${new URL(url).origin} — ${why}.\n` +
+        const why = e?.cause?.code || e?.cause?.message;
+        // Chỉ bọc lỗi KẾT NỐI (undici luôn kèm e.cause hoặc message "fetch failed").
+        // Lỗi khác (vd header chứa ký tự ngoài ASCII) -> ném nguyên văn cho dễ chẩn đoán.
+        if (!why && !/^fetch failed$/i.test(e?.message || '')) throw e;
+        throw new Error(`Không kết nối được ${new URL(url).origin} — ${why || e.message}.\n` +
             `  Kiểm tra API_URL trong tools/auto-poster/.env (đang là "${CFG.apiUrl}").`);
     }
 }
@@ -236,6 +239,12 @@ async function main() {
     CFG.stateFile = path.resolve(HERE, process.env.STATE_FILE || '.state.json');
     CFG.bypassHeader = process.env.BYPASS_HEADER || 'X-Auto-Poster';
     CFG.bypassToken = process.env.BYPASS_TOKEN || '';
+    // Header HTTP chỉ nhận ASCII. BYPASS_* dính ký tự lạ (vd dấu tiếng Việt) -> fetch ném lỗi khó hiểu.
+    if (/[^\x20-\x7E]/.test(CFG.bypassToken) || /[^\x20-\x7E]/.test(CFG.bypassHeader)) {
+        console.error('BYPASS_TOKEN / BYPASS_HEADER chứa ký tự ngoài ASCII. Chỉ dùng chuỗi hex ' +
+            '(vd `openssl rand -hex 16`), hoặc BỎ TRỐNG nếu chạy trên máy Ubuntu/localhost.');
+        process.exit(2);
+    }
     if (!CFG.email || !CFG.password) {
         console.error('Thiếu BOT_EMAIL / BOT_PASSWORD (đặt trong tools/auto-poster/.env hoặc biến môi trường).');
         process.exit(2);
