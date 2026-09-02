@@ -158,7 +158,14 @@ async function main() {
         if (fresh.length) queues.push(fresh);
     }
 
-    // 2) Lấy luân phiên từng feed (round-robin) cho tới khi đủ CFG.max
+    // 2) Xáo trộn thứ tự feed mỗi lần chạy -> khi số feed nhiều hơn CFG.max,
+    //    không feed nào bị "gán cố định" ưu tiên/bỏ rơi theo thứ tự trong feeds.txt.
+    for (let i = queues.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [queues[i], queues[j]] = [queues[j], queues[i]];
+    }
+
+    // 3) Lấy luân phiên từng feed (round-robin) cho tới khi đủ CFG.max
     const picked = [];
     while (picked.length < CFG.max && queues.some((q) => q.length)) {
         for (const q of queues) {
@@ -167,7 +174,7 @@ async function main() {
         }
     }
 
-    // 3) Ghi file
+    // 4) Ghi file
     let made = 0;
     for (const { it, key, fname } of picked) {
         const title = it.title.replace(/["\r\n]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200);
