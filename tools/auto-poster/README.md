@@ -49,14 +49,15 @@ Lần chạy sau: file đã có trong state → **bỏ qua**. Sửa nội dung f
 
 ### A. GitHub Actions (khuyên dùng — không cần đụng server)
 
-Workflow `.github/workflows/auto-post.yml` chạy mỗi giờ. Chỉ cần thêm 3 secret ở
-**Settings → Secrets and variables → Actions**:
+Workflow `.github/workflows/auto-post.yml` chạy mỗi giờ. Cần **2 secret** ở
+**Settings → Secrets and variables → Actions**, tab **Secrets** (KHÔNG phải "Variables"):
 
 | Secret | Giá trị |
 |---|---|
-| `FORUM_API_URL` | `https://api.hipe.id.vn` |
 | `FORUM_BOT_EMAIL` | email tài khoản bot |
 | `FORUM_BOT_PASSWORD` | mật khẩu tài khoản bot |
+
+(`API_URL` đã ghi thẳng trong workflow — `https://api.hipe.id.vn`.)
 
 Quy trình: commit file `.md` mới vào `content/` → workflow đăng → tự commit `.state.json`
 trở lại repo để lần sau không đăng trùng. Bấm **Run workflow** để chạy tay.
