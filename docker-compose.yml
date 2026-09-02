@@ -12,11 +12,20 @@
 #   PUBLIC_SOCKET_URL=http://<host>:8082
 # rồi build lại frontend:  docker compose up -d --build frontend
 
+# Giới hạn dung lượng log container (json-file mặc định KHÔNG xoay vòng -> phình vô hạn).
+# 10MB x 3 file = tối đa ~30MB/container.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   db:
     image: mysql:8.0
     container_name: forum-db
     restart: unless-stopped
+    logging: *default-logging
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-tranhiep12345}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-socialapp}
@@ -41,6 +50,7 @@ services:
       context: ./social
     container_name: forum-backend
     restart: unless-stopped
+    logging: *default-logging
     depends_on:
       db:
         condition: service_healthy
@@ -101,6 +111,7 @@ services:
         VITE_SOCKET_URL: ${PUBLIC_SOCKET_URL:-http://localhost:8082}
     container_name: forum-frontend
     restart: unless-stopped
+    logging: *default-logging
     depends_on:
       - backend
     ports:
