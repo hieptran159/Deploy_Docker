@@ -1,0 +1,6 @@
+# Mỗi dòng 1 URL feed RSS/Atom. Dòng bắt đầu bằng '#' bị bỏ qua.
+# Đổi tên file này thành feeds.txt rồi điền feed của bạn.
+
+https://vnexpress.net/rss/tin-moi-nhat.rss
+# https://tuoitre.vn/rss/tin-moi-nhat.rss
+# https://hnrss.org/frontpage

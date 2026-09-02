@@ -27,6 +27,29 @@ Nội dung ở đây, text thuần (không HTML). Xuống dòng thoải mái.
 
 Xem `examples/` để lấy mẫu.
 
+## Nguồn nội dung tự động (RSS)
+
+`fetch-rss.mjs` đọc feed RSS/Atom và tự sinh file `content/rss-*.md` (bản nháp),
+sau đó `post.mjs` đăng.
+
+```bash
+cp feeds.txt.example feeds.txt      # điền URL feed, mỗi dòng 1 cái
+node fetch-rss.mjs --dry-run        # xem sẽ tạo file nào
+node fetch-rss.mjs --limit 3        # tạo tối đa 3 file mới
+node post.mjs                       # đăng
+```
+
+- `.rss-seen.json` nhớ entry đã lấy (theo id/link) → không tạo trùng, kể cả sau khi xoá file.
+- Chỉnh qua `.env`: `RSS_MAX_PER_RUN` (mặc định 5), `RSS_TAG` (mặc định `tin-tuc`),
+  `RSS_VISIBILITY`, `RSS_PUBLISH` (mặc định `false` = nháp).
+- `feeds.txt` **nên commit** để máy chạy cron `git pull` về dùng. `.rss-seen.json` và
+  `content/rss-*.md` đã `.gitignore` (CI tự commit `.rss-seen.json` trở lại).
+- Tóm tắt lấy từ `<description>`/`<summary>`/`<content>`, cắt HTML, tối đa ~900 ký tự,
+  kèm dòng `Nguồn: <link>`.
+
+Muốn nguồn khác (AI sinh bài, CSV, Google Sheet…): viết script tương tự đổ file `.md`
+vào `content/` là xong — `post.mjs` không quan tâm file từ đâu ra.
+
 ## Chạy
 
 ```bash
@@ -76,18 +99,27 @@ Workflow `.github/workflows/auto-post.yml` chạy mỗi giờ. Cần **2 secret*
 Quy trình: commit file `.md` mới vào `content/` → workflow đăng → tự commit `.state.json`
 trở lại repo để lần sau không đăng trùng. Bấm **Run workflow** để chạy tay.
 
-### B. cron trên máy Ubuntu (backend gọi nội bộ, nhanh hơn)
+### B. cron trên máy Ubuntu (khuyên dùng — gọi `localhost`, không đụng Cloudflare)
 
-`.env` trên máy đó nên đặt `API_URL=http://localhost:8081`. Nếu chưa có Node, chạy bằng Docker:
+`.env` trên máy đó đặt `API_URL=http://localhost:8081` + `BOT_EMAIL` + `BOT_PASSWORD`.
+Máy không cần Node — chạy qua Docker. Script wrapper `run.sh`:
 
-```cron
-# crontab -e  — mỗi 30 phút
-*/30 * * * * docker run --rm -v /home/hp/Deploy_Docker/tools/auto-poster:/app -w /app \
-  --network deploy_docker_app-network -e API_URL=http://backend:8081 \
-  node:20-alpine node post.mjs >> /home/hp/auto-poster.log 2>&1
+```bash
+cat > /home/hp/Deploy_Docker/tools/auto-poster/run.sh <<'EOF'
+#!/bin/bash
+set -e
+cd /home/hp/Deploy_Docker && git pull -q
+docker run --rm -v /home/hp/Deploy_Docker/tools/auto-poster:/app -w /app \
+  --network deploy_docker_app-network -e API_URL=http://backend:8081 node:20-alpine \
+  sh -c '[ -f feeds.txt ] && node fetch-rss.mjs || true; node post.mjs'
+# xoá file RSS đã đăng cũ hơn 14 ngày cho gọn
+find /home/hp/Deploy_Docker/tools/auto-poster/content -name 'rss-*.md' -mtime +14 -delete
+EOF
+chmod +x /home/hp/Deploy_Docker/tools/auto-poster/run.sh
+
+# cron mỗi 30 phút
+( crontab -l 2>/dev/null; echo '*/30 * * * * /home/hp/Deploy_Docker/tools/auto-poster/run.sh >> /home/hp/auto-poster.log 2>&1' ) | crontab -
 ```
-
-(Có Node sẵn thì đơn giản hơn: `*/30 * * * * cd /home/hp/Deploy_Docker/tools/auto-poster && node post.mjs >> ~/auto-poster.log 2>&1`)
 
 ## Ghi chú kỹ thuật
 

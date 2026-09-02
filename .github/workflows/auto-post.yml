@@ -52,6 +52,13 @@ jobs:
           echo "BOT_EMAIL length   = ${#BOT_EMAIL}"
           echo "BOT_PASSWORD length = ${#BOT_PASSWORD}"
 
+      - name: Lấy RSS -> content/*.md (nếu có feeds.txt)
+        working-directory: tools/auto-poster
+        env:
+          RSS_TAG: ${{ vars.RSS_TAG }}
+          RSS_MAX_PER_RUN: ${{ vars.RSS_MAX_PER_RUN }}
+        run: '[ -f feeds.txt ] && node fetch-rss.mjs || echo "bỏ qua RSS (không có feeds.txt)"'
+
       - name: Đăng bài
         working-directory: tools/auto-poster
         env:
@@ -66,8 +73,7 @@ jobs:
         if: always()
         run: |
           cd tools/auto-poster
-          [ -f .state.json ] || exit 0
-          git add -f .state.json
+          git add -f .state.json .rss-seen.json 2>/dev/null || true
           if git diff --cached --quiet; then
             echo "Không có bài mới."
           else

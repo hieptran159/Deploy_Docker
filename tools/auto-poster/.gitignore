@@ -1,2 +1,4 @@
 .env
 .state.json
+.rss-seen.json
+content/rss-*.md
