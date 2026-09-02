@@ -57,6 +57,9 @@ jobs:
         env:
           BOT_EMAIL: ${{ secrets.FORUM_BOT_EMAIL }}
           BOT_PASSWORD: ${{ secrets.FORUM_BOT_PASSWORD }}
+          # Cloudflare chặn IP của GitHub runner -> gửi header bí mật để WAF bỏ challenge.
+          # Bỏ trống thì bỏ qua (dùng khi chạy trên máy không bị Cloudflare chặn).
+          BYPASS_TOKEN: ${{ secrets.FORUM_BYPASS_TOKEN }}
         run: node post.mjs
 
       - name: Lưu .state.json (chống đăng trùng lần sau)

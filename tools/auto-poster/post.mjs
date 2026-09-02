@@ -83,6 +83,8 @@ const CFG = {
     delayMs: Number(process.env.POST_DELAY_MS || 3000),
     contentDir: path.resolve(HERE, process.env.CONTENT_DIR || 'content'),
     stateFile: path.resolve(HERE, process.env.STATE_FILE || '.state.json'),
+    bypassHeader: process.env.BYPASS_HEADER || 'X-Auto-Poster',
+    bypassToken: process.env.BYPASS_TOKEN || '',
 };
 
 async function jsonOf(res) {
@@ -91,7 +93,11 @@ async function jsonOf(res) {
 }
 
 // fetch có thông báo lỗi kết nối dễ hiểu (ECONNREFUSED / ENOTFOUND / timeout…)
-async function hit(url, opts) {
+async function hit(url, opts = {}) {
+    // Header bí mật để WAF Cloudflare bỏ qua "managed challenge" (khi gọi qua tunnel từ CI)
+    if (CFG.bypassToken) {
+        opts.headers = { ...(opts.headers || {}), [CFG.bypassHeader]: CFG.bypassToken };
+    }
     try {
         return await fetch(url, opts);
     } catch (e) {
@@ -218,6 +224,8 @@ async function main() {
     CFG.delayMs = Number(process.env.POST_DELAY_MS || 3000);
     CFG.contentDir = path.resolve(HERE, process.env.CONTENT_DIR || 'content');
     CFG.stateFile = path.resolve(HERE, process.env.STATE_FILE || '.state.json');
+    CFG.bypassHeader = process.env.BYPASS_HEADER || 'X-Auto-Poster';
+    CFG.bypassToken = process.env.BYPASS_TOKEN || '';
     if (!CFG.email || !CFG.password) {
         console.error('Thiếu BOT_EMAIL / BOT_PASSWORD (đặt trong tools/auto-poster/.env hoặc biến môi trường).');
         process.exit(2);

@@ -47,7 +47,12 @@ Lần chạy sau: file đã có trong state → **bỏ qua**. Sửa nội dung f
 
 ## Chạy định kỳ
 
-### A. GitHub Actions (khuyên dùng — không cần đụng server)
+> **Lưu ý:** GitHub Actions gọi từ IP trung tâm dữ liệu → Cloudflare bắt "managed
+> challenge" (HTTP 403 "Just a moment…"). Muốn dùng A phải thêm rule bỏ challenge
+> (xem dưới). Không muốn đụng Cloudflare thì dùng **B** — chạy trên máy Ubuntu,
+> gọi `localhost` thẳng, không qua Cloudflare.
+
+### A. GitHub Actions (cần 1 rule Cloudflare)
 
 Workflow `.github/workflows/auto-post.yml` chạy mỗi giờ. Cần **2 secret** ở
 **Settings → Secrets and variables → Actions**, tab **Secrets** (KHÔNG phải "Variables"):
@@ -56,8 +61,17 @@ Workflow `.github/workflows/auto-post.yml` chạy mỗi giờ. Cần **2 secret*
 |---|---|
 | `FORUM_BOT_EMAIL` | email tài khoản bot |
 | `FORUM_BOT_PASSWORD` | mật khẩu tài khoản bot |
+| `FORUM_BYPASS_TOKEN` | chuỗi ngẫu nhiên (vd `openssl rand -hex 16`) — phải khớp rule Cloudflare |
 
 (`API_URL` đã ghi thẳng trong workflow — `https://api.hipe.id.vn`.)
+
+**Rule Cloudflare** (bắt buộc cho A) — dashboard zone `hipe.id.vn`:
+
+- *Cách nhanh:* **Security → Bots** → tắt **Bot Fight Mode** (giảm bảo vệ toàn zone).
+- *Cách gọn hơn:* **Security → WAF → Custom rules → Create**:
+  - Expression: `(http.host eq "api.hipe.id.vn" and http.request.headers["x-auto-poster"][0] eq "<FORUM_BYPASS_TOKEN>")`
+  - Action: **Skip** → tích tất cả (Bot Fight Mode / Super Bot Fight Mode / Managed rules / rate limiting).
+  - Poster tự gửi header `X-Auto-Poster: <BYPASS_TOKEN>` khi biến `BYPASS_TOKEN` được set.
 
 Quy trình: commit file `.md` mới vào `content/` → workflow đăng → tự commit `.state.json`
 trở lại repo để lần sau không đăng trùng. Bấm **Run workflow** để chạy tay.
