@@ -7,3 +7,6 @@
 # Rác hệ điều hành / editor
 .DS_Store
 *.log
+
+# Playwright MCP (ảnh chụp / log debug)
+.playwright-mcp/
