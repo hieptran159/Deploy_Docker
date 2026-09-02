@@ -62,13 +62,17 @@ public class AuthServiceImpl implements AuthService {
 
     // Cấp refresh token mới: lưu SHA-256 vào DB, giữ bản gốc ở trường transient để trả client.
     private void issueRefreshToken(Users user) {
-        String raw = jwtUtils.generateRefreshToken(user.getUserId());
+        issueRefreshToken(user, true);
+    }
+
+    private void issueRefreshToken(Users user, boolean remember) {
+        String raw = jwtUtils.generateRefreshToken(user.getUserId(), remember);
         user.setRefreshToken(JwtUtils.sha256Hex(raw));
         user.setPlainRefreshToken(raw);
     }
 
     @Override
-    public Users login(String email, String password) throws Exception{
+    public Users login(String email, String password, boolean remember) throws Exception{
         Users user = userRepository.findFirstByEmail(email);
         if(user == null) {
             // So sánh bcrypt giả để thời gian phản hồi ~ bằng lúc email có thật (chống dò email bằng timing)
@@ -116,8 +120,8 @@ public class AuthServiceImpl implements AuthService {
                 user.setTwofaRequired(true);
                 return user;
             }
-            user.setAccessToken(jwtUtils.generateAccessToken(user.getUserId()));
-            issueRefreshToken(user);
+            user.setAccessToken(jwtUtils.generateAccessToken(user.getUserId(), remember));
+            issueRefreshToken(user, remember);
             userRepository.save(user);
             return user;
         }
@@ -215,16 +219,18 @@ public class AuthServiceImpl implements AuthService {
             throw new Exception("Refresh token không hợp lệ");
         BlacklistUser blacklistUser = blacklistUserRepository.findByUserId(userId);
         if (blacklistUser != null && "blocked".equals(blacklistUser.getStatus())) throw new Exception("Tài khoản đã bị khóa");
+        // Giữ nguyên loại phiên (ghi nhớ / tạm) khi xoay vòng token
+        boolean remember = jwtUtils.isRememberRefreshToken(refreshToken);
         // Xoay vòng: chặn token gốc vừa dùng + cấp cặp token mới
         blacklistRepository.save(new BlacklistToken(refreshToken));
-        user.setAccessToken(jwtUtils.generateAccessToken(userId));
-        issueRefreshToken(user);
+        user.setAccessToken(jwtUtils.generateAccessToken(userId, remember));
+        issueRefreshToken(user, remember);
         userRepository.save(user);
         return user;
     }
 
     @Override
-    public Users verifyTwoFactor(String email, String code) throws Exception {
+    public Users verifyTwoFactor(String email, String code, boolean remember) throws Exception {
         Users user = userRepository.findFirstByEmail(email);
         if (user == null) throw new Exception("Email không tồn tại");
         if (user.getTwofaEnabled() == null || user.getTwofaEnabled() != 1)
@@ -245,8 +251,8 @@ public class AuthServiceImpl implements AuthService {
         if (StringUtils.hasText(user.getAccessToken())) {
             blacklistRepository.save(new BlacklistToken(user.getAccessToken()));
         }
-        user.setAccessToken(jwtUtils.generateAccessToken(user.getUserId()));
-        issueRefreshToken(user);
+        user.setAccessToken(jwtUtils.generateAccessToken(user.getUserId(), remember));
+        issueRefreshToken(user, remember);
         userRepository.save(user);
         return user;
     }

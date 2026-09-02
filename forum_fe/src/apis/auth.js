@@ -1,7 +1,12 @@
 import { api, apiForm, authApi } from '../storages/api.js';
 
-export const login = (param) => {
-    return api.post(`/auth/signin?email=${param.email}&password=${param.password}`)
+export const login = (param, rememberMe = true) => {
+    const q = new URLSearchParams({
+        email: param.email,
+        password: param.password,
+        rememberMe: rememberMe ? 'true' : 'false',
+    });
+    return api.post(`/auth/signin?${q.toString()}`);
 }
 
 export const signup = (data) => {
@@ -28,8 +33,8 @@ export const resendVerify = (email) => {
     return api.post(`/auth/resend-verify?email=${encodeURIComponent(email)}`);
 }
 
-export const verifyTwoFactor = (email, code) => {
-    return api.post(`/auth/2fa/verify?email=${encodeURIComponent(email)}&code=${encodeURIComponent(code)}`);
+export const verifyTwoFactor = (email, code, rememberMe = true) => {
+    return api.post(`/auth/2fa/verify?email=${encodeURIComponent(email)}&code=${encodeURIComponent(code)}&rememberMe=${rememberMe ? 'true' : 'false'}`);
 }
 
 export const enableTwoFactor = (password) => {

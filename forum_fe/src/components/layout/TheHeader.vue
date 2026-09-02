@@ -111,7 +111,7 @@
 import DxTabs from 'devextreme-vue/tabs';
 import DxButton from 'devextreme-vue/button';
 import { ref, computed, watch, onMounted, onBeforeUnmount, inject } from 'vue';
-import { LOCALKEYS, getItemLocal, delItemLocal, setItemLocal } from '@/storages/localStorage';
+import { LOCALKEYS, getItemLocal, setItemLocal, clearAuth } from '@/storages/localStorage';
 import { useRouter } from 'vue-router';
 import { logout as logoutApi } from '@/apis/auth';
 import { checkIsAdmin } from '@/apis/admin';
@@ -179,8 +179,7 @@ const goMyProfile = () => {
 
 const doLogout = async () => {
     try { await logoutApi(); } catch (e) { console.log(e); }
-    [LOCALKEYS.ACCESS_TOKEN, LOCALKEYS.REFRESH_TOKEN, LOCALKEYS.USER_ID, LOCALKEYS.LINK_AVT, LOCALKEYS.USER_NAME, LOCALKEYS.IS_ADMIN]
-        .forEach(delItemLocal);
+    clearAuth();
     isAdmin.value = false;
     stopNotifPoll();
     route.push('/login');

@@ -51,25 +51,52 @@ public class JwtUtils {
     private long accessExpirationMs;
     @Value("${jwt.refresh-expiration-ms:2592000000}") // mặc định 30 ngày
     private long refreshExpirationMs;
+    // Phiên KHÔNG "ghi nhớ đăng nhập": token ngắn -> refresh token (30') trượt theo hoạt động,
+    // ngồi im quá 30' là hết phiên. access token (15') buộc gọi /auth/refresh để gia hạn.
+    @Value("${jwt.short-access-expiration-ms:900000}")   // 15 phút
+    private long shortAccessExpirationMs;
+    @Value("${jwt.short-refresh-expiration-ms:1800000}") // 30 phút
+    private long shortRefreshExpirationMs;
 
     private static final String CLAIM_TYPE = "typ";
     private static final String TYPE_REFRESH = "refresh";
+    private static final String CLAIM_REMEMBER = "rmb";
 
     // Mã hóa data, email thành accessToken dùng để xác thực người dùng
     public String generateAccessToken(String data){
+        return generateAccessToken(data, true);
+    }
+
+    public String generateAccessToken(String data, boolean remember){
         Date now = new Date();
-        Date exp = new Date(now.getTime() + accessExpirationMs);
+        Date exp = new Date(now.getTime() + (remember ? accessExpirationMs : shortAccessExpirationMs));
         SecretKey key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(this.secretKey));
         return Jwts.builder().signWith(key).subject(data).issuedAt(now).expiration(exp).compact();
     }
 
     // Refresh token: sống lâu hơn, mang claim typ=refresh để phân biệt với access token.
     public String generateRefreshToken(String data){
+        return generateRefreshToken(data, true);
+    }
+
+    public String generateRefreshToken(String data, boolean remember){
         Date now = new Date();
-        Date exp = new Date(now.getTime() + refreshExpirationMs);
+        Date exp = new Date(now.getTime() + (remember ? refreshExpirationMs : shortRefreshExpirationMs));
         SecretKey key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(this.secretKey));
         return Jwts.builder().signWith(key).subject(data).claim(CLAIM_TYPE, TYPE_REFRESH)
-                .issuedAt(now).expiration(exp).compact();
+                .claim(CLAIM_REMEMBER, remember).issuedAt(now).expiration(exp).compact();
+    }
+
+    // Đọc cờ "ghi nhớ" từ refresh token (token cũ không có claim -> coi như true, giữ hành vi cũ).
+    public boolean isRememberRefreshToken(String refreshToken){
+        try {
+            SecretKey key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(this.secretKey));
+            Claims c = Jwts.parser().verifyWith(key).build().parseSignedClaims(refreshToken).getPayload();
+            Boolean b = c.get(CLAIM_REMEMBER, Boolean.class);
+            return b == null || b;
+        } catch (Exception e) {
+            return true;
+        }
     }
 
     // Xác thực refresh token: chữ ký hợp lệ, chưa hết hạn, đúng loại "refresh", không nằm trong blacklist.

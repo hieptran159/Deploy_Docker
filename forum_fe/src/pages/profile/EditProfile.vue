@@ -151,7 +151,7 @@ import { useRouter } from 'vue-router';
 import { computed, inject, onMounted, ref } from 'vue';
 import { editUser, updateProfile, getUserInfo, deleteAccount, deactivateAccount, updateCover } from '@/apis/user';
 import { enableTwoFactor, disableTwoFactor } from '@/apis/auth';
-import { LOCALKEYS, getItemLocal, setItemLocal, delItemLocal } from '@/storages/localStorage';
+import { LOCALKEYS, getItemLocal, setItemLocal, clearAuth } from '@/storages/localStorage';
 import { IMAGE_BASE } from '@/config';
 import { applyAvatarUpdate } from '@/storages/appState';
 
@@ -330,8 +330,7 @@ const deactivateMe = () => {
         async () => {
             try {
                 await deactivateAccount(currentPassword.value);
-                [LOCALKEYS.ACCESS_TOKEN, LOCALKEYS.USER_ID, LOCALKEYS.USER_NAME, LOCALKEYS.LINK_AVT, LOCALKEYS.IS_ADMIN]
-                    .forEach(delItemLocal);
+                clearAuth();
                 window.location.assign('/login');
             } catch (e) {
                 showDialog('Thông báo', e?.description || 'Vô hiệu hoá thất bại');
@@ -349,8 +348,7 @@ const deleteMe = () => {
         async () => {
             try {
                 await deleteAccount(currentPassword.value);
-                [LOCALKEYS.ACCESS_TOKEN, LOCALKEYS.USER_ID, LOCALKEYS.USER_NAME, LOCALKEYS.LINK_AVT, LOCALKEYS.IS_ADMIN]
-                    .forEach(delItemLocal);
+                clearAuth();
                 window.location.assign('/signup');
             } catch (e) {
                 showDialog('Thông báo', e?.description || 'Xoá tài khoản thất bại');

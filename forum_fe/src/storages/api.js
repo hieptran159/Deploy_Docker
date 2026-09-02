@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-import { LOCALKEYS, getItemLocal, setItemLocal } from './localStorage';
+import { LOCALKEYS, getItemLocal, setItemLocal, clearAuth } from './localStorage';
 import { API_URL } from '../config';
 
 const BASE_URL = API_URL + "/";
@@ -9,9 +9,7 @@ const BASE_URL = API_URL + "/";
 let refreshPromise = null;
 
 const clearSessionAndRedirect = () => {
-	try {
-		Object.values(LOCALKEYS).forEach((k) => localStorage.removeItem(k));
-	} catch (e) { /* ignore */ }
+	clearAuth();
 	if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
 		window.location.assign('/login');
 	}

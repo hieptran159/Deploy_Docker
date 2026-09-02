@@ -17,6 +17,10 @@
                     />
                 </div>
             </div>
+            <label class="flex items-center gap-2 text-sm muted cursor-pointer select-none">
+                <input type="checkbox" v-model="remember" class="cursor-pointer" />
+                Ghi nhớ đăng nhập
+            </label>
             <DxButton width="100%" text="Đăng nhập" type="default" :disabled="busy" @click="loginHandler" />
             <div class="text-sm text-center muted">
                 Chưa có tài khoản?
@@ -52,7 +56,7 @@ import DxButton from 'devextreme-vue/button';
 import { login, verifyTwoFactor } from '../../apis/auth';
 import { getUserInfo } from '@/apis/user';
 import { inject, ref } from 'vue';
-import { LOCALKEYS, setItemLocal } from '../../storages/localStorage';
+import { LOCALKEYS, setItemLocal, setAuthPersistence } from '../../storages/localStorage';
 import { IMAGE_BASE } from '@/config';
 import { useRouter } from 'vue-router';
 
@@ -67,8 +71,10 @@ const stage = ref('creds');   // 'creds' | '2fa'
 const twofaEmail = ref('');
 const code = ref('');
 const busy = ref(false);
+const remember = ref(false);  // bỏ tick = phiên tạm (đóng trình duyệt / ngồi im 30' là hết)
 
 const finishLogin = async (d) => {
+    setAuthPersistence(remember.value);   // phải đặt TRƯỚC khi lưu token
     setItemLocal(LOCALKEYS.ACCESS_TOKEN, d.accessToken);
     if (d.refreshToken) setItemLocal(LOCALKEYS.REFRESH_TOKEN, d.refreshToken);
     setItemLocal(LOCALKEYS.USER_ID, d.userId);
@@ -81,7 +87,7 @@ const loginHandler = async() => {
     if (busy.value) return;
     busy.value = true;
     try{
-        const data = await login(formData.value);
+        const data = await login(formData.value, remember.value);
         const d = data.data.data;
         if (d.twoFactorRequired === '1' || d.twoFactorRequired === true) {
             twofaEmail.value = d.email || formData.value.email;
@@ -108,7 +114,7 @@ const verifyHandler = async () => {
     if (!code.value.trim()) { showDialog("Thông báo", "Nhập mã xác thực"); return; }
     busy.value = true;
     try {
-        const data = await verifyTwoFactor(twofaEmail.value, code.value.trim());
+        const data = await verifyTwoFactor(twofaEmail.value, code.value.trim(), remember.value);
         await finishLogin(data.data.data);
     } catch (e) {
         showDialog("Xác thực thất bại", e?.description || "Mã không đúng hoặc đã hết hạn");

@@ -5,8 +5,8 @@ import com.didan.social.payload.request.SignupRequest;
 
 public interface AuthService {
 
-    // Login
-    Users login(String email, String password) throws Exception;
+    // Login. remember=false -> phiên tạm (token TTL ngắn).
+    Users login(String email, String password, boolean remember) throws Exception;
 
     // Signup
     Users signup(SignupRequest signupRequest) throws Exception;
@@ -18,7 +18,7 @@ public interface AuthService {
     Users refreshAccess(String refreshToken) throws Exception;
 
     // Bước 2 của đăng nhập khi bật 2FA: xác minh mã đã gửi qua email, cấp token
-    Users verifyTwoFactor(String email, String code) throws Exception;
+    Users verifyTwoFactor(String email, String code, boolean remember) throws Exception;
 
     // Request Forgot Password
     String requestForgot(String email) throws Exception;

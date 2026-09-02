@@ -32,11 +32,12 @@ public class AuthController {
 
     @Operation(summary = "Login to forum app", description = "Request email and password")
     @PostMapping("/signin")
-    public ResponseEntity<?> postLogin(@RequestParam String email, @RequestParam String password){
+    public ResponseEntity<?> postLogin(@RequestParam String email, @RequestParam String password,
+                                       @RequestParam(defaultValue = "true") boolean rememberMe){
         ResponseData payload = new ResponseData();
         Map<String, String> response = new HashMap<>();
         try{
-            Users user = authService.login(email, password);
+            Users user = authService.login(email, password, rememberMe);
             if (user != null && user.isTwofaRequired()) {
                 payload.setDescription("Đã gửi mã xác thực 2 bước tới email của bạn");
                 response.put("twoFactorRequired", "1");
@@ -90,11 +91,12 @@ public class AuthController {
     @Operation(summary = "Bước 2 đăng nhập khi bật 2FA",
             description = "Nhập email + mã 6 ký tự đã nhận qua email; thành công trả token đăng nhập")
     @PostMapping("/2fa/verify")
-    public ResponseEntity<?> verifyTwoFactor(@RequestParam String email, @RequestParam String code){
+    public ResponseEntity<?> verifyTwoFactor(@RequestParam String email, @RequestParam String code,
+                                             @RequestParam(defaultValue = "true") boolean rememberMe){
         ResponseData payload = new ResponseData();
         Map<String, String> response = new HashMap<>();
         try {
-            Users user = authService.verifyTwoFactor(email, code);
+            Users user = authService.verifyTwoFactor(email, code, rememberMe);
             payload.setDescription("Login Successful");
             response.put("userId", user.getUserId());
             response.put("fullName", user.getFullName());

@@ -46,6 +46,8 @@ class AuthServiceImplTest {
                 jwtUtils, mailService, authorizePathService, blacklistUserRepository);
         when(jwtUtils.generateAccessToken(anyString())).thenReturn("AT");
         when(jwtUtils.generateRefreshToken(anyString())).thenReturn("RT");
+        when(jwtUtils.generateAccessToken(anyString(), anyBoolean())).thenReturn("AT");
+        when(jwtUtils.generateRefreshToken(anyString(), anyBoolean())).thenReturn("RT");
     }
 
     private Users user(Integer twofa) {
@@ -65,7 +67,7 @@ class AuthServiceImplTest {
         when(userRepository.findFirstByEmail(EMAIL)).thenReturn(user(0));
         when(passwordEncoder.matches("pw", "hash")).thenReturn(true);
 
-        Users out = svc.login(EMAIL, "pw");
+        Users out = svc.login(EMAIL, "pw", true);
 
         assertFalse(out.isTwofaRequired());
         assertEquals("AT", out.getAccessToken());
@@ -79,7 +81,7 @@ class AuthServiceImplTest {
         when(userRepository.findFirstByEmail(EMAIL)).thenReturn(u);
         when(passwordEncoder.matches("pw", "hash")).thenReturn(true);
 
-        Users out = svc.login(EMAIL, "pw");
+        Users out = svc.login(EMAIL, "pw", true);
 
         assertTrue(out.isTwofaRequired());
         assertNull(out.getAccessToken());
@@ -101,21 +103,21 @@ class AuthServiceImplTest {
     @Test
     void verifyWrongCodeRejected() {
         when(userRepository.findFirstByEmail(EMAIL)).thenReturn(twofaPending("ABC123", LocalDateTime.now().plusMinutes(5)));
-        Exception e = assertThrows(Exception.class, () -> svc.verifyTwoFactor(EMAIL, "ZZZ999"));
+        Exception e = assertThrows(Exception.class, () -> svc.verifyTwoFactor(EMAIL, "ZZZ999", true));
         assertTrue(e.getMessage().contains("không đúng"));
     }
 
     @Test
     void verifyExpiredCodeRejected() {
         when(userRepository.findFirstByEmail(EMAIL)).thenReturn(twofaPending("ABC123", LocalDateTime.now().minusMinutes(1)));
-        Exception e = assertThrows(Exception.class, () -> svc.verifyTwoFactor(EMAIL, "ABC123"));
+        Exception e = assertThrows(Exception.class, () -> svc.verifyTwoFactor(EMAIL, "ABC123", true));
         assertTrue(e.getMessage().contains("hết hạn"));
     }
 
     @Test
     void verifyWhenTwoFactorDisabledRejected() {
         when(userRepository.findFirstByEmail(EMAIL)).thenReturn(user(0));
-        Exception e = assertThrows(Exception.class, () -> svc.verifyTwoFactor(EMAIL, "ABC123"));
+        Exception e = assertThrows(Exception.class, () -> svc.verifyTwoFactor(EMAIL, "ABC123", true));
         assertTrue(e.getMessage().contains("không bật"));
     }
 
@@ -124,7 +126,7 @@ class AuthServiceImplTest {
         Users u = twofaPending("abc123", LocalDateTime.now().plusMinutes(5));
         when(userRepository.findFirstByEmail(EMAIL)).thenReturn(u);
 
-        Users out = svc.verifyTwoFactor(EMAIL, "ABC123"); // so khớp không phân biệt hoa thường
+        Users out = svc.verifyTwoFactor(EMAIL, "ABC123", true); // so khớp không phân biệt hoa thường
 
         assertEquals("AT", out.getAccessToken());
         assertEquals("RT", out.getPlainRefreshToken());
