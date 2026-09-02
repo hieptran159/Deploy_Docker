@@ -7,8 +7,12 @@ name: auto-post
 #   FORUM_BOT_PASSWORD  mật khẩu tài khoản bot
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'tools/auto-poster/content/**'   # commit file .md mới -> đăng ngay
   schedule:
-    - cron: '17 * * * *'      # mỗi giờ, phút thứ 17 (giờ UTC)
+    - cron: '17 * * * *'      # mỗi giờ, phút thứ 17 (giờ UTC) — mạng an toàn
   workflow_dispatch: {}       # cho phép bấm chạy tay
 
 concurrency:
