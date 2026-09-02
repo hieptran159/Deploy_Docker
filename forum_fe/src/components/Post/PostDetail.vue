@@ -151,6 +151,7 @@
         </div>
 
         <DxPopup
+            v-if="ishowEditPost"
             title="Chỉnh sửa bài viết"
             v-model:visible="ishowEditPost"
             :width="700"

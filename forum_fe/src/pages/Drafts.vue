@@ -22,6 +22,7 @@
         </div>
 
         <DxPopup
+            v-if="editing && editTarget"
             title="Sửa bản nháp"
             v-model:visible="editing"
             :width="700"
@@ -29,13 +30,12 @@
             :hide-on-outside-click="true"
         >
             <EditPost
-                v-if="editTarget"
                 :postId="editTarget.postId"
                 :title="editTarget.title"
                 :body="editTarget.body"
                 :visibility="editTarget.visibility"
-                @close="() => { editing = false; load(); }"
-                @post-fail="() => { editing = false; showDialog?.('Thông báo', 'Cập nhật thất bại'); }"
+                @close="() => { editing = false; editTarget = null; load(); }"
+                @post-fail="() => { editing = false; editTarget = null; showDialog?.('Thông báo', 'Cập nhật thất bại'); }"
             />
         </DxPopup>
     </div>

@@ -59,7 +59,8 @@ watch(
         data.value.body = props.body ?? '';
         data.value.visibility = props.visibility || 'public';
         data.value.postImg = null;
-    }
+    },
+    { immediate: true }
 );
 
 const tags = computed(() => extractHashtags(data.value.title, data.value.body));
