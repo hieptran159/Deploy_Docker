@@ -33,7 +33,11 @@ async function loadDotenv(p) {
         const m = line.match(/^\s*([A-Za-z0-9_]+)\s*=\s*(.*?)\s*$/);
         if (!m || line.trimStart().startsWith('#')) continue;
         let v = m[2];
-        if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) v = v.slice(1, -1);
+        if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
+            v = v.slice(1, -1);
+        } else {
+            v = v.replace(/\s+#.*$/, '').trim(); // bỏ chú thích "# ..." cuối dòng (giá trị không nháy)
+        }
         if (!(m[1] in process.env)) process.env[m[1]] = v;
     }
 }
