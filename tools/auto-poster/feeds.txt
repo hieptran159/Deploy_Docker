@@ -1,0 +1,17 @@
+# Danh sách feed RSS. Mỗi dòng 1 địa chỉ. Dòng bắt đầu bằng '#' bị bỏ qua (tắt tạm).
+# Bỏ dấu '#' ở đầu dòng để BẬT feed đó.
+
+# --- VnExpress ---
+https://vnexpress.net/rss/tin-moi-nhat.rss
+# https://vnexpress.net/rss/thoi-su.rss
+# https://vnexpress.net/rss/the-gioi.rss
+# https://vnexpress.net/rss/kinh-doanh.rss
+# https://vnexpress.net/rss/khoa-hoc-cong-nghe.rss
+# https://vnexpress.net/rss/the-thao.rss
+# https://vnexpress.net/rss/giai-tri.rss
+# https://vnexpress.net/rss/suc-khoe.rss
+
+# --- Báo khác (bỏ '#' để dùng) ---
+# https://tuoitre.vn/rss/tin-moi-nhat.rss
+# https://thanhnien.vn/rss/home.rss
+# https://dantri.com.vn/rss/home.rss
