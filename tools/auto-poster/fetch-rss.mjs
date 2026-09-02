@@ -126,9 +126,16 @@ async function main() {
 
     console.log(`Feed: ${feeds.length}  |  tối đa ${CFG.max} bài/lần  |  ${DRY ? 'DRY-RUN' : 'GHI FILE'}  |  ${CFG.publish ? 'xuất bản' : 'nháp'}\n`);
 
-    let made = 0;
+    const keyOf = (it) => sha1(it.id || it.link || it.title).slice(0, 16);
+    const fnameOf = (it) => {
+        const d = it.date ? new Date(it.date) : new Date();
+        const stamp = (isNaN(d) ? new Date() : d).toISOString().slice(0, 10).replace(/-/g, '');
+        return `rss-${stamp}-${slugify(it.title)}.md`;
+    };
+
+    // 1) Tải tất cả feed, gom entry MỚI theo từng feed
+    const queues = [];
     for (const url of feeds) {
-        if (made >= CFG.max) break;
         let xml;
         try {
             const res = await fetch(url, { headers: { 'user-agent': 'auto-poster/1.0 (+rss)' }, redirect: 'follow' });
@@ -138,39 +145,50 @@ async function main() {
 
         const items = parseFeed(xml);
         if (!items.length) { console.log(`· ${url} — không đọc được entry nào`); continue; }
-        console.log(`  ${url} → ${items.length} entry`);
 
+        const fresh = [];
         for (const it of items) {
-            if (made >= CFG.max) break;
-            const key = sha1(it.id || it.link || it.title).slice(0, 16);
+            const key = keyOf(it);
             if (seen[key]) continue;
-
-            const d = it.date ? new Date(it.date) : new Date();
-            const stamp = (isNaN(d) ? new Date() : d).toISOString().slice(0, 10).replace(/-/g, '');
-            const fname = `rss-${stamp}-${slugify(it.title)}.md`;
+            const fname = fnameOf(it);
             if (existing.has(fname)) { seen[key] = { at: new Date().toISOString(), file: fname }; continue; }
-
-            const title = it.title.replace(/["\r\n]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200);
-            const body =
-                (it.summary ? it.summary.slice(0, 900).trim() : title) +
-                (it.link ? `\n\nNguồn: ${it.link}` : '');
-            const md =
-                `---\n` +
-                `title: "${title}"\n` +
-                `visibility: ${['friends', 'private'].includes(CFG.visibility) ? CFG.visibility : 'public'}\n` +
-                `tags: [${CFG.tag}]\n` +
-                `publish: ${CFG.publish}\n` +
-                (it.link ? `source: ${it.link}\n` : '') +
-                `---\n${body}\n`;
-
-            console.log(`  ${DRY ? '○' : '✓'} ${fname}  — "${title.slice(0, 60)}"`);
-            if (!DRY) {
-                await writeFile(path.join(CFG.contentDir, fname), md, 'utf8');
-                seen[key] = { at: new Date().toISOString(), file: fname, link: it.link };
-                existing.add(fname);
-            }
-            made++;
+            fresh.push({ it, key, fname });
         }
+        console.log(`  ${url} → ${items.length} entry, ${fresh.length} mới`);
+        if (fresh.length) queues.push(fresh);
+    }
+
+    // 2) Lấy luân phiên từng feed (round-robin) cho tới khi đủ CFG.max
+    const picked = [];
+    while (picked.length < CFG.max && queues.some((q) => q.length)) {
+        for (const q of queues) {
+            if (picked.length >= CFG.max) break;
+            if (q.length) picked.push(q.shift());
+        }
+    }
+
+    // 3) Ghi file
+    let made = 0;
+    for (const { it, key, fname } of picked) {
+        const title = it.title.replace(/["\r\n]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200);
+        const body =
+            (it.summary ? it.summary.slice(0, 900).trim() : title) +
+            (it.link ? `\n\nNguồn: ${it.link}` : '');
+        const md =
+            `---\n` +
+            `title: "${title}"\n` +
+            `visibility: ${['friends', 'private'].includes(CFG.visibility) ? CFG.visibility : 'public'}\n` +
+            `tags: [${CFG.tag}]\n` +
+            `publish: ${CFG.publish}\n` +
+            (it.link ? `source: ${it.link}\n` : '') +
+            `---\n${body}\n`;
+
+        console.log(`  ${DRY ? '○' : '✓'} ${fname}  — "${title.slice(0, 60)}"`);
+        if (!DRY) {
+            await writeFile(path.join(CFG.contentDir, fname), md, 'utf8');
+            seen[key] = { at: new Date().toISOString(), file: fname, link: it.link };
+        }
+        made++;
     }
 
     if (!DRY) await writeFile(CFG.seenFile, JSON.stringify(seen, null, 2));

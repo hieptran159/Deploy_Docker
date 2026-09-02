@@ -42,6 +42,8 @@ node post.mjs                       # đăng
 - `DRAFT_LIMIT` (`.env`, mặc định 100): khi tài khoản bot có ≥ ngần này bản nháp,
   `post.mjs` **tạm dừng đăng** (thoát 0, không lỗi) cho tới khi bạn duyệt bớt ở `/drafts`
   ("Đăng tất cả" / "Xoá tất cả"). Đặt `0` để tắt.
+- Nhiều feed → lấy **luân phiên** mỗi feed (round-robin) cho tới khi đủ `RSS_MAX_PER_RUN`,
+  nên feed đứng sau không bị feed đầu "ăn" hết suất.
 - `.rss-seen.json` nhớ entry đã lấy (theo id/link) → không tạo trùng, kể cả sau khi xoá file.
 - Chỉnh qua `.env`: `RSS_MAX_PER_RUN` (mặc định 5), `RSS_TAG` (mặc định `tin-tuc`),
   `RSS_VISIBILITY`, `RSS_PUBLISH` (mặc định `false` = nháp).
