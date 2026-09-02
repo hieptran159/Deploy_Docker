@@ -109,6 +109,8 @@ public class UserServiceImpl extends ConvertDTO implements UserService {
         if (!isOwner) {
             hidePrivate(dto);
         } else {
+            // Email chỉ trả cho chính chủ (trang "Cài đặt tài khoản"); người khác không thấy.
+            dto.setEmail(user.getEmail());
             dto.setTwoFactorEnabled(user.getTwofaEnabled() != null && user.getTwofaEnabled() == 1);
         }
         return dto;
@@ -364,7 +366,8 @@ public class UserServiceImpl extends ConvertDTO implements UserService {
         List<String> postId = new ArrayList<>();
         userDTO.setUserId(user.getUserId());
         userDTO.setFullName(user.getFullName());
-        userDTO.setEmail(user.getEmail());
+        // KHÔNG set email ở đây: chỉ getUserById mới trả email và chỉ cho chính chủ.
+        // (getAllUser / searchUser dùng chung hàm này -> email không lọt ra danh sách.)
         userDTO.setAvtUrl(user.getAvtUrl());
         userDTO.setCoverUrl(user.getCoverUrl());
         userDTO.setDob(user.getDob().toString());

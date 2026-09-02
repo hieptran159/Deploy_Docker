@@ -18,7 +18,6 @@
                     <span v-if="user?.nickname" class="text-base muted font-normal">({{ user.nickname }})</span>
                 </div>
                 <div v-if="user?.slogan" class="text-sm italic muted">“{{ user.slogan }}”</div>
-                <div class="muted truncate">{{ user?.email }}</div>
                 <div class="flex flex-wrap gap-x-5 gap-y-1 mt-2 text-sm">
                     <span class="link" @click="goFriends"><b>{{ friendCount }}</b> bạn bè</span>
                     <span><b>{{ postsTotal || user?.posts || 0 }}</b> bài viết</span>
