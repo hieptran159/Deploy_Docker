@@ -266,5 +266,4 @@ docker compose up -d --build             # chạy nốt backend + frontend
   đang đăng nhập bị đá ra, phải login lại một lần.
 - `APP_CORS_ALLOWED_ORIGINS` mặc định `*` (mọi origin gọi được API). Deploy public nên
   đặt cụ thể danh sách origin FE, cách nhau dấu phẩy.
-- `social/compose.yml`, `social/docker-compose.yml` là bản cũ, bỏ qua — chỉ dùng
-  `docker-compose.yml` ở gốc.
+- Chỉ dùng `docker-compose.yml` ở gốc (các file compose cũ trong `social/` đã xoá).

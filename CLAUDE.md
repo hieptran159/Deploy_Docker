@@ -403,9 +403,8 @@ uses `./mvnw install -DskipTests`. No frontend tests.
   live access + refresh token → all users (and the auto-poster bot, which self-heals via
   `reauth()`) must re-login once.
 - DB passwords (`MYSQL_ROOT_PASSWORD=tranhiep12345`) are still committed with working
-  defaults in `docker-compose.yml` / `.env.example` / `social/compose.yml` /
-  `social/docker-compose.yml` (the last two are stale, unsupported). Do not add more, and
-  be deliberate before rotating or echoing them.
+  defaults in `docker-compose.yml` / `.env.example`. Do not add more, and be deliberate
+  before rotating or echoing them.
 - The SendGrid API key is NOT committed — set `SENDGRID_API_KEY` in `.env` (docker) or
   `social/.env` (when running `./mvnw spring-boot:run`; `spring-dotenv` loads it). Blank
   key = mail sending is skipped, OTP/verify codes still print to the backend log as
@@ -415,8 +414,8 @@ uses `./mvnw install -DskipTests`. No frontend tests.
   `hipe.id.vn`, `didan.id.vn`). Changing target environment means editing the hardcoded
   frontend `BASE_URL`/`.env`, `nginx.conf` `server_name`/`proxy_pass`, and the compose
   environment blocks together.
-- `social/compose.yml`, `social/docker-compose.yml` are stale earlier drafts. The root
-  `docker-compose.yml` is the only supported entrypoint (see `DEPLOY.md`).
+- The root `docker-compose.yml` is the only supported entrypoint (see `DEPLOY.md`).
+  (Stale `social/compose.yml` / `social/docker-compose.yml` drafts were deleted Sep 2026.)
 
 ## Security notes / hardening done
 
