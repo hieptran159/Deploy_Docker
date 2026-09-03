@@ -19,7 +19,7 @@
                     <DxTextBox v-model="token"/>
                 </div>
                 <div>
-                    <label class="text-sm muted">Mật khẩu mới (tối thiểu 5 ký tự)</label>
+                    <label class="text-sm muted">Mật khẩu mới (tối thiểu 8 ký tự)</label>
                     <DxTextBox v-model="newPassword" mode="password" @enter-key="submitReset"/>
                 </div>
                 <DxButton width="100%" type="default" text="Đặt lại mật khẩu" @click="submitReset"/>

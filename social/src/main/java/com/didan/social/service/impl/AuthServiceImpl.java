@@ -140,9 +140,9 @@ public class AuthServiceImpl implements AuthService {
             logger.error("Email is existed");
             throw new Exception("Email is existed");
         }
-        if(signupRequest.getPassword().length() < 5) {
-            logger.error("The minimum password should be 5");
-            throw new Exception("The minimum password should be 5");
+        if(signupRequest.getPassword().length() < 8) {
+            logger.error("The minimum password should be 8");
+            throw new Exception("Mật khẩu phải có ít nhất 8 ký tự");
         }
         else{
             UUID id = UUID.randomUUID();
@@ -314,8 +314,8 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public boolean updatePassword(String token, String newPassword) throws Exception {
         if (StringUtils.hasText(verifyToken(token))){
-            if (newPassword.length() < 5) {
-                logger.error("The minimum password should be 5");
+            if (newPassword.length() < 8) {
+                logger.error("The minimum password should be 8");
                 return false;
             }
             else {

@@ -14,7 +14,7 @@
                     <DxTextBox v-model="dataForm.email"/>
                 </div>
                 <div>
-                    <label class="text-sm muted">Mật khẩu (tối thiểu 5 ký tự)</label>
+                    <label class="text-sm muted">Mật khẩu (tối thiểu 8 ký tự)</label>
                     <DxTextBox v-model="dataForm.password" mode="password"/>
                 </div>
                 <div>
@@ -96,8 +96,8 @@ const handleSignUp = async () => {
         showDialog("Thông báo", "Vui lòng nhập đầy đủ thông tin");
         return;
     }
-    if (password.length < 5) {
-        showDialog("Thông báo", "Mật khẩu phải có tối thiểu 5 ký tự");
+    if (password.length < 8) {
+        showDialog("Thông báo", "Mật khẩu phải có tối thiểu 8 ký tự");
         return;
     }
     try {

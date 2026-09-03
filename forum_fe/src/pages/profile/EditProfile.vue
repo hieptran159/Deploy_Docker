@@ -86,7 +86,7 @@
         <div class="card">
             <div class="section-title">Đổi mật khẩu</div>
             <div class="flex flex-col sm:flex-row gap-2">
-                <DxTextBox v-model="newPassword" mode="password" class="flex-1" placeholder="Mật khẩu mới (tối thiểu 5 ký tự)" />
+                <DxTextBox v-model="newPassword" mode="password" class="flex-1" placeholder="Mật khẩu mới (tối thiểu 8 ký tự)" />
                 <DxButton type="default" text="Đổi mật khẩu" @click="updatePassword" />
             </div>
         </div>
@@ -265,8 +265,8 @@ const updateEmail = async () => {
 
 const updatePassword = async () => {
     if (!requirePassword()) return;
-    if (!newPassword.value || newPassword.value.length < 5) {
-        showDialog("Thông báo", "Mật khẩu mới phải có tối thiểu 5 ký tự");
+    if (!newPassword.value || newPassword.value.length < 8) {
+        showDialog("Thông báo", "Mật khẩu mới phải có tối thiểu 8 ký tự");
         return;
     }
     try {

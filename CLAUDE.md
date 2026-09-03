@@ -458,5 +458,6 @@ uses `./mvnw install -DskipTests`. No frontend tests.
   default; set `app.ratelimit.trust-forwarded=true` (`RATELIMIT_TRUST_FORWARDED`) only behind
   a proxy — otherwise `X-Forwarded-For` spoofing bypasses every per-IP limit. `login` runs a
   dummy bcrypt when the email is missing so timing can't enumerate users.
-- Known residual risks (not fixed): committed DB password default, min password length 5,
+- Min password length is **8** (`AuthServiceImpl.signup` + `updatePassword`; FE hints match).
+- Known residual risks (not fixed): committed DB password default,
   `GET /user/{id}` exposes email to any logged-in user (by design — profile shows it).
