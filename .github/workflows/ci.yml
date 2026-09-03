@@ -23,10 +23,10 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: maven
-      # SocialApplicationTests (@SpringBootTest) cần MySQL sống -> loại khỏi CI.
-      # 72 unit test còn lại không nạp context/DB (xem CLAUDE.md mục Tests).
-      - name: Unit tests
-        run: sh ./mvnw -B -ntp test -Dtest='!SocialApplicationTests'
+      # Toàn bộ test: 72 unit test + SocialApplicationTests (dùng Testcontainers MySQL,
+      # runner ubuntu-latest có sẵn Docker).
+      - name: Tests
+        run: sh ./mvnw -B -ntp test
       # Build jar đúng như Dockerfile chạy
       - name: Package
         run: sh ./mvnw -B -ntp -DskipTests package

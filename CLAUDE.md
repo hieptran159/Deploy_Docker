@@ -93,9 +93,13 @@ impl directly in `@BeforeEach`:
 | `utils/JwtUtilsTest` | refresh-token round-trip; `validateRefreshToken` rejects an access token; `validateAccessToken` rejects a refresh token; blacklisted refresh token rejected — `ReflectionTestUtils` for `@Value` secret/expiry |
 | `service/impl/AuthServiceImplTest` | `login` withholds tokens + saves a code + sets `twofaRequired` when 2FA on (issues tokens when off); `verifyTwoFactor` guards (wrong code, expired, 2FA disabled) + happy path (case-insensitive code, clears code, issues access+refresh) — 8 mocked ctor deps |
 
-`SocialApplicationTests` (`@SpringBootTest` context-load) is the exception — it needs a
-running MySQL on the configured host, so `./mvnw test` fails without one; the normal build
-uses `./mvnw install -DskipTests`. No frontend tests.
+`SocialApplicationTests` (`@SpringBootTest` context-load) spins up a throwaway MySQL 8 via
+**Testcontainers** (`@Container @ServiceConnection MySQLContainer`) — needs a Docker daemon
+(CI `ubuntu-latest` has one; a dev box needs Docker running). It supplies a test
+`jwt.secretkey` + `socket-server.port=0` via `@SpringBootTest(properties=…)`, and also
+exercises the full Flyway V1→Vn chain on an empty DB + Hibernate `validate`. `./mvnw test`
+runs the whole suite; the release build still uses `./mvnw install -DskipTests`. No
+frontend tests.
 
 ## Backend architecture notes
 
