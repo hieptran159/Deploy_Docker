@@ -16,6 +16,7 @@
  *   RSS_VISIBILITY    public | friends | private   (mặc định public)
  *   RSS_PUBLISH       true -> xuất bản luôn; mặc định false (nháp)
  *   RSS_TAG           thẻ gắn cho mọi bài (mặc định "tin-tuc")
+ *   RSS_SEEN_KEEP_DAYS  dọn .rss-seen.json: quên entry cũ hơn ngần này (mặc định 60)
  *
  * CLI: --dry-run   --limit N   --feeds <path>
  */
@@ -202,7 +203,19 @@ async function main() {
         made++;
     }
 
-    if (!DRY) await writeFile(CFG.seenFile, JSON.stringify(seen, null, 2));
+    if (!DRY) {
+        // Dọn .rss-seen.json: bỏ entry cũ hơn N ngày. Feed chỉ trả item gần đây nên entry
+        // cũ không bao giờ khớp lại; nếu lỡ có, cùng lắm 1 bài trùng. Chặn file phình vô hạn.
+        const keepDays = Number(process.env.RSS_SEEN_KEEP_DAYS || 60);
+        const cutoff = Date.now() - keepDays * 86400000;
+        let pruned = 0;
+        for (const [k, v] of Object.entries(seen)) {
+            const t = v && v.at ? Date.parse(v.at) : NaN;
+            if (!Number.isFinite(t) || t < cutoff) { delete seen[k]; pruned++; }
+        }
+        await writeFile(CFG.seenFile, JSON.stringify(seen, null, 2));
+        if (pruned) console.log(`Dọn .rss-seen.json: bỏ ${pruned} entry cũ hơn ${keepDays} ngày.`);
+    }
     console.log(`\nXong. ${DRY ? 'Sẽ tạo' : 'Đã tạo'} ${made} file .md.` + (made && !DRY ? ' Chạy `node post.mjs` để đăng.' : ''));
 }
 

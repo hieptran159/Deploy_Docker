@@ -46,6 +46,7 @@ node post.mjs                       # đăng
   (mặc định 10). Thứ tự feed được **xáo trộn mỗi lần chạy**, nên khi số feed nhiều hơn
   `RSS_MAX_PER_RUN` cũng không feed nào bị ưu tiên/bỏ rơi theo thứ tự trong `feeds.txt`.
 - `.rss-seen.json` nhớ entry đã lấy (theo id/link) → không tạo trùng, kể cả sau khi xoá file.
+  Mỗi lần chạy tự bỏ entry cũ hơn `RSS_SEEN_KEEP_DAYS` (mặc định 60) để file không phình vô hạn.
 - Chỉnh qua `.env`: `RSS_MAX_PER_RUN` (mặc định 5, `.env.example` đặt 10),
   `RSS_TAG` (mặc định `tin-tuc`), `RSS_VISIBILITY`,
   `RSS_PUBLISH` (`true` = xuất bản luôn / `false` = nháp; **code mặc định `false`**,
