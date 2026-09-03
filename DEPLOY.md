@@ -161,7 +161,9 @@ docker compose up -d --build             # chạy nốt backend + frontend
 ## Lưu ý
 
 - Secrets (JWT key, mật khẩu DB, SendGrid) để trong `.env` — **không commit `.env`**.
-  `docker-compose.yml` chỉ chứa giá trị mặc định cho môi trường dev.
+- **`JWT_SECRET` bắt buộc có trong `.env`** — không còn giá trị mặc định, thiếu là
+  `docker compose` báo lỗi ngay. Tạo:  `openssl rand -base64 32`. Đổi khoá này = mọi user
+  đang đăng nhập bị đá ra, phải login lại một lần.
 - `APP_CORS_ALLOWED_ORIGINS` mặc định `*` (mọi origin gọi được API). Deploy public nên
   đặt cụ thể danh sách origin FE, cách nhau dấu phẩy.
 - `social/compose.yml`, `social/docker-compose.yml` là bản cũ, bỏ qua — chỉ dùng

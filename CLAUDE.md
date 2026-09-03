@@ -383,9 +383,17 @@ uses `./mvnw install -DskipTests`. No frontend tests.
 
 ## Caution
 
-- Secrets are committed in `docker-compose.yml`, `social/compose.yml`,
-  `social/src/main/resources/application.properties`, and `.env` files (JWT signing key,
-  DB passwords). Do not add more, and be deliberate before rotating or echoing them.
+- **`JWT_SECRET` has NO committed default anymore** — `application.properties` is
+  `${JWT_SECRET}` (fail-fast) and `docker-compose.yml` is `${JWT_SECRET:?...}` (compose
+  errors if unset). It must be set in `.env` (`openssl rand -base64 32`, base64-decoded to
+  the HMAC key so ≥ 32 bytes). `.env.example` ships it blank. The old committed value
+  `wyD7j04/…` was rotated out (Sep 2026) and is dead. Rotating it again invalidates every
+  live access + refresh token → all users (and the auto-poster bot, which self-heals via
+  `reauth()`) must re-login once.
+- DB passwords (`MYSQL_ROOT_PASSWORD=tranhiep12345`) are still committed with working
+  defaults in `docker-compose.yml` / `.env.example` / `social/compose.yml` /
+  `social/docker-compose.yml` (the last two are stale, unsupported). Do not add more, and
+  be deliberate before rotating or echoing them.
 - The SendGrid API key is NOT committed — set `SENDGRID_API_KEY` in `.env` (docker) or
   `social/.env` (when running `./mvnw spring-boot:run`; `spring-dotenv` loads it). Blank
   key = mail sending is skipped, OTP/verify codes still print to the backend log as
@@ -435,6 +443,6 @@ uses `./mvnw install -DskipTests`. No frontend tests.
   default; set `app.ratelimit.trust-forwarded=true` (`RATELIMIT_TRUST_FORWARDED`) only behind
   a proxy — otherwise `X-Forwarded-For` spoofing bypasses every per-IP limit. `login` runs a
   dummy bcrypt when the email is missing so timing can't enumerate users.
-- Known residual risks (not fixed): committed JWT/DB secrets, min password length 5,
+- Known residual risks (not fixed): committed DB password default, min password length 5,
   `GET /user/{id}` exposes email to any logged-in user (by design — profile shows it),
   `POST /report` is not rate-limited.
