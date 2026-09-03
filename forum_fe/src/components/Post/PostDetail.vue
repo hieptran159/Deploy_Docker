@@ -176,7 +176,7 @@ import { getPostById } from '@/apis/post';
 import { createComment, getCommentsPage } from '@/apis/comment';
 import { likePostApi, unLikePostApi, deletePost, repostPost, unrepostPost } from '@/apis/post';
 import { checkBookmark, toggleBookmark } from '@/apis/bookmark';
-import { getAllUsers } from '@/apis/user';
+import { getAllUsersCached } from '@/apis/user';
 import { markReadByTarget } from '@/apis/notification';
 import { useRouter } from 'vue-router';
 import { calculateTimeDifference } from '@/js/helper';
@@ -226,17 +226,23 @@ const mentionResults = ref([]);
 const pickedMentions = ref([]);           // [{ name, id }] đã chọn
 const MENTION_TAIL = /@([^\s@[\]]{0,30})$/;
 
+let usersLoaded = false;
+let usersLoading = false;
 const loadUsers = async () => {
-    if (!isLogin.value) return;
+    if (!isLogin.value || usersLoaded || usersLoading) return;
+    usersLoading = true;
     try {
-        const res = await getAllUsers();
+        const res = await getAllUsersCached();
         allUsers.value = (res?.data?.data || []).filter((u) => u.userId !== getItemLocal(LOCALKEYS.USER_ID));
+        usersLoaded = true;
     } catch (e) { allUsers.value = []; }
+    finally { usersLoading = false; }
 };
 
-const detectMention = (val) => {
+const detectMention = async (val) => {
     const mm = (val || '').match(MENTION_TAIL);
     if (!mm) { mentionOpen.value = false; return; }
+    if (!usersLoaded) await loadUsers();   // chỉ nạp danh sách khi thật sự gõ '@'
     const q = mm[1].toLowerCase();
     mentionResults.value = allUsers.value
         .filter((u) => (u.fullName || '').toLowerCase().includes(q))
@@ -484,7 +490,6 @@ const teardownPostSocket = () => {
 
 onMounted(async() => {
     activePostId.value = id.value;
-    loadUsers();
     loadBookmark();
     // bài + bình luận độc lập nhau -> tải song song
     await Promise.all([getDataPostById(), loadComments(true)]);

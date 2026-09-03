@@ -176,6 +176,11 @@ frontend tests.
   (`<DxPopup v-if="editing">`) and emits `@refresh`; every parent that lists `<Post>` wires
   `@refresh` to reload. `CreatePost.vue` / `EditPost.vue` show live hashtag chips parsed by
   `helper.js#extractHashtags` (mirrors backend `HashtagUtils`).
+- `PostDetail.vue`'s comment `@mention` autocomplete filters the full user list client-side.
+  That list comes from `GET /user/getAllUser` (heavy: N+1 over followers/posts/participants
+  per user + full DTOs) — fetched **lazily on the first `@` keystroke**, not on mount, and
+  memoised for the SPA session via `apis/user.js#getAllUsersCached`. A server-side
+  `?q=` mention-search endpoint would be the real fix if the user base grows.
 - Reporting: `components/ReportDialog.vue` (singleton in `App.vue`, `provide('openReport')`
   `(targetType, targetId, label)`), a reason radio list (`spam`/`harassment`/`hate`/`nsfw`/
   `misinfo`/`other`) + optional detail → `sendReport(type, id, "<label>: <detail>")`.
