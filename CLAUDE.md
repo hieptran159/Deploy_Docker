@@ -338,8 +338,9 @@ uses `./mvnw install -DskipTests`. No frontend tests.
   the standard 503 + `statusCode:500` ResponseData body.
 - **DB schema is Flyway-managed** (`flyway-core` + `flyway-mysql`, version via Spring Boot
   3.1.7 BOM). Migrations in `social/src/main/resources/db/migration/` (`V1__baseline.sql` =
-  point-in-time dump of the prod schema, 21 tables, no data; `V2` drops the dead
-  `messages.message_img` column). `spring.flyway.enabled` and
+  point-in-time dump of the prod schema, 21 tables, no data; `V2`+`V3` collapse the two
+  duplicate `messages` image columns down to the one the entity actually uses, `message_img`).
+  `spring.flyway.enabled` and
   `spring.jpa.hibernate.ddl-auto` are env-gated: defaults `FLYWAY_ENABLED=true` +
   `DDL_AUTO=validate` (Hibernate only checks entity↔table match, never `ALTER`s). Set
   `DDL_AUTO=update` + `FLYWAY_ENABLED=false` in `.env` to fall back to the old behaviour.
@@ -347,8 +348,9 @@ uses `./mvnw install -DskipTests`. No frontend tests.
   `flyway_schema_history`) is marked at V1 and V1 is **not** re-run; only V2+ apply. New
   schema change = add `V<n>__*.sql`, never edit an applied one. `validate` is strict about
   a mapped column/table being **missing**, lenient about extra columns, length, index/FK
-  names, nullability. (The `messages` entity maps `messageImg` via `@Column(name="messageImg")`;
-  the snake_case `message_img` was the pre-`@Column` naming-strategy leftover, dropped in `V2`.)
+  names, nullability. (Watch out: Spring Boot's `CamelCaseToUnderscoresNamingStrategy` is
+  applied to explicit `@Column(name=…)` values too — so `Messages`' `@Column(name="messageImg")`
+  actually maps to the physical column `message_img`, not `messageImg`.)
 - Hibernate dialect is **not** configured — Hibernate 6 auto-detects `MySQLDialect` from the
   JDBC connection at startup (per HHH90000025). The old conflicting `database-platform=MySQL5Dialect`
   (ignored) + `properties.hibernate.dialect=MySQL8Dialect` (deprecated) lines were removed.
