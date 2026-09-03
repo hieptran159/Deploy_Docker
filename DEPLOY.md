@@ -131,9 +131,41 @@ sudo cp scripts/backup.logrotate /etc/logrotate.d/forum-backup
 ```
 
 Ra `backup/db-<ts>.sql.gz` + `backup/uploads-<ts>.tar.gz`. Tuỳ chỉnh:
-`BACKUP_KEEP_DAYS` (số ngày giữ), `UPLOADS_VOLUME` (tên volume nếu không tự dò được),
-`BACKUP_RSYNC_DEST` (đặt = đích rsync để đẩy bản sao **ra ngoài máy** — nên có, backup
-nằm cùng đĩa với DB thì mất đĩa là mất cả hai).
+`BACKUP_KEEP_DAYS` (số ngày giữ), `UPLOADS_VOLUME` (tên volume nếu không tự dò được).
+
+### Offsite (nên có — backup cùng đĩa với DB, mất đĩa là mất cả hai)
+
+**Cloud free qua `rclone`** — Cloudflare R2 (10 GB free, không phí egress, hợp vì đã dùng
+Cloudflare) hoặc Backblaze B2 (10 GB free). Cả hai là S3-compatible.
+
+```bash
+# 1. Cài rclone
+sudo -v ; curl https://rclone.org/install.sh | sudo bash
+
+# 2. Tạo bucket + API token:
+#    R2:  Cloudflare dashboard -> R2 -> Create bucket "forum-backup"
+#         -> Manage R2 API Tokens -> Create (Object Read & Write) -> lưu Access Key / Secret
+#         -> endpoint dạng https://<accountid>.r2.cloudflarestorage.com
+#    B2:  backblaze.com -> B2 -> Create Bucket -> App Keys -> Add a New Application Key
+
+# 3. Cấu hình remote (không tương tác) — ví dụ R2:
+rclone config create r2 s3 provider=Cloudflare \
+  access_key_id=<KEY> secret_access_key=<SECRET> \
+  endpoint=https://<accountid>.r2.cloudflarestorage.com acl=private
+
+rclone lsd r2:                       # kiểm tra kết nối
+rclone ls r2:forum-backup           # (rỗng lúc đầu)
+
+# 4. Sửa dòng cron: thêm BACKUP_RCLONE_DEST ở đầu
+crontab -e
+# 30 3 * * * BACKUP_RCLONE_DEST=r2:forum-backup /home/hp/Deploy_Docker/scripts/backup.sh >> /home/hp/backup.log 2>&1
+```
+
+`backup.sh` sẽ `rclone sync` (mirror — xoá bản cũ trên cloud theo đúng retention 14 ngày).
+`rclone` chạy dưới user `hp` nên config nằm ở `~/.config/rclone/rclone.conf` — cron cùng
+user nên đọc được. Khôi phục từ cloud: `rclone copy r2:forum-backup/db-<ts>.sql.gz .`
+
+Có SSH tới máy khác thì dùng `BACKUP_RSYNC_DEST=user@host:/path/forum-backup` thay cho rclone.
 
 **Khôi phục:**
 ```bash

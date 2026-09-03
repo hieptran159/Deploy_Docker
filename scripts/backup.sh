@@ -12,7 +12,9 @@
 # Tuỳ chỉnh qua biến môi trường:
 #   BACKUP_KEEP_DAYS    số ngày giữ lại               (mặc định 14)
 #   UPLOADS_VOLUME      tên docker volume ảnh upload   (mặc định tự dò *_uploads)
-#   BACKUP_RSYNC_DEST   nếu đặt -> rsync backup/ sang đích này sau mỗi lần (offsite)
+#   BACKUP_RSYNC_DEST   nếu đặt -> rsync backup/ sang đích này (offsite qua SSH)
+#   BACKUP_RCLONE_DEST  nếu đặt -> `rclone sync backup/` lên đây (vd remote R2/B2:bucket/path)
+#   RCLONE_BIN          đường dẫn rclone (mặc định "rclone" trong PATH)
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
@@ -56,7 +58,12 @@ find "$OUT" -maxdepth 1 -name 'uploads-*.tar.gz' -mtime "+$KEEP" -print -delete 
 
 # 4) (tuỳ chọn) đẩy offsite
 if [ -n "${BACKUP_RSYNC_DEST:-}" ]; then
-  rsync -a --delete "$OUT/" "$BACKUP_RSYNC_DEST/" && echo "  offsite -> $BACKUP_RSYNC_DEST"
+  rsync -a --delete "$OUT/" "$BACKUP_RSYNC_DEST/" && echo "  offsite (rsync) -> $BACKUP_RSYNC_DEST"
+fi
+if [ -n "${BACKUP_RCLONE_DEST:-}" ]; then
+  "${RCLONE_BIN:-rclone}" sync "$OUT/" "$BACKUP_RCLONE_DEST/" \
+    --include 'db-*.sql.gz' --include 'uploads-*.tar.gz' \
+    && echo "  offsite (rclone) -> $BACKUP_RCLONE_DEST"
 fi
 
 echo "=== xong. Đang giữ $(ls -1 "$OUT"/db-*.sql.gz 2>/dev/null | wc -l) bản DB," \
