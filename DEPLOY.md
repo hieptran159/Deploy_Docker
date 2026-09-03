@@ -161,6 +161,46 @@ crontab -e
 # 30 3 * * * BACKUP_RCLONE_DEST=r2:forum-backup /home/hp/Deploy_Docker/scripts/backup.sh >> /home/hp/backup.log 2>&1
 ```
 
+**Hoặc: repo GitHub private** (đủ cho DB quy mô lab). `backup.sh` ghi đè bằng **1 commit
+không cha** rồi `push -f` → repo không phình theo lịch sử.
+
+```bash
+# 1. Tạo repo private trống trên GitHub, vd  hieptran159/forum-backup
+
+# 2. Deploy key riêng cho repo đó (chỉ push được repo này, không đụng repo khác)
+ssh-keygen -t ed25519 -N '' -f ~/.ssh/forum_backup -C forum-backup
+cat ~/.ssh/forum_backup.pub
+#   -> GitHub repo forum-backup > Settings > Deploy keys > Add > dán, TICK "Allow write access"
+
+cat >> ~/.ssh/config <<'EOF'
+Host github-forum-backup
+  HostName github.com
+  User git
+  IdentityFile ~/.ssh/forum_backup
+  IdentitiesOnly yes
+EOF
+
+# 3. Clone (rỗng) ra ngoài thư mục dự án
+git clone git@github-forum-backup:hieptran159/forum-backup.git ~/forum-backup
+cd ~/forum-backup && git checkout -b main 2>/dev/null || true
+git -C ~/forum-backup config user.email backup@local
+git -C ~/forum-backup config user.name  forum-backup
+
+# 4. Cron: thêm BACKUP_GIT_DIR
+# 30 3 * * * BACKUP_GIT_DIR=/home/hp/forum-backup /home/hp/Deploy_Docker/scripts/backup.sh >> /home/hp/backup.log 2>&1
+```
+
+**Mã hoá trước khi push** (private repo không phải là mã hoá — nên làm nếu DB có dữ liệu
+người dùng thật). Thêm 1 bước vào cron dùng `age` hoặc `gpg`, ví dụ sau khi `backup.sh` chạy:
+```bash
+age -r <public-key> -o ~/forum-backup/db-latest.sql.gz.age "$(ls -t /home/hp/Deploy_Docker/backup/db-*.sql.gz | head -1)"
+```
+rồi để `BACKUP_GIT_DIR` trỏ tới thư mục chỉ chứa file `.age`. (Giữ private key ở nơi khác —
+mất nó là mất luôn khả năng khôi phục.)
+
+> GitHub chặn cứng file > 100 MB. `db-*.sql.gz` ~1 MB nhưng để mắt `uploads-*.tar.gz` khi
+> ảnh nhiều lên — lúc đó chuyển phần uploads sang R2/rclone.
+
 `backup.sh` sẽ `rclone sync` (mirror — xoá bản cũ trên cloud theo đúng retention 14 ngày).
 `rclone` chạy dưới user `hp` nên config nằm ở `~/.config/rclone/rclone.conf` — cron cùng
 user nên đọc được. Khôi phục từ cloud: `rclone copy r2:forum-backup/db-<ts>.sql.gz .`

@@ -15,6 +15,8 @@
 #   BACKUP_RSYNC_DEST   nếu đặt -> rsync backup/ sang đích này (offsite qua SSH)
 #   BACKUP_RCLONE_DEST  nếu đặt -> `rclone sync backup/` lên đây (vd remote R2/B2:bucket/path)
 #   RCLONE_BIN          đường dẫn rclone (mặc định "rclone" trong PATH)
+#   BACKUP_GIT_DIR      nếu đặt -> copy bộ backup vào clone này, force-push 1 commit không cha
+#                       (repo private làm nơi cất; xem DEPLOY.md để tạo + gắn deploy key)
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
@@ -64,6 +66,19 @@ if [ -n "${BACKUP_RCLONE_DEST:-}" ]; then
   "${RCLONE_BIN:-rclone}" sync "$OUT/" "$BACKUP_RCLONE_DEST/" \
     --include 'db-*.sql.gz' --include 'uploads-*.tar.gz' \
     && echo "  offsite (rclone) -> $BACKUP_RCLONE_DEST"
+fi
+# Đẩy lên 1 repo git riêng (private). Ghi đè bằng 1 commit KHÔNG cha rồi force-push
+# -> repo luôn chỉ bằng bộ backup đang giữ, lịch sử không phình.
+# BACKUP_GIT_DIR = 1 clone riêng đã set remote + quyền push (deploy key).
+if [ -n "${BACKUP_GIT_DIR:-}" ] && [ -d "$BACKUP_GIT_DIR/.git" ]; then
+  rm -f "$BACKUP_GIT_DIR"/db-*.sql.gz "$BACKUP_GIT_DIR"/uploads-*.tar.gz
+  cp "$OUT"/db-*.sql.gz "$OUT"/uploads-*.tar.gz "$BACKUP_GIT_DIR"/ 2>/dev/null || true
+  git -C "$BACKUP_GIT_DIR" add -A
+  _tree=$(git -C "$BACKUP_GIT_DIR" write-tree)
+  _commit=$(echo "backup $TS" | git -C "$BACKUP_GIT_DIR" commit-tree "$_tree")
+  git -C "$BACKUP_GIT_DIR" update-ref refs/heads/main "$_commit"
+  git -C "$BACKUP_GIT_DIR" push -q -f origin main \
+    && echo "  offsite (git) -> $(git -C "$BACKUP_GIT_DIR" remote get-url origin)"
 fi
 
 echo "=== xong. Đang giữ $(ls -1 "$OUT"/db-*.sql.gz 2>/dev/null | wc -l) bản DB," \
