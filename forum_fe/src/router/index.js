@@ -161,6 +161,24 @@ const routers = [
 const vueRouter = createRouter({
 	history: createWebHistory(),
 	routes: routers,
+	// Back/forward (nút trình duyệt hoặc router.back): quay lại ĐÚNG vị trí đã cuộn.
+	// Danh sách bài load bất đồng bộ nên chờ trang bắn 'page:ready' rồi mới cuộn,
+	// có timeout dự phòng. Điều hướng thường -> lên đầu trang như cũ.
+	scrollBehavior(to, from, savedPosition) {
+		if (!savedPosition) return { left: 0, top: 0 };
+		return new Promise((resolve) => {
+			let done = false;
+			const finish = () => {
+				if (done) return;
+				done = true;
+				clearTimeout(timer);
+				window.removeEventListener('page:ready', finish);
+				resolve(savedPosition);
+			};
+			const timer = setTimeout(finish, 1200);
+			window.addEventListener('page:ready', finish, { once: true });
+		});
+	},
 });
 
 export default vueRouter;

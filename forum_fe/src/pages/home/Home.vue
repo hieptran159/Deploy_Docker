@@ -127,7 +127,7 @@
 import Post from '../../components/Post/Post.vue';
 import { DxButton, DxPopup, DxTextBox } from 'devextreme-vue';
 import { getListPostApi, searchPost, getFeedPages, getFriendsFeed, getFriendsFeedPages, getTrendingHashtags } from '@/apis/post';
-import { computed, inject, onMounted, ref, watch } from 'vue';
+import { computed, inject, nextTick, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import BaseAvatar from '@/components/BaseAvatar.vue';
 import { getItemLocal, LOCALKEYS } from '../../storages/localStorage';
@@ -200,6 +200,9 @@ const getListPost = async () => {
         posts.value = [];
     } finally {
         loading.value = false;
+        // Báo router: danh sách đã render xong -> có thể khôi phục vị trí cuộn (back/forward)
+        await nextTick();
+        window.dispatchEvent(new Event('page:ready'));
     }
 }
 

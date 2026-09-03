@@ -371,6 +371,12 @@ frontend tests.
   calling `/admin/blacklist` (a GET only admins can run) after login and on header
   mount; the result is cached in `localStorage.isAdmin` and drives both the "Quản trị"
   header tab visibility and the `/admin` route guard (`AdminPage.vue` still self-gates).
+  The router's `scrollBehavior` restores `savedPosition` on back/forward (returns `{top:0}`
+  otherwise); since feed lists load async it waits for a `window` `'page:ready'` event
+  (1200 ms timeout fallback) before scrolling — `Home.vue` dispatches it after
+  `getListPost()` + `nextTick`. Home's feed is `?page=N`-paginated so the same page (hence
+  same DOM height) re-renders on back-nav; infinite-scroll list pages (`TagPage` etc.) would
+  need `<keep-alive>` to restore position the same way.
 - Direct messages: `POST /chat/direct/{userId}` (added to `ChatController`/`ChatServiceImpl`)
   finds-or-creates a conversation named `dm:<sorted userIds>` and adds **both** users as
   participants. `UserProfile.vue`'s "Nhắn tin" calls it and navigates to
