@@ -344,8 +344,9 @@ uses `./mvnw install -DskipTests`. No frontend tests.
   a mapped column/table being **missing**, lenient about extra columns, length, index/FK
   names, nullability. NOTE: `messages` still has a legacy dead `messageImg` column next to
   `message_img` (harmless; candidate for a future migration to drop).
-- Hibernate dialect is set inconsistently (`MySQL5Dialect` and `MySQL8Dialect` both
-  appear in `application.properties`); leave as-is unless fixing that specifically.
+- Hibernate dialect is **not** configured — Hibernate 6 auto-detects `MySQLDialect` from the
+  JDBC connection at startup (per HHH90000025). The old conflicting `database-platform=MySQL5Dialect`
+  (ignored) + `properties.hibernate.dialect=MySQL8Dialect` (deprecated) lines were removed.
 
 ## Frontend architecture notes
 
