@@ -27,12 +27,15 @@ cp .env.example .env      # optional; all vars have defaults
 docker compose up -d --build
 ```
 - frontend → http://localhost  (`forum_fe/` built to nginx; `FRONTEND_PORT`)
-- backend REST → http://localhost:8081  (Swagger UI: `/api-docs.html`, spec: `/api-docs`)
+- backend REST → http://localhost:8081  (Swagger UI: `/api-docs.html`, spec: `/api-docs`;
+  health: `/actuator/health` — only `health` is exposed, `permitAll` in `CustomFilterSecurity`)
 - backend Socket.IO server → port 8082
 - MySQL → host port 3307 (container 3306), db `socialapp`, root pw from `.env`
 
 The compose file: `db` has a TCP healthcheck and `backend` waits on
-`condition: service_healthy`; on a fresh (empty) `mysql-data` volume the backend's
+`condition: service_healthy`; `backend` itself has a `curl`-based healthcheck against
+`/actuator/health` (curl is `apt-get`-installed in the runtime stage of `social/Dockerfile`)
+— informational only, nothing gates on it. On a fresh (empty) `mysql-data` volume the backend's
 **Flyway** run at startup builds the whole schema from
 `social/src/main/resources/db/migration/V1__baseline.sql` (the old `social/db.sql`
 init-mount was removed). Data persists in the `mysql-data` volume and uploaded images in

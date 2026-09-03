@@ -104,6 +104,13 @@ services:
     volumes:
       # Ảnh người dùng upload -> giữ lại qua các lần build/redeploy
       - uploads:/app/uploads
+    healthcheck:
+      # /actuator/health = UP chỉ khi web server chạy VÀ kết nối được MySQL
+      test: ["CMD", "curl", "-fsS", "http://localhost:8081/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
     networks:
       - app-network
 

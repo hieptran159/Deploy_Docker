@@ -45,7 +45,8 @@ public class CustomFilterSecurity {
         http.csrf(csrf -> csrf.disable()); // Tắt csrf
         http.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)); // Tắt Session
         http.authorizeHttpRequests(authorize -> authorize
-                .requestMatchers("/auth/**", "/images/**", "/api-docs**/**", "swagger-ui/**")
+                .requestMatchers("/auth/**", "/images/**", "/api-docs**/**", "swagger-ui/**",
+                        "/actuator/health", "/actuator/health/**")
                 .permitAll()
                 // Các GET dưới /post/* cần đăng nhập (khớp trước rule permit bên dưới)
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/post/drafts")
