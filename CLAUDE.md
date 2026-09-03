@@ -32,9 +32,11 @@ docker compose up -d --build
 - MySQL → host port 3307 (container 3306), db `socialapp`, root pw from `.env`
 
 The compose file: `db` has a TCP healthcheck and `backend` waits on
-`condition: service_healthy`; `social/db.sql` is the one-time MySQL init (fresh volume
-only); data persists in the `mysql-data` volume and uploaded images in the `uploads`
-volume (`/app/uploads` in the backend container). Overridable env vars live in `.env`
+`condition: service_healthy`; on a fresh (empty) `mysql-data` volume the backend's
+**Flyway** run at startup builds the whole schema from
+`social/src/main/resources/db/migration/V1__baseline.sql` (the old `social/db.sql`
+init-mount was removed). Data persists in the `mysql-data` volume and uploaded images in
+the `uploads` volume (`/app/uploads` in the backend container). Overridable env vars live in `.env`
 (`*_PORT`, `MYSQL_*`, `JWT_SECRET`, `SENDGRID_*`, and `PUBLIC_API_URL`/`PUBLIC_SOCKET_URL`
 which are **baked into the frontend build** as `VITE_API_URL`/`VITE_SOCKET_URL`).
 DB export/import for infra migration: `scripts/db-export.sh` / `scripts/db-import.sh`.
@@ -323,7 +325,18 @@ uses `./mvnw install -DskipTests`. No frontend tests.
   cap is `UPLOAD_MULTIPART_MAX` (12MB); `controller/UploadExceptionHandler`
   (`@RestControllerAdvice`) turns `MaxUploadSizeExceededException` / `MultipartException` into
   the standard 503 + `statusCode:500` ResponseData body.
-- `hibernate.ddl-auto=update` — schema is auto-migrated from entities on startup.
+- **DB schema is Flyway-managed** (`flyway-core` + `flyway-mysql`, version via Spring Boot
+  3.1.7 BOM). Migrations in `social/src/main/resources/db/migration/` (`V1__baseline.sql` =
+  point-in-time dump of the prod schema, 21 tables, no data). `spring.flyway.enabled` and
+  `spring.jpa.hibernate.ddl-auto` are env-gated: defaults `FLYWAY_ENABLED=true` +
+  `DDL_AUTO=validate` (Hibernate only checks entity↔table match, never `ALTER`s). Set
+  `DDL_AUTO=update` + `FLYWAY_ENABLED=false` in `.env` to fall back to the old behaviour.
+  `baseline-on-migrate=true` + `baseline-version=1` → an existing DB (no
+  `flyway_schema_history`) is marked at V1 and V1 is **not** re-run; only V2+ apply. New
+  schema change = add `V<n>__*.sql`, never edit an applied one. `validate` is strict about
+  a mapped column/table being **missing**, lenient about extra columns, length, index/FK
+  names, nullability. NOTE: `messages` still has a legacy dead `messageImg` column next to
+  `message_img` (harmless; candidate for a future migration to drop).
 - Hibernate dialect is set inconsistently (`MySQL5Dialect` and `MySQL8Dialect` both
   appear in `application.properties`); leave as-is unless fixing that specifically.
 

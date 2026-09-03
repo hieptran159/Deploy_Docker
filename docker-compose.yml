@@ -36,9 +36,9 @@ services:
       - "${DB_PORT:-3307}:3306"
     volumes:
       - mysql-data:/var/lib/mysql
-      # Chạy 1 lần khi volume còn trống -> import schema + dữ liệu mẫu.
-      # Thay bằng bản dump của bạn để chuyển hạ tầng (xem scripts/db-import.sh).
-      - ./social/db.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      # Schema do Flyway tạo khi backend khởi động (social/src/main/resources/db/migration/).
+      # Volume rỗng -> DB rỗng -> Flyway chạy V1__baseline.sql. Muốn nạp sẵn 1 bản dump
+      # (chuyển hạ tầng) thì dùng scripts/db-import.sh sau khi container db chạy.
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
       interval: 10s

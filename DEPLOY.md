@@ -21,8 +21,13 @@ Xong. Truy cập:
 | Socket.IO | http://localhost:8082 |
 | MySQL | `localhost:3307`, db `socialapp`, user `root` |
 
-Lần chạy đầu MySQL tự nạp `social/db.sql` (schema + dữ liệu mẫu). Bảng `notifications`
-do backend tự tạo khi khởi động (`hibernate.ddl-auto=update`).
+Volume DB trống ở lần chạy đầu → backend chạy **Flyway** lúc khởi động, tạo toàn bộ
+schema từ `social/src/main/resources/db/migration/V1__baseline.sql`. Không còn nạp
+`social/db.sql` tự động và không còn `ddl-auto=update` — Hibernate chỉ `validate`
+(kiểm tra entity khớp bảng). Đổi schema về sau = thêm file `V2__*.sql`, `V3__*.sql`.
+
+Muốn nạp sẵn một bản dump có dữ liệu (chuyển hạ tầng): `./scripts/db-import.sh <file.sql>`
+sau khi container `db` đã chạy, trước khi `backend` khởi động (hoặc restart backend sau đó).
 
 Lệnh thường dùng:
 
@@ -142,10 +147,16 @@ docker compose up -d --build             # chạy nốt backend + frontend
 > Tên volume mặc định là `<tên-thư-mục>_uploads` / `<tên-thư-mục>_mysql-data`
 > (xem `docker volume ls`). Thư mục repo tên `Deploy_Docker` → `deploy_docker_uploads`.
 
-### Cách khác: thay luôn file seed
+## Thay đổi schema DB (Flyway)
 
-Muốn mọi lần `up` với volume trống đều dùng dữ liệu của bạn: ghi đè `social/db.sql`
-bằng bản dump (`./scripts/db-export.sh social/db.sql`) rồi commit.
+- Schema được version hoá trong `social/src/main/resources/db/migration/`.
+- Thêm cột/bảng: tạo `V<n>__mô_tả.sql` (n tăng dần) với câu `ALTER TABLE ...`, cập nhật
+  entity JPA tương ứng, `./mvnw test`, rồi deploy — Flyway apply lúc backend khởi động,
+  Hibernate `validate` xác nhận khớp.
+- **Không sửa** file migration đã apply. Không dùng lại `ddl-auto=update`.
+- Xem log Flyway lúc khởi động: `docker compose logs backend | grep -i flyway`.
+- Quay lui khẩn cấp: đặt `DDL_AUTO=update` và `FLYWAY_ENABLED=false` trong `.env` rồi
+  `docker compose up -d backend`.
 
 ## Lưu ý
 
