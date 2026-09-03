@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Push mới lên cùng nhánh/PR -> huỷ lần chạy cũ
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: social
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      # SocialApplicationTests (@SpringBootTest) cần MySQL sống -> loại khỏi CI.
+      # 72 unit test còn lại không nạp context/DB (xem CLAUDE.md mục Tests).
+      - name: Unit tests
+        run: sh ./mvnw -B -ntp test -Dtest='!SocialApplicationTests'
+      # Build jar đúng như Dockerfile chạy
+      - name: Package
+        run: sh ./mvnw -B -ntp -DskipTests package
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: forum_fe
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: forum_fe/package-lock.json
+      - run: npm ci
+      - run: npm run build
