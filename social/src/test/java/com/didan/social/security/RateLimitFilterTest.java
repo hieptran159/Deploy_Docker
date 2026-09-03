@@ -26,6 +26,8 @@ class RateLimitFilterTest {
         ReflectionTestUtils.setField(filter, "otpSendWindow", 900);
         ReflectionTestUtils.setField(filter, "otpCheckLimit", 3);
         ReflectionTestUtils.setField(filter, "otpCheckWindow", 600);
+        ReflectionTestUtils.setField(filter, "reportLimit", 3);
+        ReflectionTestUtils.setField(filter, "reportWindow", 3600);
         ReflectionTestUtils.setField(filter, "defaultLimit", 3);
         ReflectionTestUtils.setField(filter, "defaultWindow", 300);
     }
@@ -97,6 +99,18 @@ class RateLimitFilterTest {
         MockHttpServletRequest ok = post("/auth/signin", "127.0.0.1");
         ok.addHeader("X-Real-IP", "8.8.8.8");
         assertEquals(200, call(ok));
+    }
+
+    @Test
+    void limitsReportCreateNotAdminRoutes() throws Exception {
+        for (int i = 1; i <= 3; i++) {
+            assertEquals(200, call(post("/report", "6.6.6.6")), "report " + i + " phải qua");
+        }
+        assertEquals(429, call(post("/report", "6.6.6.6")));
+        // route admin của report (đã admin-gate ở service) KHÔNG bị bộ lọc này chặn
+        assertEquals(200, call(post("/report/admin/x/remove-target", "6.6.6.6")));
+        // bucket riêng với signin
+        assertEquals(200, call(post("/auth/signin", "6.6.6.6")));
     }
 
     @Test

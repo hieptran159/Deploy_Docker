@@ -310,10 +310,11 @@ uses `./mvnw install -DskipTests`. No frontend tests.
   `application/json;charset=UTF-8` (Spring 6 drops the charset by default). The feed `PostDTO`
   carries `authorName`/`authorAvatar` so `Post.vue` cards don't call `/user/{id}` per row.
 - `security/RateLimitFilter` (plain servlet filter, order `HIGHEST_PRECEDENCE+5`, runs
-  before the JWT filter) throttles POST/PATCH on `/auth/**` per client IP with in-memory
-  fixed-window counters (single-instance deploy). Buckets: `signin` 20/5min, `signup`
-  6/hr, `otp-send` (`resend-verify`+`token-reset`) 5/15min, `otp-check` (`verify`+`reset`+`2fa/verify`)
-  20/10min, `default` 40/5min. Over limit → HTTP **429** + `Retry-After` header, body
+  before the JWT filter) throttles POST/PATCH on `/auth/**` and **POST `/report`** per
+  client IP with in-memory fixed-window counters (single-instance deploy). Buckets:
+  `signin` 20/5min, `signup` 6/hr, `otp-send` (`resend-verify`+`token-reset`) 5/15min,
+  `otp-check` (`verify`+`reset`+`2fa/verify`) 20/10min, `report` (exact `/report`, not the
+  admin routes) 10/hr, `default` 40/5min. Over limit → HTTP **429** + `Retry-After` header, body
   `{success:false,statusCode:429,description:"Bạn thao tác quá nhanh..."}` (surfaces via
   the FE's `e?.description`). Client IP from `X-Forwarded-For`/`X-Real-IP` then
   `getRemoteAddr`. Tunable via `app.ratelimit.*` props / `RATELIMIT_*` env
@@ -448,12 +449,12 @@ uses `./mvnw install -DskipTests`. No frontend tests.
   endpoints are gated **in the service layer** (`AdminServiceImpl.authAdmin`,
   `ReportServiceImpl.requireAdmin`), not by a Spring `hasRole` — the JWT principal carries
   no authorities. Chat reads/writes check participant membership; post/comment edits check
-  authorship. Report auto-hide needs 3 distinct reporter accounts (signup is rate-limited).
+  authorship. Report auto-hide needs 3 distinct reporter accounts (signup is rate-limited;
+  `POST /report` is IP-rate-limited too — `report` bucket, 10/hr).
 - `deletePost` requires the author (via `UserPostRepository`) or `isAdmin == 1` — was an
   unauthenticated-delete IDOR before. `RateLimitFilter` keys on `request.getRemoteAddr()` by
   default; set `app.ratelimit.trust-forwarded=true` (`RATELIMIT_TRUST_FORWARDED`) only behind
   a proxy — otherwise `X-Forwarded-For` spoofing bypasses every per-IP limit. `login` runs a
   dummy bcrypt when the email is missing so timing can't enumerate users.
 - Known residual risks (not fixed): committed DB password default, min password length 5,
-  `GET /user/{id}` exposes email to any logged-in user (by design — profile shows it),
-  `POST /report` is not rate-limited.
+  `GET /user/{id}` exposes email to any logged-in user (by design — profile shows it).

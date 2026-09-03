@@ -82,6 +82,7 @@ services:
       RATELIMIT_SIGNUP: ${RATELIMIT_SIGNUP:-6}
       RATELIMIT_OTP_SEND: ${RATELIMIT_OTP_SEND:-5}
       RATELIMIT_OTP_CHECK: ${RATELIMIT_OTP_CHECK:-20}
+      RATELIMIT_REPORT: ${RATELIMIT_REPORT:-10}
       # Chỉ true khi có nginx/Cloudflare tin cậy đặt X-Forwarded-For. Backend lộ trực tiếp -> để false.
       RATELIMIT_TRUST_FORWARDED: ${RATELIMIT_TRUST_FORWARDED:-false}
       # Ảnh upload: chặn kích thước + tự thu nhỏ/nén (có mặc định)

@@ -18,9 +18,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Chặn dội request (brute-force mật khẩu, spam gửi OTP) ở các route công khai /auth/**.
- * Bộ đếm cửa sổ cố định, lưu trong bộ nhớ (backend chạy 1 instance). Khóa theo IP client.
- * Vượt ngưỡng -> HTTP 429 + header Retry-After, body giữ đúng dạng ResponseData.
+ * Chặn dội request (brute-force mật khẩu, spam gửi OTP, spam báo cáo) ở các route
+ * /auth/** và POST /report. Bộ đếm cửa sổ cố định, lưu trong bộ nhớ (backend chạy 1
+ * instance). Khóa theo IP client. Vượt ngưỡng -> HTTP 429 + header Retry-After, body
+ * giữ đúng dạng ResponseData.
  */
 @Component
 public class RateLimitFilter extends OncePerRequestFilter implements Ordered {
@@ -39,6 +40,8 @@ public class RateLimitFilter extends OncePerRequestFilter implements Ordered {
     @Value("${app.ratelimit.otp-send-window:900}") private int otpSendWindow;
     @Value("${app.ratelimit.otp-check:20}")      private int otpCheckLimit;
     @Value("${app.ratelimit.otp-check-window:600}") private int otpCheckWindow;
+    @Value("${app.ratelimit.report:10}")         private int reportLimit;
+    @Value("${app.ratelimit.report-window:3600}") private int reportWindow;
     @Value("${app.ratelimit.default:40}")        private int defaultLimit;
     @Value("${app.ratelimit.default-window:300}") private int defaultWindow;
     // Chỉ tin X-Forwarded-For / X-Real-IP khi CHẮC CHẮN có reverse proxy tin cậy phía trước
@@ -59,7 +62,9 @@ public class RateLimitFilter extends OncePerRequestFilter implements Ordered {
         String m = request.getMethod();
         if (!"POST".equalsIgnoreCase(m) && !"PATCH".equalsIgnoreCase(m)) return true;
         String p = request.getRequestURI();
-        return p == null || !p.startsWith("/auth/");
+        if (p == null) return true;
+        // /report/admin/** đã được admin-gate ở service -> không tính vào đây
+        return !p.startsWith("/auth/") && !p.equals("/report");
     }
 
     @Override
@@ -77,6 +82,8 @@ public class RateLimitFilter extends OncePerRequestFilter implements Ordered {
         } else if (path.startsWith("/auth/verify") || path.startsWith("/auth/reset")
                 || path.startsWith("/auth/2fa/verify")) {
             bucket = "otp-check"; limit = otpCheckLimit; windowSec = otpCheckWindow;
+        } else if (path.equals("/report")) {
+            bucket = "report"; limit = reportLimit; windowSec = reportWindow;
         } else {
             bucket = "default"; limit = defaultLimit; windowSec = defaultWindow;
         }
@@ -121,7 +128,7 @@ public class RateLimitFilter extends OncePerRequestFilter implements Ordered {
         if (sinceSweep.incrementAndGet() < 500) return;
         sinceSweep.set(0);
         long maxWindow = Math.max(defaultWindow, Math.max(signinWindow, Math.max(signupWindow,
-                Math.max(otpSendWindow, otpCheckWindow)))) * 1000L;
+                Math.max(otpSendWindow, Math.max(otpCheckWindow, reportWindow))))) * 1000L;
         buckets.entrySet().removeIf(e -> now - e.getValue().start > maxWindow);
     }
 
