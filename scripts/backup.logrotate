@@ -1,0 +1,11 @@
+# Xoay vòng log của cron backup.
+# Cài:  sudo cp scripts/backup.logrotate /etc/logrotate.d/forum-backup
+/home/hp/backup.log {
+    monthly
+    rotate 6
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+}

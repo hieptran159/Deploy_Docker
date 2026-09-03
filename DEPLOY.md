@@ -116,6 +116,34 @@ Rồi `docker compose up -d --build` (hoặc `npm run build` nếu chạy FE ngo
   Nhưng phải viết lại block `location /api` trong `nginx.conf` (bản hiện tại trỏ vào trang
   tài liệu, không phải API thật) + thêm header `Upgrade`/`Connection` cho socket.
 
+## Sao lưu định kỳ (cron)
+
+`scripts/backup.sh` dump database + nén volume `uploads` vào `backup/`, giữ 14 ngày gần
+nhất (tự dọn bản cũ). Không phụ thuộc `.env`.
+
+```bash
+chmod +x scripts/backup.sh
+( crontab -l 2>/dev/null; \
+  echo '30 3 * * * /home/hp/Deploy_Docker/scripts/backup.sh >> /home/hp/backup.log 2>&1' \
+) | crontab -
+sudo cp scripts/backup.logrotate /etc/logrotate.d/forum-backup
+./scripts/backup.sh          # chạy thử ngay 1 lần
+```
+
+Ra `backup/db-<ts>.sql.gz` + `backup/uploads-<ts>.tar.gz`. Tuỳ chỉnh:
+`BACKUP_KEEP_DAYS` (số ngày giữ), `UPLOADS_VOLUME` (tên volume nếu không tự dò được),
+`BACKUP_RSYNC_DEST` (đặt = đích rsync để đẩy bản sao **ra ngoài máy** — nên có, backup
+nằm cùng đĩa với DB thì mất đĩa là mất cả hai).
+
+**Khôi phục:**
+```bash
+gunzip -c backup/db-<ts>.sql.gz > /tmp/restore.sql
+./scripts/db-import.sh /tmp/restore.sql && rm /tmp/restore.sql
+docker run --rm -v deploy_docker_uploads:/data -v "$PWD/backup":/in alpine \
+  sh -c 'cd /data && tar xzf /in/uploads-<ts>.tar.gz'
+docker compose restart backend
+```
+
 ## Chuyển dữ liệu sang hạ tầng mới
 
 **Máy cũ** — xuất database ra 1 file:

@@ -102,5 +102,6 @@ Hướng dẫn chi tiết (biến môi trường, SendGrid, Cloudflare Tunnel, m
 | `docker-compose.yml` | Điểm khởi chạy duy nhất được hỗ trợ |
 | `.env.example` | Mẫu biến môi trường |
 | `scripts/db-export.sh`, `scripts/db-import.sh` | Xuất / nhập DB khi chuyển hạ tầng |
+| `scripts/backup.sh` | Sao lưu định kỳ (DB + volume uploads), giữ 14 ngày — cắm vào cron |
 | `scripts/backfill-hashtags.sh` | Quét hashtag cho bài viết cũ (chạy 1 lần khi bật tính năng) |
 | `socialdata.sql`, `social/db.sql`, `social/db1.sql` | Dump / seed dữ liệu |

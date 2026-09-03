@@ -40,6 +40,11 @@ the `uploads` volume (`/app/uploads` in the backend container). Overridable env 
 (`*_PORT`, `MYSQL_*`, `JWT_SECRET`, `SENDGRID_*`, and `PUBLIC_API_URL`/`PUBLIC_SOCKET_URL`
 which are **baked into the frontend build** as `VITE_API_URL`/`VITE_SOCKET_URL`).
 DB export/import for infra migration: `scripts/db-export.sh` / `scripts/db-import.sh`.
+`scripts/backup.sh` (+ `scripts/backup.logrotate`) is the cron-driven periodic backup:
+gzipped `mysqldump` + `tar` of the `uploads` volume into `backup/` (gitignored), prunes to
+`BACKUP_KEEP_DAYS` (14); self-contained (reads `MYSQL_*` inside the `db` container, no
+`.env` sourcing); optional `BACKUP_RSYNC_DEST` for offsite. Not wired to cron in the repo —
+install per `DEPLOY.md`.
 `scripts/backfill-hashtags.sh` is a one-off to index `#tags` in pre-existing posts (see
 the Hashtags note under backend architecture).
 
