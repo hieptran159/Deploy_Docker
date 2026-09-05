@@ -2,7 +2,7 @@
     <header class="app-header">
         <div class="app-header__inner">
             <span class="app-brand" @click="goHomeReload">
-                <span class="app-brand__mark">HIPDN-EA</span>Diễn&nbsp;đàn
+                <span class="app-brand__mark">HIPDN-EA</span><span class="app-brand__word">Diễn&nbsp;đàn</span>
             </span>
 
             <nav v-if="isLogin" class="hdr-tabs min-w-0" aria-label="Điều hướng chính">

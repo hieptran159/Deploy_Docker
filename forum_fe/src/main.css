@@ -495,12 +495,30 @@ h1, h2, h3, h4 {
     border-bottom: var(--line-w) solid var(--ink-deep);
 }
 .app-header__inner {
-    max-width: 1120px;
+    /* Rộng hơn .page--wide (1120) vì thanh này phải chứa thêm tab "Quản trị"
+       của admin. Ở 1120 thì 5 tab + logo + nhóm nút vừa đúng 1088px = hết chỗ,
+       nên nhóm nút bị đẩy xuống hàng hai và header cao gấp đôi. */
+    max-width: 1240px;
     margin: 0 auto;
     padding: 10px 16px;
     display: flex;
     align-items: center;
     gap: 14px;
+    /* Điểm ngắt của thanh này phụ thuộc CHÍNH NÓ chứ không phải viewport (nó bị
+       max-width chặn), nên dùng container query thay vì media query. */
+    container-type: inline-size;
+}
+
+/* Cụm avatar + cài đặt + đăng xuất không bao giờ được tự xuống hàng: chính nó
+   xuống hàng là thứ làm header admin bị lệch. */
+.app-header .row-actions { flex-wrap: nowrap; }
+
+/* Tên dài không được phép đẩy vỡ thanh header */
+.hdr-user > span {
+    max-width: 16ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 /* Logo: khối vàng nghệ đóng dấu lên thanh mực — chỗ duy nhất dùng chữ hoa */
@@ -525,36 +543,6 @@ h1, h2, h3, h4 {
     letter-spacing: .04em;
 }
 
-/* Điện thoại: brand + các nút giữ một hàng, dải tab xuống hàng riêng full-width
-   và cuộn ngang được — thay vì để mọi thứ tự xuống dòng lộn xộn. */
-@media (max-width: 720px) {
-    .app-header__inner {
-        flex-wrap: wrap;
-        gap: 6px 10px;
-        padding: 8px 12px;
-    }
-    .app-brand { font-size: var(--fs-base); }
-    .app-brand__mark { font-size: var(--fs-sm); padding: 2px 6px; }
-    .hdr-tabs {
-        order: 10;
-        width: 100%;
-        overflow-x: auto;
-        scrollbar-width: none;
-    }
-    .hdr-tabs::-webkit-scrollbar { display: none; }
-    /* Thu nhỏ các nút để brand + toàn bộ icon nằm gọn MỘT hàng; header sticky
-       trên điện thoại mà chiếm 3 hàng thì ăn hết màn hình. */
-    /* Ô đệm flex-1 giãn hết chỗ trống của hàng 1 rồi đẩy nhóm avatar xuống hàng 2.
-       Bỏ nó đi, dùng auto-margin — auto-margin chỉ hút chỗ thừa SAU khi đã xuống
-       hàng nên không gây wrap. */
-    .app-header__inner > .flex-1 { display: none; }
-    .app-header__inner > .flex-1 + * { margin-left: auto; }
-    .app-header .row-actions { flex-wrap: nowrap; gap: 2px; }
-    .hdr-icon { width: 32px; height: 32px; }
-    .app-header .dx-button { min-width: 32px; padding: 0; }
-    .app-header .dx-button .dx-button-content { padding: 6px; }
-    .notif-tray { width: calc(100vw - 24px); right: -8px; }
-}
 
 .app-header .muted { color: rgba(255, 255, 255, .66); }
 .app-header .link { color: var(--turmeric); }
@@ -664,6 +652,44 @@ h1, h2, h3, h4 {
     text-align: center;
     border: 2px solid var(--stroke);
     font-variant-numeric: tabular-nums;
+}
+
+/* Điện thoại: brand + các nút giữ một hàng, dải tab xuống hàng riêng full-width
+   và cuộn ngang được — thay vì để mọi thứ tự xuống dòng lộn xộn. */
+@media (max-width: 720px) {
+    .app-header__inner {
+        flex-wrap: wrap;
+        gap: 6px 10px;
+        padding: 8px 12px;
+    }
+    .app-brand { font-size: var(--fs-base); }
+    .app-brand__mark { font-size: var(--fs-sm); padding: 2px 6px; }
+    .hdr-tabs {
+        order: 10;
+        width: 100%;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+    .hdr-tabs::-webkit-scrollbar { display: none; }
+    /* Thu nhỏ các nút để brand + toàn bộ icon nằm gọn MỘT hàng; header sticky
+       trên điện thoại mà chiếm 3 hàng thì ăn hết màn hình. */
+    /* Ô đệm flex-1 giãn hết chỗ trống của hàng 1 rồi đẩy nhóm avatar xuống hàng 2.
+       Bỏ nó đi, dùng auto-margin — auto-margin chỉ hút chỗ thừa SAU khi đã xuống
+       hàng nên không gây wrap. */
+    .app-header__inner > .flex-1 { display: none; }
+    .app-header__inner > .flex-1 + * { margin-left: auto; }
+    .app-header .row-actions { flex-wrap: nowrap; gap: 2px; }
+    .hdr-icon { width: 32px; height: 32px; }
+    .app-header .dx-button { min-width: 32px; padding: 0; }
+    .app-header .dx-button .dx-button-content { padding: 6px; }
+    .notif-tray { width: calc(100vw - 24px); right: -8px; }
+}
+
+/* Màn rất hẹp: bỏ chữ "Diễn đàn", giữ khối "HIPDN-EA" vì khối vàng đó mới là
+   dấu nhận diện. Không làm vậy thì hàng đầu thiếu đúng 14px và nhóm avatar bị
+   đẩy xuống hàng thứ ba, header ăn mất 18% chiều cao màn hình. */
+@media (max-width: 480px) {
+    .app-brand__word { display: none; }
 }
 
 /* ============================ FOOTER ============================ */
@@ -868,7 +894,10 @@ h1, h2, h3, h4 {
 .hdr-tab.is-on { background: var(--turmeric); color: var(--ink); font-weight: 700; }
 
 /* Chỗ hẹp thì bỏ chữ, giữ icon — nút vẫn bấm được, chữ không bị cắt ngang */
-@media (max-width: 1180px) {
+/* Hẹp thì bỏ chữ, giữ icon (title vẫn còn nên vẫn biết là tab gì).
+   Đo theo CONTAINER: trước đây đo theo viewport nên ở màn 1536px rule này không
+   bao giờ chạy, dù thanh header thực tế chỉ rộng 1120px và đã tràn. */
+@container (max-width: 1150px) {
     .hdr-tab__text { display: none; }
     .hdr-tab { padding: 7px 10px; }
 }
