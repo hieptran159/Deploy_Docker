@@ -51,6 +51,9 @@ public class JwtUtils {
     private long accessExpirationMs;
     @Value("${jwt.refresh-expiration-ms:2592000000}") // mặc định 30 ngày
     private long refreshExpirationMs;
+
+    /** Hạn của refresh token dài nhất — dùng để dọn phiên đã quá hạn. */
+    public long getRefreshExpirationMs() { return refreshExpirationMs; }
     // Phiên KHÔNG "ghi nhớ đăng nhập": token ngắn -> refresh token (30') trượt theo hoạt động,
     // ngồi im quá 30' là hết phiên. access token (15') buộc gọi /auth/refresh để gia hạn.
     @Value("${jwt.short-access-expiration-ms:900000}")   // 15 phút

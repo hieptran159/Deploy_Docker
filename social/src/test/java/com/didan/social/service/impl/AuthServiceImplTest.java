@@ -7,6 +7,8 @@ import com.didan.social.repository.UserRepository;
 import com.didan.social.service.AuthorizePathService;
 import com.didan.social.service.FileUploadsService;
 import com.didan.social.service.MailService;
+import com.didan.social.service.SessionService;
+import com.didan.social.repository.UserSessionRepository;
 import com.didan.social.utils.JwtUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,6 +38,8 @@ class AuthServiceImplTest {
     @Mock MailService mailService;
     @Mock AuthorizePathService authorizePathService;
     @Mock JwtUtils jwtUtils;
+    @Mock UserSessionRepository userSessionRepository;
+    @Mock SessionService sessionService;
 
     AuthServiceImpl svc;
     static final String EMAIL = "u@example.com";
@@ -43,11 +47,14 @@ class AuthServiceImplTest {
     @BeforeEach
     void setUp() {
         svc = new AuthServiceImpl(userRepository, passwordEncoder, blacklistRepository, fileUploadsService,
-                jwtUtils, mailService, authorizePathService, blacklistUserRepository);
+                jwtUtils, mailService, authorizePathService, blacklistUserRepository,
+                userSessionRepository, sessionService);
         when(jwtUtils.generateAccessToken(anyString())).thenReturn("AT");
         when(jwtUtils.generateRefreshToken(anyString())).thenReturn("RT");
         when(jwtUtils.generateAccessToken(anyString(), anyBoolean())).thenReturn("AT");
         when(jwtUtils.generateRefreshToken(anyString(), anyBoolean())).thenReturn("RT");
+        // Mỗi lần đăng nhập là MỘT phiên mới, không đụng phiên cũ
+        when(sessionService.openSession(anyString(), anyBoolean())).thenReturn(new String[]{"AT", "RT"});
     }
 
     private Users user(Integer twofa) {
@@ -72,7 +79,11 @@ class AuthServiceImplTest {
         assertFalse(out.isTwofaRequired());
         assertEquals("AT", out.getAccessToken());
         assertEquals("RT", out.getPlainRefreshToken());
-        assertEquals(com.didan.social.utils.JwtUtils.sha256Hex("RT"), out.getRefreshToken());
+        // Đăng nhập KHÔNG được đụng tới phiên nào đang có: không chặn token cũ,
+        // chỉ mở thêm một phiên. Đây chính là lỗi "đăng nhập máy 2 đá máy 1".
+        verify(sessionService).openSession("u-1", true);
+        verify(sessionService, never()).revokeAllSessions(anyString());
+        verify(blacklistRepository, never()).save(any());
     }
 
     @Test
@@ -130,7 +141,7 @@ class AuthServiceImplTest {
 
         assertEquals("AT", out.getAccessToken());
         assertEquals("RT", out.getPlainRefreshToken());
-        assertEquals(com.didan.social.utils.JwtUtils.sha256Hex("RT"), out.getRefreshToken());
+        verify(sessionService).openSession("u-1", true);
         assertNull(u.getTwofaCode());
         assertNull(u.getTwofaExpires());
         verify(userRepository).save(u);

@@ -16,4 +16,8 @@ public class BlacklistToken {
     public BlacklistToken(String token) {
         this.token = token;
     }
+
+    public String getToken() {
+        return token;
+    }
 }

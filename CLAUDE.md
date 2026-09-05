@@ -276,6 +276,24 @@ frontend tests.
   validates the bearer token and sets the Spring `Authentication` principal to the
   **userId string**. Retrieve the current user with
   `AuthorizePathService.getUserIdAuthoried()`.
+- **Sessions are per-device** (`entity/UserSessions`, table `user_sessions`, Flyway `V4`).
+  One row per logged-in device: `refresh_hash` (SHA-256, never the raw token),
+  `access_token` (kept only so a ban can revoke it — access JWTs are stateless),
+  `remember`, `created_at`, `last_used_at`. `service/SessionService` owns all of it —
+  `openSession` (login/2FA/verify), `closeSession` (logout: revokes **only** the calling
+  device, identified by the raw token that `JwtAuthenticationFilter` now puts in the
+  Authentication *credentials*), `revokeAllSessions` (ban / deactivate / delete account).
+  `openSession` also prunes that user's rows older than the refresh TTL.
+  **Before this, `users.access_token` + `users.refresh_token` were single slots**, so
+  logging in on a second device blacklisted the first device's token and overwrote the
+  refresh hash — the second login kicked the first out, and it could not even recover via
+  `/auth/refresh`. Logout had the mirror bug (device A's logout blacklisted device B's
+  token). Those two columns are now `@Transient` on `Users` (in-memory carriers to the
+  controller only); V4 copies live sessions across so **nobody is logged out by the deploy**
+  and deliberately does not drop the columns yet.
+  `refreshAccess` rotates within one session row and deliberately does **not** blacklist the
+  old access token — the client only refreshes after a 401, and blacklisting it would kick
+  out other tabs on the same device.
 - Refresh tokens: `JwtUtils.generateRefreshToken` mints a long-lived JWT (`jwt.refresh-expiration-ms`,
   default 30d) with a `typ=refresh` claim; `generateAccessToken` uses `jwt.access-expiration-ms`
   (default 1d). `validateAccessToken` now rejects a `typ=refresh` token and `validateRefreshToken`

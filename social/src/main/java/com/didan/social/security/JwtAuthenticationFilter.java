@@ -38,7 +38,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 String userId = jwtUtils.getUserIdFromAccessToken(accessToken);
 //                Users user = userRepository.findFirstByEmail(userId);
 //                if (user != null){
-                    UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken = new UsernamePasswordAuthenticationToken(userId, null, new ArrayList<>());
+                    // credentials = token gốc của request này. Đăng xuất cần nó để
+                    // chỉ thu hồi phiên của đúng thiết bị đang gọi, thay vì lấy
+                    // token dùng chung trong DB (trước đây đá luôn thiết bị khác).
+                    UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken = new UsernamePasswordAuthenticationToken(userId, accessToken, new ArrayList<>());
                     SecurityContext securityContext = SecurityContextHolder.getContext();
                     securityContext.setAuthentication(usernamePasswordAuthenticationToken);
 //                }

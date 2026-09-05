@@ -37,11 +37,14 @@ public class Users {
     @Column(name = "reset_password_token", nullable = true, length = 255)
     private String resetToken;
 
-    @Column(name = "access_token", nullable = true, length = 255)
+    // Access/refresh token KHÔNG còn lưu trên hàng users nữa — mỗi thiết bị là một
+    // hàng trong user_sessions (xem V4__user_sessions.sql). Hai ô dùng chung trước
+    // đây chính là lý do đăng nhập máy thứ hai đá máy thứ nhất ra.
+    // Giữ lại làm biến tạm để chuyển token vừa cấp ra controller trong 1 request.
+    @Transient
     private String accessToken;
 
-    // SHA-256 (hex) của refresh token hiện hành. Đối chiếu 1-1 -> thu hồi tức thì khi đăng nhập lại / đăng xuất.
-    @Column(name = "refresh_token", nullable = true, length = 512)
+    @Transient
     private String refreshToken;
 
     // Refresh token dạng gốc, CHỈ để trả về client trong 1 request (không lưu DB).

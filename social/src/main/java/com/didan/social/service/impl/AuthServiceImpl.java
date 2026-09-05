@@ -8,10 +8,13 @@ import com.didan.social.payload.request.SignupRequest;
 import com.didan.social.repository.BlacklistRepository;
 import com.didan.social.repository.BlacklistUserRepository;
 import com.didan.social.repository.UserRepository;
+import com.didan.social.repository.UserSessionRepository;
+import com.didan.social.entity.UserSessions;
 import com.didan.social.service.AuthService;
 import com.didan.social.service.AuthorizePathService;
 import com.didan.social.service.FileUploadsService;
 import com.didan.social.service.MailService;
+import com.didan.social.service.SessionService;
 import com.didan.social.utils.JwtUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,6 +43,8 @@ public class AuthServiceImpl implements AuthService {
     private final MailService mailService;
     private final AuthorizePathService authorizePathService;
     private final JwtUtils jwtUtils;
+    private final UserSessionRepository userSessionRepository;
+    private final SessionService sessionService;
     @Autowired
     public AuthServiceImpl(UserRepository userRepository,
                            PasswordEncoder passwordEncoder,
@@ -48,8 +53,12 @@ public class AuthServiceImpl implements AuthService {
                            JwtUtils jwtUtils,
                            MailService mailService,
                            AuthorizePathService authorizePathService,
-                           BlacklistUserRepository blacklistUserRepository
+                           BlacklistUserRepository blacklistUserRepository,
+                           UserSessionRepository userSessionRepository,
+                           SessionService sessionService
     ){
+        this.userSessionRepository = userSessionRepository;
+        this.sessionService = sessionService;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authorizePathService = authorizePathService;
@@ -60,15 +69,15 @@ public class AuthServiceImpl implements AuthService {
         this.jwtUtils = jwtUtils;
     }
 
-    // Cấp refresh token mới: lưu SHA-256 vào DB, giữ bản gốc ở trường transient để trả client.
-    private void issueRefreshToken(Users user) {
-        issueRefreshToken(user, true);
-    }
-
-    private void issueRefreshToken(Users user, boolean remember) {
-        String raw = jwtUtils.generateRefreshToken(user.getUserId(), remember);
-        user.setRefreshToken(JwtUtils.sha256Hex(raw));
-        user.setPlainRefreshToken(raw);
+    /**
+     * Mở một PHIÊN MỚI cho thiết bị vừa đăng nhập và gắn cặp token vào đối tượng
+     * Users để controller trả về. KHÔNG đụng tới phiên của thiết bị khác — đây
+     * chính là điểm khác so với bản cũ (một ô token dùng chung cho cả tài khoản).
+     */
+    private void openSession(Users user, boolean remember) {
+        String[] pair = sessionService.openSession(user.getUserId(), remember);
+        user.setAccessToken(pair[0]);
+        user.setPlainRefreshToken(pair[1]);
     }
 
     @Override
@@ -89,10 +98,6 @@ public class AuthServiceImpl implements AuthService {
             if (user.getEmailVerified() != null && user.getEmailVerified() == 0) {
                 logger.error("Email not verified");
                 throw new Exception("Email chưa được xác thực. Vui lòng nhập mã đã gửi tới hộp thư của bạn.");
-            }
-            if (StringUtils.hasText(user.getAccessToken())){
-                BlacklistToken blacklistToken = new BlacklistToken(user.getAccessToken());
-                blacklistRepository.save(blacklistToken);
             }
             // Đăng nhập lại = tự kích hoạt tài khoản đã vô hiệu hoá tạm thời
             if (user.getDeactivated() != null && user.getDeactivated() == 1) {
@@ -120,9 +125,8 @@ public class AuthServiceImpl implements AuthService {
                 user.setTwofaRequired(true);
                 return user;
             }
-            user.setAccessToken(jwtUtils.generateAccessToken(user.getUserId(), remember));
-            issueRefreshToken(user, remember);
             userRepository.save(user);
+            openSession(user, remember);
             return user;
         }
         else {
@@ -195,16 +199,14 @@ public class AuthServiceImpl implements AuthService {
             logger.error("User is not existed");
             throw new Exception("User is not existed");
         }
-        if(StringUtils.hasText(user.getAccessToken())){
-            BlacklistToken blacklistToken = new BlacklistToken(user.getAccessToken());
-            blacklistRepository.save(blacklistToken);
-        } else{
-            logger.error("Server error");
+        // Chỉ thu hồi phiên của CHÍNH thiết bị đang gọi. Trước đây lấy token từ ô
+        // dùng chung trên hàng users nên đăng xuất ở máy này đá luôn máy khác.
+        String token = authorizePathService.getAccessTokenAuthoried();
+        if (!StringUtils.hasText(token)) {
+            logger.error("Logout: khong doc duoc access token cua request");
             throw new Exception("Server error");
         }
-        // Thu hồi refresh token: xóa hash khỏi hồ sơ -> mọi refresh token cũ hết hiệu lực
-        user.setRefreshToken(null);
-        userRepository.save(user);
+        sessionService.closeSession(token);
     }
 
     @Override
@@ -214,18 +216,29 @@ public class AuthServiceImpl implements AuthService {
         String userId = jwtUtils.getUserIdFromAccessToken(refreshToken);
         Users user = userRepository.findFirstByUserId(userId);
         if (user == null) throw new Exception("Người dùng không tồn tại");
-        // Đối chiếu 1-1 bằng HASH: chỉ refresh token đang lưu trên hồ sơ mới hợp lệ
-        if (!JwtUtils.sha256Hex(refreshToken).equals(user.getRefreshToken()))
+        // Đối chiếu theo PHIÊN: mỗi thiết bị một hàng, nên refresh ở máy này không
+        // làm hỏng token của máy khác.
+        UserSessions session = userSessionRepository.findFirstByRefreshHash(JwtUtils.sha256Hex(refreshToken));
+        if (session == null || !userId.equals(session.getUserId()))
             throw new Exception("Refresh token không hợp lệ");
         BlacklistUser blacklistUser = blacklistUserRepository.findByUserId(userId);
         if (blacklistUser != null && "blocked".equals(blacklistUser.getStatus())) throw new Exception("Tài khoản đã bị khóa");
         // Giữ nguyên loại phiên (ghi nhớ / tạm) khi xoay vòng token
         boolean remember = jwtUtils.isRememberRefreshToken(refreshToken);
-        // Xoay vòng: chặn token gốc vừa dùng + cấp cặp token mới
-        blacklistRepository.save(new BlacklistToken(refreshToken));
-        user.setAccessToken(jwtUtils.generateAccessToken(userId, remember));
-        issueRefreshToken(user, remember);
-        userRepository.save(user);
+        // Xoay vòng TRONG phiên đó: chặn refresh token vừa dùng rồi ghi cặp mới vào
+        // cùng hàng. CỐ Ý không chặn access token cũ: client chỉ gọi refresh khi
+        // access token đã bị từ chối (hết hạn), nên chặn thêm chẳng được gì mà lại
+        // đá các tab khác của cùng thiết bị đang dùng dở token đó ra.
+        try { blacklistRepository.save(new BlacklistToken(refreshToken)); } catch (Exception ignore) { }
+        String access = jwtUtils.generateAccessToken(userId, remember);
+        String newRefresh = jwtUtils.generateRefreshToken(userId, remember);
+        session.setAccessToken(access);
+        session.setRefreshHash(JwtUtils.sha256Hex(newRefresh));
+        session.setRemember(remember ? 1 : 0);
+        session.setLastUsedAt(new Date());
+        userSessionRepository.save(session);
+        user.setAccessToken(access);
+        user.setPlainRefreshToken(newRefresh);
         return user;
     }
 
@@ -248,12 +261,8 @@ public class AuthServiceImpl implements AuthService {
         if (user.getDeactivated() != null && user.getDeactivated() == 1) {
             user.setDeactivated(0);
         }
-        if (StringUtils.hasText(user.getAccessToken())) {
-            blacklistRepository.save(new BlacklistToken(user.getAccessToken()));
-        }
-        user.setAccessToken(jwtUtils.generateAccessToken(user.getUserId(), remember));
-        issueRefreshToken(user, remember);
         userRepository.save(user);
+        openSession(user, remember);
         return user;
     }
 
@@ -357,12 +366,8 @@ public class AuthServiceImpl implements AuthService {
             user.setEmailVerified(1);
             user.setVerifyCode(null);
         }
-        if (StringUtils.hasText(user.getAccessToken())) {
-            blacklistRepository.save(new BlacklistToken(user.getAccessToken()));
-        }
-        user.setAccessToken(jwtUtils.generateAccessToken(user.getUserId()));
-        issueRefreshToken(user);
         userRepository.save(user);
+        openSession(user, true);
         return user;
     }
 

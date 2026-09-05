@@ -37,6 +37,7 @@ public class UserServiceImpl extends ConvertDTO implements UserService {
     private final com.didan.social.repository.BlacklistRepository blacklistRepository;
     private final com.didan.social.socket.RealtimeGateway realtimeGateway;
     private final com.didan.social.service.FollowService followService;
+    private final com.didan.social.service.SessionService sessionService;
     @Autowired
     public UserServiceImpl(UserRepository userRepository,
                            AuthorizePathService authorizePathService,
@@ -47,8 +48,10 @@ public class UserServiceImpl extends ConvertDTO implements UserService {
                            com.didan.social.repository.CommentRepository commentRepository,
                            com.didan.social.repository.BlacklistRepository blacklistRepository,
                            com.didan.social.socket.RealtimeGateway realtimeGateway,
-                           com.didan.social.service.FollowService followService
+                           com.didan.social.service.FollowService followService,
+                           com.didan.social.service.SessionService sessionService
     ){
+        this.sessionService = sessionService;
         this.userRepository = userRepository;
         this.authorizePathService = authorizePathService;
         this.passwordEncoder = passwordEncoder;
@@ -282,10 +285,8 @@ public class UserServiceImpl extends ConvertDTO implements UserService {
         }
         me.setDeactivated(1);
         userRepository.save(me);
-        // chặn token đang dùng -> đăng xuất ngay; đăng nhập lại sẽ tự kích hoạt
-        if (org.springframework.util.StringUtils.hasText(me.getAccessToken())) {
-            try { blacklistRepository.save(new com.didan.social.entity.BlacklistToken(me.getAccessToken())); } catch (Exception ignore) { }
-        }
+        // Thu hồi mọi phiên -> đăng xuất trên TẤT CẢ thiết bị; đăng nhập lại sẽ tự kích hoạt
+        sessionService.revokeAllSessions(me.getUserId());
         return true;
     }
 
@@ -336,10 +337,8 @@ public class UserServiceImpl extends ConvertDTO implements UserService {
             postRepository.delete(p);
         }
 
-        // 2) chặn token đang dùng
-        if (org.springframework.util.StringUtils.hasText(me.getAccessToken())) {
-            try { blacklistRepository.save(new com.didan.social.entity.BlacklistToken(me.getAccessToken())); } catch (Exception ignore) { }
-        }
+        // 2) thu hồi mọi phiên trên mọi thiết bị
+        sessionService.revokeAllSessions(me.getUserId());
         // 3) xoá avatar
         if (org.springframework.util.StringUtils.hasText(me.getAvtUrl())) {
             try { fileUploadsService.deleteFile(me.getAvtUrl()); } catch (Exception ignore) { }

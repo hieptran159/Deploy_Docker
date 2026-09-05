@@ -19,4 +19,12 @@ public class AuthorizePathServiceImpl implements AuthorizePathService {
         }
         return (String) authentication.getPrincipal();
     }
+
+    @Override
+    public String getAccessTokenAuthoried() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null) return null;
+        Object credentials = authentication.getCredentials();
+        return credentials instanceof String ? (String) credentials : null;
+    }
 }

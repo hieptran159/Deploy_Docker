@@ -46,6 +46,7 @@ public class AdminServiceImpl implements AdminService {
     private final ReportRepository reportRepository;
     private final AdminLogRepository adminLogRepository;
     private final AdminLogService adminLogService;
+    private final com.didan.social.service.SessionService sessionService;
     private final Logger logger = LoggerFactory.getLogger(AdminServiceImpl.class);
     @Autowired
     public AdminServiceImpl(AuthorizePathServiceImpl authorizePathService, UserRepository userRepository,
@@ -54,7 +55,9 @@ public class AdminServiceImpl implements AdminService {
                             ConversationRepository conversationRepository, MessageRepository messageRepository,
                             BookmarkRepository bookmarkRepository, BlockRepository blockRepository,
                             ReportRepository reportRepository, AdminLogRepository adminLogRepository,
-                            AdminLogService adminLogService) {
+                            AdminLogService adminLogService,
+                            com.didan.social.service.SessionService sessionService) {
+        this.sessionService = sessionService;
         this.authorizePathService = authorizePathService;
         this.userRepository = userRepository;
         this.blacklistUserRepository = blacklistUserRepository;
@@ -168,9 +171,8 @@ public class AdminServiceImpl implements AdminService {
             logger.error("User is not found");
             throw new Exception("User is not found");
         }
-        if (StringUtils.hasText(user_block.getAccessToken())){
-            blacklistTokenRepository.save(new BlacklistToken(user_block.getAccessToken()));
-        }
+        // Chặn người dùng phải đá HẾT mọi thiết bị của họ, không chỉ một.
+        sessionService.revokeAllSessions(userId);
         BlacklistUser blacklistUser = blacklistUserRepository.findByUserId(userId);
         if (blacklistUser != null){
             if (blacklistUser.getStatus().equals("blocked")){
