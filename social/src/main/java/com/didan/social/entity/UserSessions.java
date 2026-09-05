@@ -3,6 +3,8 @@ package com.didan.social.entity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.Temporal;
+import jakarta.persistence.TemporalType;
 
 import java.util.Date;
 
@@ -38,10 +40,15 @@ public class UserSessions {
     @Column(name = "remember", nullable = false)
     private Integer remember;
 
+    // @Temporal là bắt buộc với java.util.Date theo JPA, và mọi entity khác trong
+    // dự án đều khai tường minh. Thiếu nó thì ddl-auto=validate không khớp được
+    // kiểu cột datetime.
     @Column(name = "created_at")
+    @Temporal(TemporalType.TIMESTAMP)
     private Date createdAt;
 
     @Column(name = "last_used_at")
+    @Temporal(TemporalType.TIMESTAMP)
     private Date lastUsedAt;
 
     public UserSessions() {}
