@@ -2,7 +2,7 @@
     <header class="app-header">
         <div class="app-header__inner">
             <span class="app-brand" @click="goHomeReload">
-                <span class="app-brand__mark">HIPDN</span>Diễn&nbsp;đàn
+                <span class="app-brand__mark">HIPDN-EA</span>Diễn&nbsp;đàn
             </span>
 
             <div v-if="isLogin" class="hdr-tabs min-w-0">
@@ -133,7 +133,9 @@ const isLogin = ref(getItemLocal(LOCALKEYS.ACCESS_TOKEN) != null);
 const primaryTabs = computed(() => {
     const base = [
         { id: 0, text: "Trang chủ", icon: "home" },
-        { id: 1, text: "Nhắn tin", icon: "textdocument" },
+        // "comment" (\f01e) là bong bóng thoại. Không dùng "message"/"email" — cả hai
+        // cùng glyph \f024 hình phong bì, đó là ẩn dụ email chứ không phải nhắn tin.
+        { id: 1, text: "Nhắn tin", icon: "comment" },
         { id: 2, text: "Bạn bè", icon: "group" },
         { id: 3, text: "Tìm người dùng", icon: "search" },
     ];

@@ -2,7 +2,7 @@
     <footer class="site-footer app-footer">
         <div class="site-footer__inner">
             <div class="site-footer__brand">
-                <span class="site-footer__logo">HIPDN</span>
+                <span class="site-footer__logo">HIPDN-EA</span>
                 <span class="text-sm">Diễn đàn</span>
             </div>
 
