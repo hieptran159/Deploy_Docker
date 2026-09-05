@@ -25,6 +25,12 @@ jobs:
           cache: maven
       # Toàn bộ test: 72 unit test + SocialApplicationTests (dùng Testcontainers MySQL,
       # runner ubuntu-latest có sẵn Docker).
+      # Kéo sẵn image MySQL. SocialApplicationTests dùng Testcontainers, mà ngưỡng
+      # chờ container khởi động mặc định là 60s — nếu tính cả thời gian tải image
+      # (~150MB) trên runner nguội thì dễ vượt. Bước Tests luôn hỏng ở 66-70s nên
+      # đây là nghi phạm chính. Tách việc tải ra khỏi đồng hồ đếm của Testcontainers.
+      - name: Kéo sẵn image MySQL cho Testcontainers
+        run: docker pull mysql:8.0
       - name: Tests
         run: sh ./mvnw -B -ntp test
       # Log của Actions chỉ tải được nếu có quyền admin repo, còn artifact thì đọc
