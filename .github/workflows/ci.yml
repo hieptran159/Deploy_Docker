@@ -25,10 +25,11 @@ jobs:
           cache: maven
       # Toàn bộ test: 72 unit test + SocialApplicationTests (dùng Testcontainers MySQL,
       # runner ubuntu-latest có sẵn Docker).
-      # Kéo sẵn image MySQL. SocialApplicationTests dùng Testcontainers, mà ngưỡng
-      # chờ container khởi động mặc định là 60s — nếu tính cả thời gian tải image
-      # (~150MB) trên runner nguội thì dễ vượt. Bước Tests luôn hỏng ở 66-70s nên
-      # đây là nghi phạm chính. Tách việc tải ra khỏi đồng hồ đếm của Testcontainers.
+      # Kéo sẵn image MySQL, tách thời gian tải ra khỏi đồng hồ chờ của Testcontainers.
+      # Ghi chú: ban đầu thêm bước này vì nghi job hỏng do quá ngưỡng chờ 60s.
+      # ĐÃ BÁC BỎ — sau khi kéo sẵn, bước Tests hỏng ở 47s thay vì 66-70s, tức là
+      # hỏng vì lỗi thật chứ không phải hết giờ. Vẫn giữ bước này vì nó rút ngắn
+      # thời gian chạy và làm tín hiệu thời lượng dễ đọc hơn.
       - name: Kéo sẵn image MySQL cho Testcontainers
         run: docker pull mysql:8.0
       - name: Tests
