@@ -411,9 +411,14 @@ Motion: one non-user-triggered moment only — the home banner's post count ease
 Deliberately avoided: ALL-CAPS eyebrow labels (Chat's three were converted to sentence case),
 `→` appended to links, mono for numerals (use `.tnum`), soft grey card shadows.
 
-DevExtreme needs `!important` in two places its own CSS wins: tab icon colour (the icon sits
-*inside* `.dx-tab-text`, so `color: inherit` picks up DevExtreme's `#333` — set the colour
-explicitly) and the tab strip background.
+The header nav is a **plain `<nav>` (`.hdr-tab`), not `DxTabs`** — DxTabs normalises
+`selectedIndex: -1` to the *last* item, so every route outside the five tab routes
+(`/post/:id`, `/tag/:tag`, `/saved`, `/drafts`, `/notifications`, `/profile/edit`) lit up
+"Tìm người dùng"; `selected-item: null` does not deselect either. Don't reintroduce DxTabs here.
+
+DevExtreme still needs `!important` where its own CSS wins: text-mode button colours for
+`type="default"/"success"/"danger"` (they keep DevExtreme blue/green otherwise), and icon
+colours (`color: inherit` picks up DevExtreme's `#333` — set the colour explicitly).
 
 Mobile (≤720px): the header's `div.flex-1` spacer is hidden and replaced with an auto-margin
 — flex-grow eats the first line's free space and pushes the avatar group onto a second row,
@@ -510,6 +515,14 @@ rejects `localhost`, which returns 403 on `/auth/signin`). Dev-server only; buil
   the email exists or not, **and** runs a dummy `passwordEncoder.matches(pw, DUMMY_BCRYPT)`
   when the email is missing so response time is constant (no timing oracle). `/auth/2fa/verify`,
   `/auth/token-reset`, `/auth/verify` still reveal existence — lower priority, `otp-*` rate-limited.
+- **`deletePost` FK failure (fixed Sep 2026)**: four FKs reference `posts` — `bookmarks`,
+  `post_likes`, `user_comment`, `user_posts` — but the `Posts` entity only cascades the last
+  three. Deleting a post anyone had **saved** violated the `bookmarks` FK and returned 503,
+  so no interacted-with post could be deleted. `deletePost` now clears `post_hashtags`,
+  `bookmarks` and `reposts` before `postRepository.delete`. It deliberately does **not**
+  delete `reports`: `ReportServiceImpl.removeReportedTarget` calls `deletePost` and *then*
+  `resolveOpenFor`, so deleting them would erase the moderation trail. Covered by
+  `PostServiceImplTest#deletePostClearsBookmarksHashtagsAndRepostsBeforeDeleting`.
 - **`deletePost` IDOR (fixed)**: previously deleted any post by id with no ownership check —
   any logged-in user could wipe anyone's post. Now requires author (`userPostRepository
   .findFirstByPosts_PostIdAndUsers_UserId`) or `isAdmin == 1`. `updatePost` / `publishPost`
