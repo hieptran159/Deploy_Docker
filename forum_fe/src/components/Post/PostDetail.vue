@@ -21,9 +21,12 @@
                     v-if="post?.userCreatedPost == getItemLocal(LOCALKEYS.USER_ID)"
                 >
                     <DxButton icon="overflow" stylingMode="text" @click="isShowSetting = !isShowSetting" />
-                    <div class="absolute right-0 z-20 w-32 flex flex-col bg-white border rounded-lg shadow p-1" v-if="isShowSetting">
-                        <DxButton icon="edit" type="default" stylingMode="text" text="Chỉnh sửa" @click="ishowEditPost = true" />
-                        <DxButton icon="trash" type="danger" stylingMode="text" text="Xoá" @click="handleDeletePost" />
+                    <!-- w-32 cũ quá hẹp: "Chỉnh sửa" bị cắt thành "Chỉnh ..." -->
+                    <div class="menu-pop" v-if="isShowSetting">
+                        <DxButton icon="edit" type="default" stylingMode="text" text="Chỉnh sửa"
+                            @click="() => { isShowSetting = false; ishowEditPost = true }" />
+                        <DxButton icon="trash" type="danger" stylingMode="text" text="Xoá"
+                            @click="() => { isShowSetting = false; handleDeletePost() }" />
                     </div>
                 </div>
                 <DxButton

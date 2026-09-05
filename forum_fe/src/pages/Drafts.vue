@@ -17,7 +17,7 @@
                 :key="d.postId"
                 class="py-3 border-b last:border-b-0"
             >
-                <div class="font-semibold text-[#2577b1]">{{ d.title || '(chưa có tiêu đề)' }}</div>
+                <div class="post-title post-title--sm !mt-0">{{ d.title || '(chưa có tiêu đề)' }}</div>
                 <div class="muted text-sm line-clamp-2 whitespace-pre-wrap">{{ d.body || '(chưa có nội dung)' }}</div>
                 <div class="text-xs muted mt-1">Sửa lần cuối: {{ timeAgo(d.postedAt) }}</div>
                 <div class="flex gap-2 mt-2">

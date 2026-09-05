@@ -37,6 +37,7 @@ class PostServiceImplTest {
     @Mock RepostRepository repostRepository;
     @Mock FollowService followService;
     @Mock PostHashtagRepository postHashtagRepository;
+    @Mock BookmarkRepository bookmarkRepository;
 
     PostServiceImpl svc;
     static final String ME = "me-1";
@@ -46,7 +47,7 @@ class PostServiceImplTest {
     void setUp() throws Exception {
         svc = new PostServiceImpl(postRepository, userPostRepository, fileUploadsService, userRepository,
                 postLikeRepository, commentRepository, authorizePathService, notificationService,
-                blockRepository, repostRepository, followService, postHashtagRepository);
+                blockRepository, repostRepository, followService, postHashtagRepository, bookmarkRepository);
         when(authorizePathService.getUserIdAuthoried()).thenReturn(ME);
         Users me = new Users(); me.setUserId(ME); me.setFullName("Me");
         when(userRepository.findFirstByUserId(ME)).thenReturn(me);
@@ -205,5 +206,39 @@ class PostServiceImplTest {
         assertTrue(svc.repost("p-1", "  hay  "));
         verify(repostRepository).save(any());
         verify(notificationService).pushUniquePerActor(eq(OTHER), eq(ME), eq("REPOST"), eq("p-1"), anyString());
+    }
+
+    // ---------- deletePost ----------
+
+    /**
+     * Entity Posts chỉ cascade sang user_posts / post_likes / user_comment.
+     * bookmarks có khoá ngoại trỏ tới posts nhưng KHÔNG được cascade, nên nếu
+     * deletePost không tự dọn thì mọi bài đã có người lưu đều xoá thất bại.
+     * reposts không có khoá ngoại nhưng bỏ sót sẽ để lại hàng mồ côi trong feed.
+     */
+    @Test
+    void deletePostClearsBookmarksHashtagsAndRepostsBeforeDeleting() throws Exception {
+        Posts p = post(ME, "published", "public", "T", "B");
+        when(postRepository.findFirstByPostId("p-1")).thenReturn(p);
+        when(userPostRepository.findFirstByPosts_PostIdAndUsers_UserId("p-1", ME)).thenReturn(new UserPosts());
+        when(commentRepository.findCommentIdNotInUserComment()).thenReturn(java.util.Collections.emptyList());
+
+        assertTrue(svc.deletePost("p-1"));
+
+        org.mockito.InOrder ord = inOrder(postHashtagRepository, bookmarkRepository, repostRepository, postRepository);
+        ord.verify(postHashtagRepository).deleteByPostHashtagId_PostId("p-1");
+        ord.verify(bookmarkRepository).deleteByBookmarkId_PostId("p-1");
+        ord.verify(repostRepository).deleteByRepostId_PostId("p-1");
+        ord.verify(postRepository).delete(p);
+    }
+
+    @Test
+    void deletePostRejectsNonAuthor() {
+        when(postRepository.findFirstByPostId("p-1")).thenReturn(post(OTHER, "published", "public", "T", "B"));
+        when(userPostRepository.findFirstByPosts_PostIdAndUsers_UserId("p-1", ME)).thenReturn(null);
+        Exception e = assertThrows(Exception.class, () -> svc.deletePost("p-1"));
+        assertTrue(e.getMessage().contains("không có quyền"));
+        verify(postRepository, never()).delete(any());
+        verify(bookmarkRepository, never()).deleteByBookmarkId_PostId(anyString());
     }
 }

@@ -706,6 +706,31 @@ h1, h2, h3, h4 {
 }
 .dx-button.dx-button-mode-text { border-color: transparent; box-shadow: none; }
 .dx-button.dx-button-mode-text.dx-state-hover { background: var(--turmeric-wash); }
+/* type="default"/"success" ở chế độ text vẫn giữ xanh dương/xanh lá của DevExtreme
+   -> kéo về bảng màu. (Chế độ contained đã được tô ở trên.) */
+.dx-button.dx-button-mode-text.dx-button-default .dx-button-text,
+.dx-button.dx-button-mode-text.dx-button-default .dx-icon,
+.dx-button.dx-button-mode-text.dx-button-success .dx-button-text,
+.dx-button.dx-button-mode-text.dx-button-success .dx-icon { color: var(--text) !important; }
+.dx-button.dx-button-mode-text.dx-button-danger .dx-button-text,
+.dx-button.dx-button-mode-text.dx-button-danger .dx-icon { color: var(--cinnabar-ink) !important; }
+
+/* Menu thả xuống (⋮ trên bài viết): đủ rộng cho nhãn dài, căn trái như menu thật */
+.menu-pop {
+    position: absolute;
+    right: 0;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    min-width: 11rem;
+    padding: 4px;
+    background: var(--surface);
+    border: var(--line-w) solid var(--stroke);
+    border-radius: var(--radius);
+    box-shadow: var(--lift);
+}
+.menu-pop .dx-button { width: 100%; }
+.menu-pop .dx-button .dx-button-content { justify-content: flex-start; }
 /* DevExtreme cố định icon ở #333 — vô hình trên nền tối. Neo vào --text. */
 .dx-button.dx-button-mode-text .dx-icon,
 .dx-button.dx-button-mode-outlined .dx-icon { color: var(--text) !important; }
@@ -733,52 +758,39 @@ h1, h2, h3, h4 {
 .dx-texteditor-input { font-family: inherit !important; color: var(--text); }
 .dx-placeholder { color: var(--text-muted); }
 
-/* Tabs trong header: khối phẳng, đang chọn thì đổ vàng nghệ */
-/* DevExtreme tô nền cho cả dải tab lẫn từng tab ở styling-mode="secondary",
-   phải ghi đè cả hai thì thanh mực mới liền mạch. */
-.app-header .dx-tabs,
-.app-header .dx-tabs-wrapper,
-.app-header .dx-tabs .dx-scrollable-container {
-    background: transparent !important;
-    border: 0 !important;
-    box-shadow: none !important;
-}
-.app-header .dx-tabs {
+/* Điều hướng chính: nav thường, KHÔNG dùng DxTabs (xem ghi chú trong
+   TheHeader.vue — DxTabs quy chuẩn selectedIndex -1 thành phần tử cuối nên
+   header sáng nhầm tab ở mọi route không thuộc tab nào). */
+.hdr-tabs {
+    display: flex;
+    gap: 2px;
     max-width: 100%;
-    overflow: hidden;
 }
-.app-header .dx-tab {
-    background: transparent !important;
-    color: rgba(255, 255, 255, .78);
-    font-weight: 600;
+.hdr-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-family: inherit;
     font-size: var(--fs-ui);
+    font-weight: 600;
     white-space: nowrap;
+    padding: 7px 11px;
     border: 0;
     border-radius: var(--radius-control);
-    padding: 7px 11px;
+    background: transparent;
+    color: rgba(255, 255, 255, .78);
+    cursor: pointer;
+    transition: background .12s var(--ease), color .12s var(--ease);
 }
-/* Chỗ hẹp thì bỏ chữ, giữ icon (icon nằm TRONG .dx-tab-text nên phải ẩn
-   .dx-tab-text-span, không ẩn cả khối) — tab vẫn bấm được, chữ không bị cắt ngang */
+.hdr-tab .dx-icon { color: inherit; font-size: 17px; line-height: 1; }
+.hdr-tab:hover { background: rgba(255, 255, 255, .12); color: #FFF; }
+.hdr-tab.is-on { background: var(--turmeric); color: var(--ink); font-weight: 700; }
+
+/* Chỗ hẹp thì bỏ chữ, giữ icon — nút vẫn bấm được, chữ không bị cắt ngang */
 @media (max-width: 1180px) {
-    .app-header .dx-tab .dx-tab-text-span { display: none; }
-    .app-header .dx-tab .dx-icon { margin: 0; }
-    .app-header .dx-tab { padding: 7px 10px; }
+    .hdr-tab__text { display: none; }
+    .hdr-tab { padding: 7px 10px; }
 }
-/* Không dùng `inherit`: icon nằm trong .dx-tab-text mà DevExtreme đặt color:#333
-   cho khối đó, nên inherit sẽ ra xám đen. Phải ghi màu tường minh. */
-.app-header .dx-tab .dx-tab-text,
-.app-header .dx-tab .dx-icon { color: rgba(255, 255, 255, .78) !important; }
-.app-header .dx-tab.dx-state-hover { background: rgba(255, 255, 255, .12) !important; }
-.app-header .dx-tab.dx-state-hover .dx-tab-text,
-.app-header .dx-tab.dx-state-hover .dx-icon { color: #FFF !important; }
-.app-header .dx-tab.dx-tab-selected {
-    background: var(--turmeric) !important;
-    font-weight: 700;
-}
-.app-header .dx-tab.dx-tab-selected .dx-tab-text,
-.app-header .dx-tab.dx-tab-selected .dx-icon { color: var(--ink) !important; }
-.app-header .dx-tabs-wrapper::after,
-.app-header .dx-tab::after { display: none !important; }
 
 /* Popup */
 .dx-overlay-content, .dx-popup-normal {
@@ -793,7 +805,7 @@ h1, h2, h3, h4 {
     font-weight: 700;
 }
 .dx-popup-title .dx-toolbar-label > div { font-weight: 700; font-size: var(--fs-base); }
-.dx-popup-title .dx-closebutton .dx-icon { color: #FFF; }
+.dx-popup-title .dx-closebutton .dx-icon { color: #FFF !important; }
 
 /* ============================ TAILWIND: KÉO VỀ BẢNG MÀU ============================
    17 file còn dùng class Tailwind thô. Thay vì sửa từng chỗ và bỏ sót,

@@ -5,14 +5,20 @@
                 <span class="app-brand__mark">HIPDN-EA</span>Diễn&nbsp;đàn
             </span>
 
-            <div v-if="isLogin" class="hdr-tabs min-w-0">
-                <DxTabs
-                    :selected-index="primaryIndex"
-                    :dataSource="primaryTabs"
-                    styling-mode="secondary"
-                    @item-click="selectChange"
-                />
-            </div>
+            <nav v-if="isLogin" class="hdr-tabs min-w-0" aria-label="Điều hướng chính">
+                <button
+                    v-for="t in primaryTabs"
+                    :key="t.id"
+                    class="hdr-tab"
+                    :class="{ 'is-on': t.id === currentTabId }"
+                    :aria-current="t.id === currentTabId ? 'page' : undefined"
+                    :title="t.text"
+                    @click="goTab(t.id)"
+                >
+                    <i class="dx-icon" :class="'dx-icon-' + t.icon" aria-hidden="true"></i>
+                    <span class="hdr-tab__text">{{ t.text }}</span>
+                </button>
+            </nav>
             <div class="flex-1"></div>
 
             <DxButton
@@ -94,7 +100,6 @@
 </template>
 
 <script setup>
-import DxTabs from 'devextreme-vue/tabs';
 import DxButton from 'devextreme-vue/button';
 import { ref, computed, watch, onMounted, onBeforeUnmount, inject } from 'vue';
 import { LOCALKEYS, getItemLocal, setItemLocal, clearAuth } from '@/storages/localStorage';
@@ -151,14 +156,18 @@ const currentTabId = computed(() => {
     }
     return -1;
 });
-const primaryIndex = computed(() => primaryTabs.value.findIndex((t) => t.id === currentTabId.value));
+// Trước đây dùng DxTabs. Ở những route không thuộc tab nào (/post/:id, /tag/:tag,
+// /saved, /drafts, /notifications, /profile/edit) chỉ số tính ra -1, mà DevExtreme
+// quy chuẩn -1 thành phần tử CUỐI nên header sáng nhầm tab "Tìm người dùng";
+// selected-item = null cũng không bỏ chọn được. Nav thường cho đúng ngữ nghĩa
+// "không tab nào đang mở", đồng thời bỏ được loạt CSS ghi đè !important.
 
 // bấm logo -> tải lại toàn bộ trang chủ (F5)
 const goHomeReload = () => {
     if (route.currentRoute.value.path === '/') window.location.reload();
     else window.location.assign('/');
 };
-const selectChange = (e) => { route.push(routeById[e.itemData.id] || '/'); }
+const goTab = (id) => { route.push(routeById[id] || '/'); }
 const signUp = () => route.push('/signup');
 const goMyProfile = () => {
     const id = getItemLocal(LOCALKEYS.USER_ID);

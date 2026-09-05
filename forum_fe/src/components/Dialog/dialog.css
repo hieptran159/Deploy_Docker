@@ -1,3 +1,5 @@
+/* Hộp thoại xác nhận / thông báo. Neo vào token của hệ "Bảng hiệu":
+   viền cứng + bóng lệch đặc, không bo tròn, không bóng mờ, không màu cứng. */
 .m-dialog-overlay {
 }
 .m-dialog {
@@ -5,34 +7,42 @@
 	left: 50%;
 	top: 86px;
 	transform: translateX(-50%);
-	background-color: #fff;
-	border-radius: 8px;
+	background-color: var(--surface);
+	color: var(--text);
+	border: var(--line-w) solid var(--stroke);
+	border-radius: var(--radius);
 	overflow: hidden;
-	box-shadow: 0 4px 16px rgba(23, 27, 42, 0.24);
+	box-shadow: var(--lift);
 	width: 415px;
+	max-width: calc(100vw - 32px);
 	z-index: 10000;
 }
 .m-dialog__header {
-	padding: 24px;
+	padding: 20px 24px 12px;
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
+	gap: 12px;
 }
 .m-dialog__title {
-	font-size: 24px;
-	letter-spacing: 0.567px;
-	font-weight: bold;
+	font-size: var(--fs-xl);
+	font-weight: 800;
+	letter-spacing: -.02em;
+	line-height: 1.2;
 }
 .m-dialog__body {
 	padding: 0 24px;
 }
 .m-dialog__footer {
-	margin-top: 24px;
-	height: 68px;
+	margin-top: 20px;
+	min-height: 64px;
 	display: flex;
 	justify-content: flex-end;
 	align-items: center;
-	padding: 0 24px;
+	padding: 12px 24px;
 	gap: 12px;
-	background-color: #f2f2f2;
+	/* #f2f2f2 cứng trước đây thành mảng xám lạc lõng, và ở chế độ tối thì
+	   là một khối sáng chói giữa hộp thoại tối. */
+	background-color: var(--wash);
+	border-top: 1px solid var(--line-soft);
 }

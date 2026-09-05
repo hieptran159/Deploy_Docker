@@ -1,10 +1,13 @@
 <template>
     <div class="reaction-bar" @mouseenter="openSoon" @mouseleave="closeSoon">
+        <!-- Icon cảm xúc giữ màu riêng vì đó là DANH TÍNH của từng cảm xúc (như emoji),
+             nhưng chữ và viền của nút thì theo hệ màu chung: đỏ son = bạn đã tác động.
+             Trước đây nút mượn luôn màu thương hiệu của cảm xúc (#1877f2 của Facebook)
+             nên lạc hẳn khỏi bảng màu. -->
         <button
             type="button"
             class="reaction-trigger"
             :class="{ 'is-active': !!myReaction }"
-            :style="myReaction ? { color: current.color } : {}"
             @click="onTriggerClick"
         >
             <span class="rx-ico rx-ico--sm" v-html="current.svg"></span>
@@ -103,21 +106,34 @@ onBeforeUnmount(() => { clearTimeout(openT); clearTimeout(closeT); });
     align-items: center;
     gap: 8px;
 }
+/* Khớp với .act-pill trong main.css để "Thích / Lưu / Chia sẻ" cùng một cỡ */
 .reaction-trigger {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    font-size: 13px;
+    gap: 6px;
+    font-family: inherit;
+    font-size: var(--fs-sm);
     font-weight: 600;
-    padding: 4px 10px;
+    line-height: 1.2;
+    padding: 6px 12px;
     border-radius: 999px;
-    border: var(--line-w) solid var(--ink);
-    background: var(--surface);
+    border: 1.5px solid var(--line-soft);
+    background: transparent;
     color: var(--text-muted);
-    transition: background .15s, border-color .15s;
+    cursor: pointer;
+    transition: background .12s, border-color .12s, color .12s;
 }
-.reaction-trigger:hover { background: var(--brand-soft); }
-.reaction-trigger.is-active { border-color: currentColor; background: var(--brand-soft); }
+.reaction-trigger:hover { background: var(--turmeric-wash); border-color: var(--stroke); color: var(--text); }
+.reaction-trigger.is-active {
+    border-color: var(--cinnabar-ink);
+    background: var(--cinnabar-ink);
+    color: #FFF;
+}
+:root[data-theme="dark"] .reaction-trigger.is-active {
+    border-color: var(--cinnabar);
+    background: var(--cinnabar);
+    color: var(--ink);
+}
 .rx-ico { display: inline-flex; line-height: 0; }
 .rx-ico :deep(svg) { display: block; width: 100%; height: 100%; }
 .rx-ico--sm { width: 16px; height: 16px; }

@@ -23,6 +23,12 @@ public interface RepostRepository extends JpaRepository<Reposts, RepostId> {
     @Transactional
     void deleteByRepostId_UserIdAndRepostId_PostId(String userId, String postId);
 
+    // Dọn lượt chia sẻ khi xoá bài. Bảng reposts do ddl-auto tạo nên không có khoá
+    // ngoại, xoá bài mà bỏ sót thì còn lại hàng mồ côi — FEED_UNION vẫn gộp chúng
+    // vào nên feed sinh ra mục trỏ tới bài không còn tồn tại.
+    @Transactional
+    void deleteByRepostId_PostId(String postId);
+
     List<Reposts> findByRepostId_UserIdOrderByCreatedAtDesc(String userId);
 
     Page<Reposts> findByRepostId_UserId(String userId, Pageable pageable);

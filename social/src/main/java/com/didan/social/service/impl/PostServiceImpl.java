@@ -41,6 +41,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
     private final com.didan.social.repository.RepostRepository repostRepository;
     private final com.didan.social.service.FollowService followService;
     private final com.didan.social.repository.PostHashtagRepository postHashtagRepository;
+    private final com.didan.social.repository.BookmarkRepository bookmarkRepository;
     @Autowired
     public PostServiceImpl(PostRepository postRepository,
                        UserPostRepository userPostRepository,
@@ -53,8 +54,10 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
                        com.didan.social.repository.BlockRepository blockRepository,
                        com.didan.social.repository.RepostRepository repostRepository,
                        com.didan.social.service.FollowService followService,
-                       com.didan.social.repository.PostHashtagRepository postHashtagRepository
+                       com.didan.social.repository.PostHashtagRepository postHashtagRepository,
+                       com.didan.social.repository.BookmarkRepository bookmarkRepository
     ){
+        this.bookmarkRepository = bookmarkRepository;
         this.postRepository = postRepository;
         this.userPostRepository = userPostRepository;
         this.fileUploadsService = fileUploadsService;
@@ -707,7 +710,16 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
                 logger.error("User {} tried to delete post {} without permission", user.getUserId(), postId);
                 throw new Exception("Bạn không có quyền xoá bài viết này");
             }
+            // Dọn mọi thứ tham chiếu tới bài TRƯỚC khi xoá. Entity Posts chỉ cascade
+            // sang user_posts, post_likes và user_comment; bookmarks có khoá ngoại
+            // nhưng KHÔNG được cascade nên trước đây bài nào đã có người lưu là xoá
+            // thất bại (503). reposts không có khoá ngoại nên không chặn xoá, nhưng
+            // bỏ sót thì để lại hàng mồ côi mà FEED_UNION vẫn gộp vào.
+            // KHÔNG xoá reports ở đây: removeReportedTarget gọi deletePost rồi mới
+            // resolveOpenFor, xoá mất thì nhật ký kiểm duyệt cũng mất theo.
             postHashtagRepository.deleteByPostHashtagId_PostId(postId);
+            bookmarkRepository.deleteByBookmarkId_PostId(postId);
+            repostRepository.deleteByRepostId_PostId(postId);
             postRepository.delete(post);
             if(StringUtils.hasText(post.getPostImg())){
                 fileUploadsService.deleteFile(post.getPostImg());
