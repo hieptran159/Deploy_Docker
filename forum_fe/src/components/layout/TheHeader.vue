@@ -15,18 +15,15 @@
                     :title="t.text"
                     @click="goTab(t.id)"
                 >
-                    <i class="dx-icon" :class="'dx-icon-' + t.icon" aria-hidden="true"></i>
+                    <AppIcon :name="t.icon" :size="18" />
                     <span class="hdr-tab__text">{{ t.text }}</span>
                 </button>
             </nav>
             <div class="flex-1"></div>
 
-            <DxButton
-                :icon="isDark ? 'sun' : 'moon'"
-                hint="Đổi giao diện sáng/tối"
-                stylingMode="text"
-                @click="toggleTheme"
-            />
+            <button class="hdr-icon" :title="isDark ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối'" @click="toggleTheme">
+                <AppIcon :name="isDark ? 'sun' : 'moon'" :size="20" />
+            </button>
 
             <!-- Chuông thông báo -->
             <div v-if="isLogin" class="relative">
@@ -36,10 +33,7 @@
                     title="Thông báo"
                     @click="toggleNotif"
                 >
-                    <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                        <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                    </svg>
+                    <AppIcon name="bell" :size="20" />
                     <span v-if="unread > 0" class="notif-dot">{{ unread > 99 ? '99+' : unread }}</span>
                 </button>
 
@@ -87,8 +81,12 @@
                         {{ getItemLocal(LOCALKEYS.USER_NAME) }}
                     </span>
                 </div>
-                <DxButton icon="preferences" hint="Cài đặt" type="normal" stylingMode="text" @click="() => route.push('/profile/edit')" />
-                <DxButton icon="runner" hint="Đăng xuất" type="normal" stylingMode="text" @click="logout" />
+                <button class="hdr-icon" title="Cài đặt" @click="() => route.push('/profile/edit')">
+                    <AppIcon name="settings" :size="19" />
+                </button>
+                <button class="hdr-icon" title="Đăng xuất" @click="logout">
+                    <AppIcon name="log-out" :size="19" />
+                </button>
             </div>
 
             <div v-else class="row-actions">
@@ -113,6 +111,7 @@ import { activeConversationId, activePostId, notifRefreshTick, setPeerOnline, on
 import { SOCKET_URL, IMAGE_BASE } from '@/config';
 import { io } from 'socket.io-client';
 import BaseAvatar from '../BaseAvatar.vue';
+import AppIcon from '../AppIcon.vue';
 
 const route = useRouter();
 const toast = inject('toast');
@@ -137,14 +136,15 @@ const isLogin = ref(getItemLocal(LOCALKEYS.ACCESS_TOKEN) != null);
 
 const primaryTabs = computed(() => {
     const base = [
+        // tên icon nay theo bộ AppIcon, không còn theo font icon DevExtreme
         { id: 0, text: "Trang chủ", icon: "home" },
-        // "comment" (\f01e) là bong bóng thoại. Không dùng "message"/"email" — cả hai
-        // cùng glyph \f024 hình phong bì, đó là ẩn dụ email chứ không phải nhắn tin.
-        { id: 1, text: "Nhắn tin", icon: "comment" },
-        { id: 2, text: "Bạn bè", icon: "group" },
+        // bong bóng thoại, không phải phong bì — phong bì là ẩn dụ email
+        { id: 1, text: "Nhắn tin", icon: "message-square" },
+        { id: 2, text: "Bạn bè", icon: "users" },
         { id: 3, text: "Tìm người dùng", icon: "search" },
     ];
-    if (isAdmin.value) base.push({ id: 4, text: "Quản trị", icon: "preferences" });
+    // khiên, không dùng lại bánh răng của nút "Cài đặt" để hai thứ không lẫn nhau
+    if (isAdmin.value) base.push({ id: 4, text: "Quản trị", icon: "shield" });
     return base;
 })
 const routeById = { 0: '/', 1: '/chat', 2: '/follow', 3: '/users', 4: '/admin' };

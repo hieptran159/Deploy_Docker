@@ -29,7 +29,9 @@
                 </div>
 
                 <template v-if="tab === 'friends'">
-                    <DxButton type="success" icon="message" text="Nhắn tin" @click="() => messageUser(item)" />
+                    <button class="sign-btn sign-btn--ink" @click="() => messageUser(item)">
+                        <AppIcon name="message-square" :size="16" /> Nhắn tin
+                    </button>
                     <DxButton type="normal" stylingMode="outlined" text="Huỷ kết bạn" @click="() => confirmUnfriend(item)" />
                 </template>
                 <template v-else-if="tab === 'incoming'">
@@ -55,6 +57,7 @@
 </template>
 
 <script setup>
+import AppIcon from '@/components/AppIcon.vue';
 import {
     getFriends, getIncomingRequests, getOutgoingRequests,
     acceptFriendRequest, declineFriendRequest, cancelFriendRequest, unfriend,

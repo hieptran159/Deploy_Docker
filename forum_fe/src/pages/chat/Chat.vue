@@ -8,7 +8,9 @@
                     <div>
                         <div class="flex items-center justify-between">
                             <span class="text-sm font-bold">Tạo nhóm mới</span>
-                            <DxButton :icon="showCreate ? 'chevronup' : 'plus'" stylingMode="text" @click="toggleCreate" />
+                            <button class="icon-btn icon-btn--sm" :title="showCreate ? 'Thu gọn' : 'Tạo nhóm mới'" @click="toggleCreate">
+                                <AppIcon :name="showCreate ? 'chevron-up' : 'plus'" :size="18" />
+                            </button>
                         </div>
                         <div v-if="showCreate" class="mt-2 flex flex-col gap-2">
                             <DxTextBox v-model="createName" placeholder="Tên nhóm" />
@@ -41,7 +43,9 @@
                         <span class="text-sm font-bold">Tìm nhóm để tham gia</span>
                         <div class="flex gap-2 mt-1">
                             <DxTextBox v-model="searchName" placeholder="Tên nhóm…" class="flex-1" @enter-key="handleSearch" />
-                            <DxButton icon="search" @click="handleSearch" />
+                            <button class="sign-btn flex-none" title="Tìm nhóm" @click="handleSearch">
+                                <AppIcon name="search" :size="16" />
+                            </button>
                         </div>
                         <div v-if="searchResults.length" class="mt-1 border rounded-lg divide-y">
                             <div v-for="c in searchResults" :key="c.conversationId"
@@ -67,13 +71,13 @@
                                     class="size-7 rounded-full object-cover bg-gray-100"
                                     @load="(e) => e.target.style.display = ''" @error="(e) => e.target.style.display = 'none'" />
                                 <span v-else-if="isDm(c.conversationName)" class="avatar-fallback size-7 text-xs">{{ (displayName(c) || '?')[0] }}</span>
-                                <span v-else class="inline-flex size-7 items-center justify-center rounded-full bg-gray-100 text-sm">👥</span>
+                                <span v-else class="conv-avatar size-7"><AppIcon name="users" :size="15" /></span>
                                 <span v-if="dmPeerOnline(c)"
                                     class="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full bg-[var(--turmeric)] ring-2 ring-[var(--surface)]"></span>
                             </span>
                             <span class="font-semibold text-sm truncate flex-1"
                                 :class="{ 'font-bold': unreadByConv[c.conversationId] }">{{ displayName(c) }}</span>
-                            <span v-if="c.muted" class="flex-none text-[11px] muted" title="Đã tắt thông báo">🔕</span>
+                            <span v-if="c.muted" class="flex-none muted" title="Đã tắt thông báo"><AppIcon name="bell-off" :size="13" /></span>
                             <span v-if="unreadByConv[c.conversationId]"
                                 class="flex-none text-[11px] font-bold text-white bg-[var(--danger)] rounded-full min-w-[18px] h-[18px] px-1 text-center leading-[18px]">
                                 {{ unreadByConv[c.conversationId] > 9 ? '9+' : unreadByConv[c.conversationId] }}
@@ -100,34 +104,37 @@
                                 class="size-9 rounded-full object-cover bg-gray-100"
                                 @load="(e) => e.target.style.display = ''" @error="(e) => e.target.style.display = 'none'" />
                             <span v-else-if="isDm(active.conversationName)" class="avatar-fallback size-9">{{ (displayName(active) || '?')[0] }}</span>
-                            <span v-else class="inline-flex size-9 items-center justify-center rounded-full bg-gray-100">👥</span>
+                            <span v-else class="conv-avatar size-9"><AppIcon name="users" :size="18" /></span>
                             <button v-if="!isDm(active.conversationName)"
-                                class="absolute -bottom-1 -right-1 size-5 rounded-full bg-[var(--brand)] text-white text-[10px] leading-5 text-center shadow"
-                                title="Đổi ảnh nhóm" @click="groupAvatarInput?.click()">✎</button>
+                                class="conv-avatar__edit"
+                                title="Đổi ảnh nhóm" @click="groupAvatarInput?.click()"><AppIcon name="camera" :size="11" /></button>
                             <input ref="groupAvatarInput" type="file" accept="image/*" class="hidden" @change="onGroupAvatar" />
                         </span>
                         <div class="min-w-0 flex-1">
                             <div v-if="renaming" class="flex items-center gap-1">
                                 <DxTextBox v-model="renameText" class="flex-1" @enter-key="saveRename" />
-                                <DxButton icon="check" type="success" stylingMode="text" @click="saveRename" />
-                                <DxButton icon="close" stylingMode="text" @click="renaming = false" />
+                                <button class="icon-btn icon-btn--sm" title="Lưu tên" @click="saveRename"><AppIcon name="check" :size="17" /></button>
+                                <button class="icon-btn icon-btn--sm" title="Huỷ" @click="renaming = false"><AppIcon name="x" :size="17" /></button>
                             </div>
                             <div v-else class="font-bold truncate flex items-center gap-1">
                                 <span class="truncate">{{ displayName(active) }}</span>
-                                <button v-if="!isDm(active.conversationName)" class="text-xs muted hover:text-[var(--text)]"
-                                    title="Đổi tên nhóm" @click="startRename">✎</button>
+                                <button v-if="!isDm(active.conversationName)" class="icon-btn icon-btn--sm"
+                                    title="Đổi tên nhóm" @click="startRename"><AppIcon name="edit" :size="14" /></button>
                             </div>
                             <div class="text-xs" :class="statusClass">{{ statusText }}</div>
                         </div>
-                        <DxButton v-if="!isDm(active.conversationName)"
-                            :icon="showMembers ? 'chevronup' : 'group'" stylingMode="text"
-                            :hint="showMembers ? 'Ẩn thành viên' : 'Xem thành viên'"
-                            @click="toggleMembers" />
-                        <DxButton v-if="!isDm(active.conversationName)" icon="plus" stylingMode="text"
-                            hint="Thêm thành viên" @click="openAddMember" />
-                        <button class="text-base px-1 self-center"
+                        <button v-if="!isDm(active.conversationName)" class="icon-btn"
+                            :title="showMembers ? 'Ẩn thành viên' : 'Xem thành viên'"
+                            @click="toggleMembers">
+                            <AppIcon :name="showMembers ? 'chevron-up' : 'users'" :size="18" />
+                        </button>
+                        <button v-if="!isDm(active.conversationName)" class="icon-btn"
+                            title="Thêm thành viên" @click="openAddMember">
+                            <AppIcon name="plus" :size="18" />
+                        </button>
+                        <button class="icon-btn"
                             :title="active.muted ? 'Bật lại thông báo' : 'Tắt thông báo'" @click="toggleMute">
-                            {{ active.muted ? '🔕' : '🔔' }}
+                            <AppIcon :name="active.muted ? 'bell-off' : 'bell'" :size="18" />
                         </button>
                         <DxButton text="Rời" type="danger" stylingMode="text" @click="handleLeave" />
                     </div>
@@ -157,8 +164,8 @@
                             <!-- chế độ sửa -->
                             <div v-if="editingId === m.messageId" class="flex items-center gap-1 w-[280px]">
                                 <DxTextBox v-model="editText" class="flex-1" @enter-key="saveEdit(m)" />
-                                <DxButton icon="check" type="success" stylingMode="text" @click="saveEdit(m)" />
-                                <DxButton icon="close" stylingMode="text" @click="cancelEdit" />
+                                <button class="icon-btn icon-btn--sm" title="Lưu" @click="saveEdit(m)"><AppIcon name="check" :size="17" /></button>
+                                <button class="icon-btn icon-btn--sm" title="Huỷ" @click="cancelEdit"><AppIcon name="x" :size="17" /></button>
                             </div>
 
                             <template v-else>
@@ -231,16 +238,13 @@
                           <img v-if="pendingImgUrl" :src="pendingImgUrl" class="pending-img__thumb" alt="" />
                           <span class="pending-img__name">{{ pendingImg.name }}</span>
                           <span class="muted flex-none">{{ formatBytes(pendingImg.size) }}</span>
-                          <button class="pending-img__x" title="Bỏ ảnh này" @click="clearPendingImg">✕</button>
+                          <button class="pending-img__x" title="Bỏ ảnh này" @click="clearPendingImg"><AppIcon name="x" :size="15" /></button>
                       </div>
 
                       <div class="flex items-center gap-2">
-                        <DxButton
-                            icon="image"
-                            stylingMode="text"
-                            hint="Đính kèm ảnh"
-                            @click="pickImg"
-                        />
+                        <button class="icon-btn flex-none" title="Đính kèm ảnh" @click="pickImg">
+                            <AppIcon name="image" :size="19" />
+                        </button>
                         <input ref="fileEl" type="file" accept="image/*" class="hidden" @change="onPickImg" />
                         <EmojiPicker direction="up" @pick="addDraftEmoji" />
                         <div class="flex-1 relative">
@@ -282,6 +286,7 @@
 </template>
 
 <script setup>
+import AppIcon from '@/components/AppIcon.vue';
 import { DxTextBox, DxButton, DxPopup } from 'devextreme-vue';
 import { onMounted, onBeforeUnmount, nextTick, ref, computed, inject, watch } from 'vue';
 import { useRouter } from 'vue-router';

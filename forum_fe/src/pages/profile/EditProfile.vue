@@ -30,7 +30,9 @@
                 <span v-if="visible.hobbies && profile.hobbies" class="whitespace-pre-wrap"><span class="muted">Sở thích:</span> {{ profile.hobbies }}</span>
             </div>
             <div class="px-4 pb-4">
-                <DxButton stylingMode="outlined" icon="user" text="Xem trang công khai của tôi" @click="route.push('/user/' + myId)" />
+                <button class="sign-btn sign-btn--quiet" @click="route.push('/user/' + myId)">
+                    <AppIcon name="user" :size="16" /> Xem trang công khai của tôi
+                </button>
             </div>
         </div>
 
@@ -58,7 +60,8 @@
                         :class="{ 'is-live': visible[f.key] }"
                         @click="visible[f.key] = !visible[f.key]"
                     >
-                        {{ visible[f.key] ? '🌐 Công khai' : '🔒 Riêng tư' }}
+                        <AppIcon :name="visible[f.key] ? 'globe' : 'lock'" :size="14" />
+                        {{ visible[f.key] ? 'Công khai' : 'Riêng tư' }}
                     </button>
                 </div>
                 <div class="flex justify-end">
@@ -144,6 +147,7 @@
 </template>
 
 <script setup>
+import AppIcon from '@/components/AppIcon.vue';
 import { DxButton, DxTextBox, DxTextArea } from 'devextreme-vue';
 import { useRouter } from 'vue-router';
 import { computed, inject, onMounted, ref } from 'vue';

@@ -25,7 +25,9 @@
             </div>
 
             <div v-if="isMe" class="flex flex-col gap-2 flex-none">
-                <DxButton type="default" icon="edit" text="Chỉnh sửa hồ sơ" @click="route.push('/profile/edit')" />
+                <button class="sign-btn" @click="route.push('/profile/edit')">
+                    <AppIcon name="edit" :size="16" /> Chỉnh sửa hồ sơ
+                </button>
             </div>
             <div v-else class="flex flex-col gap-2 flex-none">
                 <template v-if="fStatus === 'blocked_out'">
@@ -36,19 +38,29 @@
                     <span class="text-xs muted">Không khả dụng</span>
                 </template>
                 <template v-else>
-                    <DxButton type="success" icon="message" text="Nhắn tin" @click="messageUser" />
+                    <button class="sign-btn sign-btn--ink" @click="messageUser">
+                        <AppIcon name="message-square" :size="16" /> Nhắn tin
+                    </button>
 
-                    <DxButton v-if="fStatus === 'none'" type="default" icon="user" text="Kết bạn" @click="doSend" />
+                    <button v-if="fStatus === 'none'" class="sign-btn" @click="doSend">
+                        <AppIcon name="user-plus" :size="16" /> Kết bạn
+                    </button>
                     <DxButton v-else-if="fStatus === 'pending_out'" type="normal" stylingMode="outlined" text="Huỷ lời mời" @click="doCancel" />
                     <template v-else-if="fStatus === 'pending_in'">
                         <DxButton type="default" text="Chấp nhận kết bạn" @click="doAccept" />
                         <DxButton type="normal" stylingMode="outlined" text="Từ chối" @click="doDecline" />
                     </template>
-                    <DxButton v-else-if="fStatus === 'friends'" type="normal" stylingMode="outlined" icon="check" text="Bạn bè" @click="doUnfriend" />
+                    <button v-else-if="fStatus === 'friends'" class="sign-btn sign-btn--quiet" @click="doUnfriend">
+                        <AppIcon name="check" :size="16" /> Bạn bè
+                    </button>
 
                     <div class="flex gap-1">
-                        <DxButton type="danger" stylingMode="text" icon="warning" text="Báo cáo" @click="report" />
-                        <DxButton type="danger" stylingMode="text" icon="clearsquare" text="Chặn" @click="doBlock" />
+                        <button class="act-pill" style="color: var(--cinnabar-ink)" @click="report">
+                            <AppIcon name="warning" :size="15" /> Báo cáo
+                        </button>
+                        <button class="act-pill" style="color: var(--cinnabar-ink)" @click="doBlock">
+                            <AppIcon name="user-x" :size="15" /> Chặn
+                        </button>
                     </div>
                 </template>
             </div>
@@ -93,6 +105,7 @@
 </template>
 
 <script setup>
+import AppIcon from '@/components/AppIcon.vue';
 import { DxButton } from 'devextreme-vue';
 import { onMounted, ref, computed, watch, inject } from 'vue';
 import { useRouter } from 'vue-router';

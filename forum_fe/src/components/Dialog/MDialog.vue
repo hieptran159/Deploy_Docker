@@ -7,11 +7,9 @@
 			<div class="m-dialog__header">
 				<div class="m-dialog__title">{{ title }}</div>
 				<div class="m-dialog__closeBtn">
-					<DxButton
-						@click="emit('close')"
-						icon="close"
-						styling-mode="text"
-				/></div>
+					<button class="icon-btn" title="Đóng" @click="emit('close')">
+						<AppIcon name="x" :size="18" />
+					</button></div>
 			</div>
 			<div class="m-dialog__body">
 				<span style="white-space: pre-line">{{ content }}</span>
@@ -32,6 +30,7 @@
 </template>
 
 <script setup>
+import AppIcon from '@/components/AppIcon.vue';
 import DxButton from 'devextreme-vue/button';
 import { ref, onMounted } from 'vue';
 const props = defineProps({

@@ -325,6 +325,32 @@ h1, h2, h3, h4 {
 .act-pill.is-live:hover { background: #FFC03F; color: var(--ink); }
 .act-pill svg { display: block; width: 16px; height: 16px; }
 
+/* Nút chỉ có icon (thay các DxButton icon-only) */
+.icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    flex: none;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-control);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background .12s var(--ease), color .12s var(--ease);
+}
+.icon-btn:hover { background: var(--turmeric-wash); color: var(--text); }
+.icon-btn:disabled { opacity: .4; cursor: default; }
+.icon-btn:disabled:hover { background: transparent; color: var(--text-muted); }
+.icon-btn--danger { color: var(--cinnabar-ink); }
+.icon-btn--sm { width: 28px; height: 28px; }
+
+/* Icon đứng cạnh chữ trong nhãn/badge — canh theo đường nền chữ */
+.post-badge .app-icon,
+.chip .app-icon { margin-right: 1px; }
+
 /* Nút chính kiểu tấm biển */
 .sign-btn {
     display: inline-flex;
@@ -709,11 +735,8 @@ h1, h2, h3, h4 {
 /* type="default"/"success" ở chế độ text vẫn giữ xanh dương/xanh lá của DevExtreme
    -> kéo về bảng màu. (Chế độ contained đã được tô ở trên.) */
 .dx-button.dx-button-mode-text.dx-button-default .dx-button-text,
-.dx-button.dx-button-mode-text.dx-button-default .dx-icon,
-.dx-button.dx-button-mode-text.dx-button-success .dx-button-text,
-.dx-button.dx-button-mode-text.dx-button-success .dx-icon { color: var(--text) !important; }
-.dx-button.dx-button-mode-text.dx-button-danger .dx-button-text,
-.dx-button.dx-button-mode-text.dx-button-danger .dx-icon { color: var(--cinnabar-ink) !important; }
+.dx-button.dx-button-mode-text.dx-button-success .dx-button-text { color: var(--text) !important; }
+.dx-button.dx-button-mode-text.dx-button-danger .dx-button-text { color: var(--cinnabar-ink) !important; }
 
 /* Menu thả xuống (⋮ trên bài viết): đủ rộng cho nhãn dài, căn trái như menu thật */
 .menu-pop {
@@ -729,11 +752,72 @@ h1, h2, h3, h4 {
     border-radius: var(--radius);
     box-shadow: var(--lift);
 }
-.menu-pop .dx-button { width: 100%; }
-.menu-pop .dx-button .dx-button-content { justify-content: flex-start; }
-/* DevExtreme cố định icon ở #333 — vô hình trên nền tối. Neo vào --text. */
-.dx-button.dx-button-mode-text .dx-icon,
-.dx-button.dx-button-mode-outlined .dx-icon { color: var(--text) !important; }
+.menu-pop__item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    font-family: inherit;
+    font-size: var(--fs-ui);
+    font-weight: 600;
+    text-align: left;
+    padding: 8px 10px;
+    border: 0;
+    border-radius: var(--radius-control);
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    transition: background .12s var(--ease);
+}
+.menu-pop__item:hover { background: var(--turmeric-wash); }
+.menu-pop__item--danger { color: var(--cinnabar-ink); }
+
+/* Avatar mặc định của nhóm chat (thay emoji 👥) */
+.conv-avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: var(--ink);
+    color: var(--turmeric);
+    flex: none;
+}
+.conv-avatar__edit {
+    position: absolute;
+    bottom: -3px;
+    right: -3px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 19px;
+    height: 19px;
+    padding: 0;
+    border: 1.5px solid var(--surface);
+    border-radius: 999px;
+    background: var(--cinnabar-ink);
+    color: #FFF;
+    cursor: pointer;
+}
+.conv-avatar__edit:hover { background: var(--cinnabar); }
+
+/* Nút bỏ ảnh đính kèm, nổi ở góc ảnh xem trước */
+.img-clear {
+    position: absolute;
+    top: -9px;
+    right: -9px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: var(--line-w) solid var(--stroke);
+    border-radius: 999px;
+    background: var(--cinnabar-ink);
+    color: #FFF;
+    cursor: pointer;
+}
+.img-clear:hover { background: var(--cinnabar); }
 .dx-button.dx-button-mode-outlined {
     border-color: var(--stroke);
     background: transparent;
@@ -741,8 +825,6 @@ h1, h2, h3, h4 {
 }
 .dx-button.dx-button-mode-outlined.dx-state-hover { background: var(--turmeric-wash); }
 .dx-button.dx-button-mode-outlined.dx-button-danger { border-color: var(--cinnabar); color: var(--cinnabar-ink); }
-.dx-button.dx-button-mode-outlined.dx-button-danger .dx-icon { color: var(--cinnabar-ink) !important; }
-.app-header .dx-button.dx-button-mode-text .dx-icon { color: rgba(255, 255, 255, .85) !important; }
 .app-header .dx-button.dx-button-mode-text.dx-state-hover { background: rgba(255, 255, 255, .12); }
 
 .dx-texteditor.dx-editor-outlined {
@@ -782,7 +864,6 @@ h1, h2, h3, h4 {
     cursor: pointer;
     transition: background .12s var(--ease), color .12s var(--ease);
 }
-.hdr-tab .dx-icon { color: inherit; font-size: 17px; line-height: 1; }
 .hdr-tab:hover { background: rgba(255, 255, 255, .12); color: #FFF; }
 .hdr-tab.is-on { background: var(--turmeric); color: var(--ink); font-weight: 700; }
 

@@ -411,14 +411,25 @@ Motion: one non-user-triggered moment only — the home banner's post count ease
 Deliberately avoided: ALL-CAPS eyebrow labels (Chat's three were converted to sentence case),
 `→` appended to links, mono for numerals (use `.tnum`), soft grey card shadows.
 
+**Icons are `components/AppIcon.vue`** — one component, ~33 Feather-style stroke glyphs
+described as plain data (`path`/`circle`/`rect`) and rendered with `v-for`, **never `v-html`**.
+Usage: `<AppIcon name="bell" :size="18" />`; it inherits `currentColor`, so it needs no
+per-state colour rules. This replaced the DevExtreme icon font (fixed `#333`, invisible on
+dark, needed `!important` everywhere; and `message`/`email` shared one envelope glyph) and
+emoji-as-icons (different on every OS, no stroke or colour control). **No `DxButton icon=`
+remains** — icon-only buttons are `.icon-btn`, icon+label are `.sign-btn`/`.act-pill`.
+Add a new glyph to the `ICONS` map, don't reach for a font or an inline `<svg>`.
+The one place icons must stay emoji: `<option>` in the "Ai xem được" `<select>`
+(CreatePost/EditPost) — native options render text only. Reaction/emoji pickers keep emoji
+because there the emoji *is* the content.
+
 The header nav is a **plain `<nav>` (`.hdr-tab`), not `DxTabs`** — DxTabs normalises
 `selectedIndex: -1` to the *last* item, so every route outside the five tab routes
 (`/post/:id`, `/tag/:tag`, `/saved`, `/drafts`, `/notifications`, `/profile/edit`) lit up
 "Tìm người dùng"; `selected-item: null` does not deselect either. Don't reintroduce DxTabs here.
 
 DevExtreme still needs `!important` where its own CSS wins: text-mode button colours for
-`type="default"/"success"/"danger"` (they keep DevExtreme blue/green otherwise), and icon
-colours (`color: inherit` picks up DevExtreme's `#333` — set the colour explicitly).
+`type="default"/"success"/"danger"`, which otherwise keep DevExtreme blue/green.
 
 Mobile (≤720px): the header's `div.flex-1` spacer is hidden and replaced with an auto-margin
 — flex-grow eats the first line's free space and pushes the avatar group onto a second row,

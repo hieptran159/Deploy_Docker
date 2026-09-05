@@ -13,27 +13,33 @@
                     <span class="link font-medium text-[var(--text)]" @click="goAuthor">{{ userCreatedPost || '—' }}</span>
                     · {{ calculateTimeDifference(post?.postedAt) }} trước
                     <span v-if="post?.editedAt">· đã chỉnh sửa</span>
-                    <span v-if="post?.visibility === 'friends'" class="post-badge ml-1">👥 Chỉ bạn bè</span>
-                    <span v-else-if="post?.visibility === 'private'" class="post-badge ml-1">🔒 Chỉ mình tôi</span>
+                    <span v-if="post?.visibility === 'friends'" class="post-badge ml-1"><AppIcon name="users" :size="12" /> Chỉ bạn bè</span>
+                    <span v-else-if="post?.visibility === 'private'" class="post-badge ml-1"><AppIcon name="lock" :size="12" /> Chỉ mình tôi</span>
                 </div>
                 <div
                     class="relative flex-none"
                     v-if="post?.userCreatedPost == getItemLocal(LOCALKEYS.USER_ID)"
                 >
-                    <DxButton icon="overflow" stylingMode="text" @click="isShowSetting = !isShowSetting" />
+                    <button class="icon-btn" title="Tuỳ chọn bài viết" @click="isShowSetting = !isShowSetting">
+                        <AppIcon name="more-vertical" :size="18" />
+                    </button>
                     <!-- w-32 cũ quá hẹp: "Chỉnh sửa" bị cắt thành "Chỉnh ..." -->
                     <div class="menu-pop" v-if="isShowSetting">
-                        <DxButton icon="edit" type="default" stylingMode="text" text="Chỉnh sửa"
-                            @click="() => { isShowSetting = false; ishowEditPost = true }" />
-                        <DxButton icon="trash" type="danger" stylingMode="text" text="Xoá"
-                            @click="() => { isShowSetting = false; handleDeletePost() }" />
+                        <button class="menu-pop__item" @click="() => { isShowSetting = false; ishowEditPost = true }">
+                            <AppIcon name="edit" :size="16" /> Chỉnh sửa
+                        </button>
+                        <button class="menu-pop__item menu-pop__item--danger" @click="() => { isShowSetting = false; handleDeletePost() }">
+                            <AppIcon name="trash" :size="16" /> Xoá
+                        </button>
                     </div>
                 </div>
-                <DxButton
+                <button
                     v-else-if="post?.userCreatedPost && isLogin"
-                    icon="warning" type="danger" stylingMode="text" hint="Báo cáo bài viết"
+                    class="icon-btn icon-btn--danger flex-none" title="Báo cáo bài viết"
                     @click="reportPost"
-                />
+                >
+                    <AppIcon name="warning" :size="18" />
+                </button>
             </div>
 
             <!-- tiêu đề -->
@@ -118,23 +124,19 @@
                         </div>
                     </div>
                     <EmojiPicker direction="down" @pick="addCommentEmoji" />
-                    <DxButton
-                        :icon="commentImg ? 'photo' : 'image'"
-                        :type="commentImg ? 'success' : 'normal'"
-                        stylingMode="text"
-                        hint="Đính kèm ảnh"
-                        @click="pickCommentImg"
-                    />
+                    <button class="icon-btn flex-none" title="Đính kèm ảnh" @click="pickCommentImg">
+                        <AppIcon name="image" :size="19" />
+                    </button>
                     <input ref="commentFileEl" type="file" accept="image/*" class="hidden" @change="onCommentImg" />
                     <DxButton type="default" text="Gửi" @click="commentPost" />
                 </div>
                 <div v-if="commentImgPreview" class="mt-2 ml-14 relative inline-block">
                     <img :src="commentImgPreview" class="max-h-32 rounded-lg border" />
                     <button
-                        class="absolute -top-2 -right-2 size-6 rounded-full bg-[var(--danger)] text-white text-xs leading-6 text-center shadow"
+                        class="img-clear"
                         title="Bỏ ảnh"
                         @click="clearCommentImg"
-                    >✕</button>
+                    ><AppIcon name="x" :size="14" /></button>
                 </div>
             </div>
 
@@ -185,6 +187,7 @@ import { useRouter } from 'vue-router';
 import { calculateTimeDifference } from '@/js/helper';
 import Comment from '../comment/Comment.vue';
 import { DxTextBox, DxButton, DxPopup } from 'devextreme-vue';
+import AppIcon from '@/components/AppIcon.vue';
 import BaseAvatar from '../BaseAvatar.vue';
 import EmojiPicker from '@/components/EmojiPicker.vue';
 import ReactionBar from '@/components/ReactionBar.vue';

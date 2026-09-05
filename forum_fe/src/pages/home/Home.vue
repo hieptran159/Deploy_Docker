@@ -44,7 +44,9 @@
             >
                 {{ getItemLocal(LOCALKEYS.USER_NAME) }} ơi, bạn đang nghĩ gì?
             </button>
-            <DxButton icon="edit" text="Viết bài" type="default" @click="ishowCreatePost = true" />
+            <button class="sign-btn flex-none" @click="ishowCreatePost = true">
+                <AppIcon name="edit" :size="16" /> Viết bài
+            </button>
             <DxPopup
                 title="Tạo bài viết mới"
                 v-model:visible="ishowCreatePost"
@@ -67,20 +69,12 @@
                 </div>
                 <span v-else class="section-title mb-0 flex-1">Bài đăng mới nhất</span>
                 <span class="flex-1"></span>
-                <DxButton
-                    v-if="isLogin"
-                    icon="bookmark"
-                    hint="Đã lưu"
-                    stylingMode="text"
-                    @click="router.push('/saved')"
-                />
-                <DxButton
-                    v-if="isLogin"
-                    icon="doc"
-                    hint="Bản nháp"
-                    stylingMode="text"
-                    @click="router.push('/drafts')"
-                />
+                <button v-if="isLogin" class="icon-btn" title="Bài đã lưu" @click="router.push('/saved')">
+                    <AppIcon name="bookmark" :size="18" />
+                </button>
+                <button v-if="isLogin" class="icon-btn" title="Bản nháp" @click="router.push('/drafts')">
+                    <AppIcon name="file-text" :size="18" />
+                </button>
                 <DxTextBox
                     v-model="searchText"
                     @enter-key="handleSearch"
@@ -115,7 +109,9 @@
             </div>
 
             <div v-else class="flex items-center justify-center gap-2 mt-4 flex-wrap">
-                <DxButton icon="chevronleft" :disabled="currentPage <= 1" @click="currentPageChange(-1)" />
+                <button class="icon-btn" title="Trang trước" :disabled="currentPage <= 1" @click="currentPageChange(-1)">
+                    <AppIcon name="chevron-left" :size="18" />
+                </button>
                 <span class="muted text-sm">Trang</span>
                 <input
                     type="number"
@@ -126,7 +122,9 @@
                     @keyup.enter="doGoto"
                 />
                 <span class="muted text-sm">/ {{ totalPages }}</span>
-                <DxButton icon="chevronright" :disabled="currentPage >= totalPages" @click="currentPageChange(1)" />
+                <button class="icon-btn" title="Trang sau" :disabled="currentPage >= totalPages" @click="currentPageChange(1)">
+                    <AppIcon name="chevron-right" :size="18" />
+                </button>
                 <DxButton text="Đi tới" stylingMode="text" @click="doGoto" />
             </div>
         </div>
@@ -142,6 +140,7 @@ import { useRouter } from 'vue-router';
 import BaseAvatar from '@/components/BaseAvatar.vue';
 import { getItemLocal, LOCALKEYS } from '../../storages/localStorage';
 import CreatePost from '../../components/Post/CreatePost.vue';
+import AppIcon from '@/components/AppIcon.vue';
 
 const router = useRouter();
 const isLogin = computed(() => getItemLocal(LOCALKEYS.ACCESS_TOKEN) != null);

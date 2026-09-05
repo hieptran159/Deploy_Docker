@@ -11,7 +11,9 @@
                     :show-clear-button="true"
                     width="240"
                 />
-                <DxButton icon="search" type="default" text="Tìm" @click="doSearch" />
+                <button class="sign-btn flex-none" @click="doSearch">
+                    <AppIcon name="search" :size="16" /> Tìm
+                </button>
             </div>
 
             <div v-if="loading" class="state">Đang tải…</div>
@@ -47,6 +49,7 @@
 </template>
 
 <script setup>
+import AppIcon from '@/components/AppIcon.vue';
 import { DxTextBox, DxButton } from 'devextreme-vue';
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
