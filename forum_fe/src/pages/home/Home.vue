@@ -1,13 +1,45 @@
 <template>
     <div class="page">
-        <div v-if="isLogin" class="card flex items-center gap-4">
+        <!-- Tấm biển đầu trang: mang số liệu thật + hashtag đang chạy,
+             không phải khối trang trí. Gộp luôn thẻ "Hashtag nổi bật" cũ. -->
+        <section class="board board--framed">
+            <div class="board__inner">
+                <h1 class="board__lede">Chuyện đang được bàn hôm nay</h1>
+                <p class="board__sub">
+                    {{ isLogin ? 'Đọc, chia sẻ lại, hoặc mở một chủ đề của riêng bạn.'
+                        : 'Bạn đang xem với tư cách khách. Đăng nhập để viết bài và bình luận.' }}
+                </p>
+
+                <div class="board-stats mt-6">
+                    <div>
+                        <div class="board-stat__num">{{ shownTotal.toLocaleString('vi-VN') }}</div>
+                        <div class="board-stat__label">bài viết</div>
+                    </div>
+                    <div v-if="trendingTags.length">
+                        <div class="board-stat__num">{{ trendingTags.length }}</div>
+                        <div class="board-stat__label">hashtag đang chạy</div>
+                    </div>
+                </div>
+
+                <div v-if="trendingTags.length" class="flex flex-wrap gap-2 mt-6">
+                    <button
+                        v-for="t in trendingTags"
+                        :key="t.tag"
+                        class="tag-chip"
+                        @click="router.push('/tag/' + encodeURIComponent(t.tag))"
+                    >#{{ t.tag }} <span class="tag-chip__count">{{ t.count }}</span></button>
+                </div>
+            </div>
+        </section>
+
+        <div v-if="isLogin" class="card flex items-center gap-3 flex-wrap sm:flex-nowrap">
             <BaseAvatar
                 :link-avt="getItemLocal(LOCALKEYS.LINK_AVT)"
                 :user-created-post="getItemLocal(LOCALKEYS.USER_NAME)"
                 :is-show="false"
             />
             <button
-                class="flex-1 text-left px-4 py-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 transition"
+                class="flex-1 min-w-[160px] text-left px-4 py-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 transition truncate"
                 @click="ishowCreatePost = true"
             >
                 {{ getItemLocal(LOCALKEYS.USER_NAME) }} ơi, bạn đang nghĩ gì?
@@ -27,37 +59,14 @@
             </DxPopup>
         </div>
 
-        <div v-else class="card text-sm muted">
-            Bạn đang xem với tư cách khách. Đăng nhập để viết bài, bình luận và tương tác.
-        </div>
-
-        <div v-if="trendingTags.length" class="card">
-            <div class="section-title">Hashtag nổi bật</div>
-            <div class="flex flex-wrap gap-2">
-                <button
-                    v-for="t in trendingTags"
-                    :key="t.tag"
-                    class="text-sm font-semibold text-[var(--brand)] bg-[var(--brand-soft)] rounded-full px-3 py-1 hover:underline"
-                    @click="router.push('/tag/' + encodeURIComponent(t.tag))"
-                >#{{ t.tag }} <span class="muted font-normal">{{ t.count }}</span></button>
-            </div>
-        </div>
-
         <div class="card">
-            <div v-if="isLogin" class="flex gap-1 mb-3">
-                <button
-                    class="px-3 py-1.5 rounded-lg text-sm font-semibold"
-                    :class="feedMode === 'all' ? 'bg-[var(--brand-soft)] text-[var(--brand)]' : 'muted'"
-                    @click="setFeedMode('all')"
-                >Tất cả</button>
-                <button
-                    class="px-3 py-1.5 rounded-lg text-sm font-semibold"
-                    :class="feedMode === 'friends' ? 'bg-[var(--brand-soft)] text-[var(--brand)]' : 'muted'"
-                    @click="setFeedMode('friends')"
-                >Bạn bè</button>
-            </div>
-            <div class="flex items-center gap-2 mb-3">
-                <span class="section-title mb-0 flex-1">{{ feedMode === 'friends' ? 'Từ bạn bè' : 'Bài đăng mới nhất' }}</span>
+            <div class="flex items-center gap-3 mb-4 flex-wrap">
+                <div v-if="isLogin" class="seg">
+                    <button class="seg__btn" :class="{ 'is-on': feedMode === 'all' }" @click="setFeedMode('all')">Tất cả</button>
+                    <button class="seg__btn" :class="{ 'is-on': feedMode === 'friends' }" @click="setFeedMode('friends')">Bạn bè</button>
+                </div>
+                <span v-else class="section-title mb-0 flex-1">Bài đăng mới nhất</span>
+                <span class="flex-1"></span>
                 <DxButton
                     v-if="isLogin"
                     icon="bookmark"
@@ -89,8 +98,9 @@
 
             <div v-if="loading && !posts.length" class="state">Đang tải…</div>
             <div v-else-if="!posts.length" class="state">
-                {{ searchMode ? 'Không tìm thấy bài viết nào'
-                    : (feedMode === 'friends' ? 'Bạn bè của bạn chưa đăng hay chia sẻ gì' : 'Chưa có bài viết nào') }}
+                {{ searchMode ? 'Không có bài nào khớp với từ khoá này. Thử từ ngắn hơn hoặc một hashtag.'
+                    : (feedMode === 'friends' ? 'Bạn bè của bạn chưa đăng hay chia sẻ gì. Chuyển sang Tất cả để xem toàn diễn đàn.'
+                        : 'Chưa có bài viết nào. Viết bài đầu tiên đi.') }}
             </div>
 
             <div v-for="post in posts" :key="post.postId" class="border-b last:border-b-0">
@@ -164,8 +174,27 @@ const setFeedMode = (m) => {
 const loadPageInfo = async () => {
     try {
         const fn = feedMode.value === 'friends' ? getFriendsFeedPages : getFeedPages;
-        totalPages.value = (await fn())?.data?.data?.totalPages || 1;
+        const info = (await fn())?.data?.data || {};
+        totalPages.value = info.totalPages || 1;
+        countTo(info.total || 0);
     } catch (e) { totalPages.value = 1; }
+}
+
+/* Chuyển động duy nhất không do người dùng kích hoạt trên trang này: con số trên
+   tấm biển đếm tăng một lần khi tải xong. Ai bật "giảm chuyển động" thì nhảy thẳng
+   tới số cuối. */
+const shownTotal = ref(0);
+const countTo = (target) => {
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+    if (reduce || target <= 0) { shownTotal.value = target; return; }
+    const start = performance.now();
+    const dur = 700;
+    const step = (now) => {
+        const p = Math.min((now - start) / dur, 1);
+        shownTotal.value = Math.round(target * (1 - Math.pow(1 - p, 3)));
+        if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
 }
 
 const doGoto = () => {

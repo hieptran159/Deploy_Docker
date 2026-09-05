@@ -1,7 +1,7 @@
 <template>
     <div class="page">
         <div class="card card--flush overflow-hidden">
-            <div class="h-40 sm:h-52 w-full bg-[var(--brand-soft)]">
+            <div class="h-40 sm:h-52 w-full bg-[var(--wash)]">
                 <img v-if="coverUrl" :src="coverUrl" class="w-full h-full object-cover"
                     @error="(e) => e.target.style.display = 'none'" />
             </div>

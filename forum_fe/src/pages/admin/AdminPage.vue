@@ -9,8 +9,8 @@
             <div class="card">
                 <div class="section-title">Thống kê</div>
                 <div v-if="stats" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <div v-for="s in statCards" :key="s.key" class="rounded-xl border p-3 bg-[var(--surface)]">
-                        <div class="text-2xl font-bold">{{ stats[s.key] ?? 0 }}</div>
+                    <div v-for="s in statCards" :key="s.key" class="border-2 border-[var(--ink)] p-3 bg-[var(--surface)]">
+                        <div class="text-2xl font-extrabold tnum">{{ stats[s.key] ?? 0 }}</div>
                         <div class="text-xs muted">{{ s.label }}</div>
                     </div>
                 </div>
@@ -65,18 +65,16 @@
                 <div v-for="r in reports" :key="r.reportId" class="border-b last:border-b-0 py-3 flex flex-wrap gap-x-4 gap-y-1 items-start">
                     <div class="min-w-0 flex-1">
                         <div class="text-sm">
-                            <span class="px-2 py-0.5 rounded-full text-xs font-bold mr-1"
+                            <span class="chip mr-1"
                                 :class="{
-                                    'bg-blue-50 text-blue-600': r.targetType === 'POST',
-                                    'bg-purple-50 text-purple-600': r.targetType === 'COMMENT',
-                                    'bg-amber-50 text-amber-600': r.targetType === 'USER',
+                                    'chip--ink': r.targetType === 'POST',
+                                    'chip--turmeric': r.targetType === 'USER',
                                 }">{{ r.targetType }}</span>
                             <span class="link" @click="() => openTarget(r)">{{ r.targetPreview || r.targetId }}</span>
                             <span v-if="r.sameTargetOpenCount > 1" class="text-xs text-[var(--danger)] font-semibold">
                                 · {{ r.sameTargetOpenCount }} báo cáo
                             </span>
-                            <span v-if="r.targetStatus === 'hidden'"
-                                class="ml-1 px-1.5 py-0.5 rounded bg-orange-50 text-orange-600 text-[11px] font-bold">đã tự ẩn</span>
+                            <span v-if="r.targetStatus === 'hidden'" class="chip chip--cinnabar ml-1">đã tự ẩn</span>
                         </div>
                         <div class="text-xs muted mt-0.5">
                             {{ r.reporterName }} · {{ timeAgo(r.createdAt) }}
@@ -115,10 +113,8 @@
                                 <td class="py-2 pr-3 font-medium">{{ u.fullName }}</td>
                                 <td class="pr-3">{{ u.email }}</td>
                                 <td class="pr-3">
-                                    <span class="px-2 py-0.5 rounded-full text-xs font-semibold"
-                                        :class="u.reportStatus === 'blocked'
-                                            ? 'bg-rose-50 text-rose-600'
-                                            : 'bg-amber-50 text-amber-600'">
+                                    <span class="chip"
+                                        :class="u.reportStatus === 'blocked' ? 'chip--cinnabar' : 'chip--quiet'">
                                         {{ u.reportStatus }}
                                     </span>
                                 </td>

@@ -1,9 +1,11 @@
 <template>
     <header class="app-header">
         <div class="app-header__inner">
-            <span class="app-brand" @click="goHomeReload">HIPDN-EA&nbsp;Forum</span>
+            <span class="app-brand" @click="goHomeReload">
+                <span class="app-brand__mark">HIPDN</span>Diễn&nbsp;đàn
+            </span>
 
-            <div v-if="isLogin" class="flex-1 min-w-0">
+            <div v-if="isLogin" class="hdr-tabs min-w-0">
                 <DxTabs
                     :selected-index="primaryIndex"
                     :dataSource="primaryTabs"
@@ -11,7 +13,7 @@
                     @item-click="selectChange"
                 />
             </div>
-            <div v-else class="flex-1"></div>
+            <div class="flex-1"></div>
 
             <DxButton
                 :icon="isDark ? 'sun' : 'moon'"
@@ -23,8 +25,8 @@
             <!-- Chuông thông báo -->
             <div v-if="isLogin" class="relative">
                 <button
-                    class="relative flex items-center justify-center size-9 rounded-lg hover:bg-gray-100"
-                    :class="{ 'text-[var(--brand)]': unread > 0 }"
+                    class="hdr-icon"
+                    :class="{ 'is-active': unread > 0 }"
                     title="Thông báo"
                     @click="toggleNotif"
                 >
@@ -32,37 +34,27 @@
                         <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
                         <path d="M13.73 21a2 2 0 0 1-3.46 0" />
                     </svg>
-                    <span
-                        v-if="unread > 0"
-                        class="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[var(--danger)] text-white text-[11px] leading-none font-bold flex items-center justify-center ring-2 ring-[var(--surface)]"
-                    >{{ unread > 99 ? '99+' : unread }}</span>
-                    <span
-                        v-if="unread > 0"
-                        class="absolute -top-1 -right-1 size-[18px] rounded-full bg-[var(--danger)] opacity-60 animate-ping"
-                    ></span>
+                    <span v-if="unread > 0" class="notif-dot">{{ unread > 99 ? '99+' : unread }}</span>
                 </button>
 
-                <div
-                    v-if="showNotif"
-                    class="absolute right-0 mt-2 w-80 max-h-[70vh] overflow-y-auto bg-white border rounded-xl shadow-lg z-[60]"
-                >
-                    <div class="flex items-center justify-between px-3 py-2 border-b">
-                        <span class="font-bold text-sm">Thông báo</span>
+                <div v-if="showNotif" class="notif-tray">
+                    <div class="notif-tray__head">
+                        <span>Thông báo</span>
                         <button class="link text-xs" @click.stop="readAll">Đánh dấu đã đọc</button>
                     </div>
                     <div v-if="notifLoading" class="state text-sm">Đang tải…</div>
-                    <div v-else-if="notifs.length === 0" class="state text-sm">Chưa có thông báo</div>
+                    <div v-else-if="notifs.length === 0" class="state text-sm">Chưa có thông báo nào</div>
                     <button
                         v-for="n in notifs"
                         :key="n.notificationId"
-                        class="w-full text-left flex gap-3 px-3 py-2.5 border-b last:border-b-0 hover:bg-gray-50"
-                        :class="{ 'bg-[var(--brand-soft)]': !n.read }"
+                        class="notif-row"
+                        :class="{ 'notif-row--unread': !n.read }"
                         @click="onNotifClick(n)"
                     >
                         <img
                             v-if="avatarUrlOf(n)"
                             :src="avatarUrlOf(n)"
-                            class="size-8 rounded-full object-cover flex-none bg-gray-100"
+                            class="size-8 rounded-full object-cover flex-none"
                             @error="(e) => e.target.style.display = 'none'"
                         />
                         <div v-else class="avatar-fallback size-8 text-sm flex-none">
@@ -73,18 +65,12 @@
                             <div class="text-xs muted">{{ timeAgo(n.createdAt) }}</div>
                         </div>
                     </button>
-                    <button
-                        class="w-full text-center px-3 py-2.5 text-sm font-semibold text-[var(--brand)] hover:bg-gray-50 sticky bottom-0 bg-white border-t"
-                        @click="openAllNotifs"
-                    >Xem tất cả</button>
+                    <button class="notif-tray__more" @click="openAllNotifs">Xem tất cả</button>
                 </div>
             </div>
 
             <div v-if="isLogin" class="row-actions">
-                <div
-                    class="flex items-center gap-2 cursor-pointer px-2 py-1 rounded-lg hover:bg-gray-100"
-                    @click="goMyProfile"
-                >
+                <div class="hdr-user" @click="goMyProfile">
                     <BaseAvatar
                         :key="headerAvatarTick"
                         :link-avt="getItemLocal(LOCALKEYS.LINK_AVT)"

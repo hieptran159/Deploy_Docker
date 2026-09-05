@@ -4,7 +4,7 @@
             <div class="section-title">Quên mật khẩu</div>
 
             <div v-if="step === 1" class="flex flex-col gap-2">
-                <p class="muted text-sm text-center -mt-2">Nhập email đã đăng ký để nhận mã OTP</p>
+                <p class="muted text-sm -mt-3 mb-1">Nhập email đã đăng ký để nhận mã OTP</p>
                 <div>
                     <label class="text-sm muted">Email</label>
                     <DxTextBox v-model="email" @enter-key="requestOtp"/>
@@ -13,7 +13,7 @@
             </div>
 
             <div v-else class="flex flex-col gap-2">
-                <p class="muted text-sm text-center -mt-2">Đã gửi OTP tới email. Nhập OTP và mật khẩu mới.</p>
+                <p class="muted text-sm -mt-3 mb-1">Đã gửi OTP tới email. Nhập OTP và mật khẩu mới.</p>
                 <div>
                     <label class="text-sm muted">Mã OTP</label>
                     <DxTextBox v-model="token"/>
@@ -25,7 +25,7 @@
                 <DxButton width="100%" type="default" text="Đặt lại mật khẩu" @click="submitReset"/>
             </div>
 
-            <div class="text-sm text-center">
+            <div class="text-sm">
                 <span class="link" @click="() => route.push('/login')">Quay lại đăng nhập</span>
             </div>
         </div>

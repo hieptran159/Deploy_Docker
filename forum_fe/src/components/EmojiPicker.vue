@@ -126,7 +126,7 @@ onBeforeUnmount(() => {
     border-radius: 999px;
     font-size: 18px;
     line-height: 1;
-    border: 1px solid var(--border);
+    border: var(--line-w) solid var(--ink);
     background: var(--surface);
     transition: background .15s, border-color .15s;
 }
@@ -141,9 +141,9 @@ onBeforeUnmount(() => {
     z-index: 50;
     width: 268px;
     background: var(--surface);
-    border: 1px solid var(--border);
+    border: var(--line-w) solid var(--ink);
     border-radius: var(--radius);
-    box-shadow: var(--shadow);
+    box-shadow: var(--lift);
     padding: 8px;
 }
 .emoji-pop--up {

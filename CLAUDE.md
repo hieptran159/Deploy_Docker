@@ -364,6 +364,67 @@ frontend tests.
   JDBC connection at startup (per HHH90000025). The old conflicting `database-platform=MySQL5Dialect`
   (ignored) + `properties.hibernate.dialect=MySQL8Dialect` (deprecated) lines were removed.
 
+## Frontend design system ("Bảng hiệu")
+
+`src/main.css` is the whole design layer — tokens + primitives. 12 of the 29 `.vue` files
+carry no raw Tailwind colour/radius/shadow at all, so changing the tokens re-skins the app;
+the rest are neutralised by a Tailwind-override block at the bottom of `main.css`
+(`.bg-gray-*`, `.rounded-*`, `.shadow*`, `.text-gray-*`, `.bg-blue/red/green-*` all map onto
+tokens). **Add new colour through a token, not a raw Tailwind class.**
+
+Concept: Vietnamese public notice board / hand-painted signboard. Flat colour blocks, hard
+2px borders, and a **solid offset shadow** (`--lift: 5px 5px 0`) — never a blurred grey one
+(`--shadow` is now `none`; three popovers that referenced it were moved to `--lift`).
+
+Palette (`--ink` #0E3B3E, `--paper` #FCF8ED, `--turmeric` #F2B01E, `--cinnabar` #D6402F).
+Colour encodes, it does not decorate:
+- **turmeric** = the site's voice / active state (selected tab, `.seg__btn.is-on`, online,
+  `.act-pill.is-live`). **Never text on a light ground** — 1.9:1. Fills only, ink text on top.
+- **cinnabar** = *your* action (`.act-pill.is-on` = liked/reposted). `--cinnabar-ink` #B8291A
+  is the text-safe variant (5.9:1).
+- **ink** = structure. `--stroke` is a separate token from `--ink` because in dark mode
+  `--ink` becomes the *background*, so borders need their own colour (#35595C).
+- `--wash` (neutral ink tint) is for static surfaces; `--turmeric-wash` only for hover/selected.
+
+Every pair passes WCAG AA in both themes, verified in-browser. Two need per-theme inversion:
+`.act-pill.is-on` and `.chip--cinnabar` use white-on-cinnabar-ink in light but
+**ink-on-cinnabar in dark** (white-on-cinnabar is only 3.7:1 there).
+
+Radius is a hierarchy, not one value: `0` structural blocks · `--radius-control` 3px form
+controls · `999px` identity (avatars, pills).
+
+Type: **Be Vietnam Pro** (Google Fonts, loaded in `index.html`), one family, weights
+400/500/600/800. Scale is a 1.25 major third: `--fs-xs`12 `--fs-sm`13 `--fs-ui`14
+`--fs-base`16 `--fs-lg`20 `--fs-xl`25 `--fs-2xl`31 `--fs-3xl`39. `--measure` 66ch caps
+reading width (`.measure`, `.post-body`); `.post-title--hero` caps at 30ch.
+
+Key primitives: `.board` (+`--framed`/`--turmeric`/`--paper`) the signboard; `.card`
+(border, **no** shadow — that's the hierarchy); `.seg` segmented control; `.act-pill`;
+`.tag-chip` (+`--sm`); `.chip` (+`--ink`/`--turmeric`/`--cinnabar`/`--quiet`) for
+classification; `.post-badge`; `.status-on`; `.sign-btn`; `.rule`.
+
+**`.post-row` left tick colour encodes post kind** — turmeric = normal, cinnabar
+(`--repost`) = shared, muted (`--draft`) = draft, hatched (`--hidden`).
+
+Motion: one non-user-triggered moment only — the home banner's post count eases up once
+(`Home.vue#countTo`, respects `prefers-reduced-motion`). Everything else answers an action.
+Deliberately avoided: ALL-CAPS eyebrow labels (Chat's three were converted to sentence case),
+`→` appended to links, mono for numerals (use `.tnum`), soft grey card shadows.
+
+DevExtreme needs `!important` in two places its own CSS wins: tab icon colour (the icon sits
+*inside* `.dx-tab-text`, so `color: inherit` picks up DevExtreme's `#333` — set the colour
+explicitly) and the tab strip background.
+
+Mobile (≤720px): the header's `div.flex-1` spacer is hidden and replaced with an auto-margin
+— flex-grow eats the first line's free space and pushes the avatar group onto a second row,
+whereas auto-margin absorbs leftover space only *after* line-breaking. Tabs drop to their own
+full-width scrollable row; tab labels hide below 1180px (icons stay).
+
+Local dev against the deployed backend: put `DEV_API_TARGET=https://api.hipe.id.vn` +
+`VITE_API_URL=/api-proxy` in `forum_fe/.env.local`. `vite.config.js` then proxies
+`/api-proxy` same-origin and **strips `Origin`/`Referer`** (the backend's CORS allow-list
+rejects `localhost`, which returns 403 on `/auth/signin`). Dev-server only; builds ignore it.
+
 ## Frontend architecture notes
 
 - Entry `src/main.js` → `App.vue` → `src/router/index.js`. Routes (all under

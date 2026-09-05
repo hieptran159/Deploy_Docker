@@ -13,8 +13,8 @@
                     <span class="link font-medium text-[var(--text)]" @click="goAuthor">{{ userCreatedPost || '—' }}</span>
                     · {{ calculateTimeDifference(post?.postedAt) }} trước
                     <span v-if="post?.editedAt">· đã chỉnh sửa</span>
-                    <span v-if="post?.visibility === 'friends'" class="ml-1 px-1.5 py-0.5 rounded bg-gray-100 text-[11px] font-semibold">👥 Chỉ bạn bè</span>
-                    <span v-else-if="post?.visibility === 'private'" class="ml-1 px-1.5 py-0.5 rounded bg-gray-100 text-[11px] font-semibold">🔒 Chỉ mình tôi</span>
+                    <span v-if="post?.visibility === 'friends'" class="post-badge ml-1">👥 Chỉ bạn bè</span>
+                    <span v-else-if="post?.visibility === 'private'" class="post-badge ml-1">🔒 Chỉ mình tôi</span>
                 </div>
                 <div
                     class="relative flex-none"
@@ -34,21 +34,21 @@
             </div>
 
             <!-- tiêu đề -->
-            <div class="font-bold text-3xl leading-snug text-[var(--accent)] mt-2">{{ post?.title }}</div>
+            <h1 class="post-title post-title--hero">{{ post?.title }}</h1>
 
-            <!-- nội dung -->
-            <div class="my-3"><LinkText :text="post?.body || ''" /></div>
+            <!-- nội dung: bó lại ~66 ký tự/dòng cho dễ đọc, không kéo hết bề ngang thẻ -->
+            <div class="my-4 measure post-body"><LinkText :text="post?.body || ''" /></div>
 
-            <div v-if="post?.hashtags?.length" class="flex flex-wrap gap-1.5 mb-3">
+            <div v-if="post?.hashtags?.length" class="flex flex-wrap gap-1.5 mb-4">
                 <button
                     v-for="t in post.hashtags"
                     :key="t"
-                    class="text-xs font-semibold text-[var(--brand)] bg-[var(--brand-soft)] rounded-full px-2 py-0.5 hover:underline"
+                    class="tag-chip tag-chip--sm"
                     @click="route.push('/tag/' + encodeURIComponent(t))"
                 >#{{ t }}</button>
             </div>
 
-            <img :src="linkPostImg" v-if="post?.postImg" class="max-w-md rounded-xl border cursor-zoom-in" @click="openLightbox(linkPostImg)" />
+            <img :src="linkPostImg" v-if="post?.postImg" class="max-w-md border-2 border-[var(--ink)] cursor-zoom-in" @click="openLightbox(linkPostImg)" />
 
             <div class="row-actions mt-3 items-center">
                 <ReactionBar

@@ -2,7 +2,7 @@
     <div class="page">
         <!-- Xem trước hồ sơ công khai -->
         <div class="card card--flush overflow-hidden">
-            <div class="h-28 sm:h-36 w-full bg-[var(--brand-soft)]">
+            <div class="h-28 sm:h-36 w-full bg-[var(--wash)]">
                 <img v-if="previewCover" :src="previewCover" class="w-full h-full object-cover" @error="prevCoverOk = false" />
             </div>
             <div class="p-4 flex items-center gap-4 -mt-10">
@@ -54,10 +54,8 @@
                     <DxTextBox v-else v-model="profile[f.key]" class="flex-1" :placeholder="f.ph" />
                     <button
                         type="button"
-                        class="flex-none px-3 py-1.5 rounded-full text-xs font-semibold border transition w-32 text-center"
-                        :class="visible[f.key]
-                            ? 'bg-green-50 border-green-300 text-green-700'
-                            : 'bg-gray-100 border-gray-300 muted'"
+                        class="act-pill flex-none w-32 justify-center"
+                        :class="{ 'is-live': visible[f.key] }"
                         @click="visible[f.key] = !visible[f.key]"
                     >
                         {{ visible[f.key] ? '🌐 Công khai' : '🔒 Riêng tư' }}
@@ -98,7 +96,7 @@
                 <b>{{ rawUser.email || '' }}</b>. Cần nhập mật khẩu hiện tại ở thẻ “Xác thực” phía trên.
             </p>
             <div class="flex items-center gap-3">
-                <span class="text-sm font-semibold" :class="twoFAOn ? 'text-[var(--brand)]' : 'muted'">
+                <span class="chip" :class="twoFAOn ? 'chip--turmeric' : 'chip--quiet'">
                     {{ twoFAOn ? 'Đang bật' : 'Đang tắt' }}
                 </span>
                 <DxButton
@@ -126,8 +124,8 @@
             </div>
         </div>
 
-        <div class="card border border-[var(--danger)]/40">
-            <div class="section-title text-[var(--danger)]">Vùng nguy hiểm</div>
+        <div class="card card--danger">
+            <div class="section-title" style="color: var(--cinnabar-ink)">Vùng nguy hiểm</div>
             <p class="muted text-sm mb-2">
                 Nhập mật khẩu hiện tại ở thẻ “Xác thực” phía trên rồi chọn:
             </p>

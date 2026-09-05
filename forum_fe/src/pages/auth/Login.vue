@@ -2,7 +2,7 @@
     <div class="form-login">
         <div v-if="stage === 'creds'" class="flex flex-col items-stretch gap-3">
             <div class="section-title">Đăng nhập</div>
-            <p class="muted text-sm text-center -mt-2">Chào mừng bạn đến với diễn đàn</p>
+            <p class="muted text-sm -mt-3 mb-1">Chào mừng bạn đến với diễn đàn</p>
             <div class="form-login-fields">
                 <div>
                     <label class="text-sm muted">Email</label>
@@ -22,18 +22,18 @@
                 Ghi nhớ đăng nhập
             </label>
             <DxButton width="100%" text="Đăng nhập" type="default" :disabled="busy" @click="loginHandler" />
-            <div class="text-sm text-center muted">
-                Chưa có tài khoản?
-                <span class="link" @click="() => route.push('/signup')">Đăng ký</span>
-            </div>
-            <div class="text-sm text-center">
+            <div class="text-sm muted flex flex-wrap items-center justify-between gap-2 mt-1">
+                <span>
+                    Chưa có tài khoản?
+                    <span class="link" @click="() => route.push('/signup')">Đăng ký</span>
+                </span>
                 <span class="link" @click="() => route.push('/forgot-password')">Quên mật khẩu?</span>
             </div>
         </div>
 
         <div v-else class="flex flex-col items-stretch gap-3">
             <div class="section-title">Xác thực 2 bước</div>
-            <p class="muted text-sm text-center -mt-2">
+            <p class="muted text-sm -mt-3 mb-1">
                 Nhập mã 6 ký tự vừa gửi tới <b>{{ twofaEmail }}</b>
             </p>
             <div class="form-login-fields">
@@ -43,7 +43,7 @@
                 </div>
             </div>
             <DxButton width="100%" text="Xác nhận" type="default" :disabled="busy" @click="verifyHandler" />
-            <div class="text-sm text-center">
+            <div class="text-sm mt-1">
                 <span class="link" @click="backToCreds">← Đăng nhập lại</span>
             </div>
         </div>

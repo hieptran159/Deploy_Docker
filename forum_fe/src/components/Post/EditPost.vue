@@ -22,7 +22,7 @@
         </div>
         <div v-if="tags.length" class="flex flex-wrap items-center gap-1.5 text-xs">
             <span class="muted">Hashtag:</span>
-            <span v-for="t in tags" :key="t" class="font-semibold text-[var(--brand)] bg-[var(--brand-soft)] rounded-full px-2 py-0.5">#{{ t }}</span>
+            <span v-for="t in tags" :key="t" class="tag-chip tag-chip--sm">#{{ t }}</span>
         </div>
         <div class="flex justify-end">
             <DxButton type="default" text="Cập nhật" @click="submitEdit" />

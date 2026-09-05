@@ -3,7 +3,7 @@
         <!-- Bước 1: nhập thông tin -->
         <div v-if="step === 'form'" class="flex flex-col gap-2">
             <div class="section-title">Đăng ký thành viên</div>
-            <p class="muted text-sm text-center -mt-2 mb-1">Nhập đầy đủ thông tin để tạo tài khoản</p>
+            <p class="muted text-sm -mt-3 mb-1">Nhập đầy đủ thông tin để tạo tài khoản</p>
             <div class="form-sign-up flex flex-col">
                 <div>
                     <label class="text-sm muted">Họ và tên</label>
@@ -26,7 +26,7 @@
                     <input type="file" accept="image/*" @change="handleFileChange">
                 </div>
                 <DxButton width="100%" text="Đăng ký" type="default" @click="handleSignUp"/>
-                <div class="text-center text-sm muted mt-1">
+                <div class="text-sm muted mt-1">
                     Đã có tài khoản?
                     <span class="link" @click="() => route.push('/login')">Đăng nhập</span>
                 </div>
@@ -36,7 +36,7 @@
         <!-- Bước 2: xác thực email -->
         <div v-else class="flex flex-col gap-3">
             <div class="section-title">Xác thực email</div>
-            <p class="muted text-sm text-center -mt-2">
+            <p class="muted text-sm -mt-3 mb-1">
                 Mã xác thực đã được gửi tới <b>{{ pendingEmail }}</b>. Nhập mã 6 ký tự để hoàn tất.
             </p>
             <div>
@@ -44,7 +44,7 @@
                 <DxTextBox v-model="code" @enter-key="handleVerify" />
             </div>
             <DxButton width="100%" text="Xác thực & đăng nhập" type="default" @click="handleVerify" />
-            <div class="text-sm text-center">
+            <div class="text-sm">
                 <span class="link" @click="handleResend">Gửi lại mã</span>
                 <span class="muted"> · </span>
                 <span class="link" @click="() => route.push('/login')">Về đăng nhập</span>

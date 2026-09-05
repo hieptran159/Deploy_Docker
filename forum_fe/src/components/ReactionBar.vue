@@ -111,7 +111,7 @@ onBeforeUnmount(() => { clearTimeout(openT); clearTimeout(closeT); });
     font-weight: 600;
     padding: 4px 10px;
     border-radius: 999px;
-    border: 1px solid var(--border);
+    border: var(--line-w) solid var(--ink);
     background: var(--surface);
     color: var(--text-muted);
     transition: background .15s, border-color .15s;
@@ -145,9 +145,9 @@ onBeforeUnmount(() => { clearTimeout(openT); clearTimeout(closeT); });
     gap: 2px;
     padding: 4px 6px;
     background: var(--surface);
-    border: 1px solid var(--border);
+    border: var(--line-w) solid var(--ink);
     border-radius: 999px;
-    box-shadow: var(--shadow);
+    box-shadow: var(--lift);
 }
 .reaction-choice {
     line-height: 0;

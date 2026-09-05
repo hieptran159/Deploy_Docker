@@ -89,9 +89,9 @@ const close = () => { if (!busy.value) emit('close'); };
 }
 .rp-box {
     background: var(--surface);
-    border: 1px solid var(--border);
+    border: var(--line-w) solid var(--ink);
     border-radius: var(--radius);
-    box-shadow: var(--shadow);
+    box-shadow: var(--lift);
     padding: 20px;
     width: 100%;
     max-width: 420px;
@@ -100,7 +100,7 @@ const close = () => { if (!busy.value) emit('close'); };
 .rp-btn {
     padding: 6px 14px;
     border-radius: 8px;
-    border: 1px solid var(--border);
+    border: var(--line-w) solid var(--ink);
     font-size: 14px;
     font-weight: 600;
     background: var(--surface);

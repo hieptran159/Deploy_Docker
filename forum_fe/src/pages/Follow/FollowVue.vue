@@ -1,11 +1,11 @@
 <template>
     <div class="page page--wide">
         <div class="card">
-            <div class="flex items-center gap-2 mb-3">
+            <div class="seg mb-4">
                 <button
                     v-for="t in tabs" :key="t.key"
-                    class="px-3 py-1.5 rounded-lg text-sm font-semibold"
-                    :class="tab === t.key ? 'bg-[var(--brand-soft)] text-[var(--brand)]' : 'muted'"
+                    class="seg__btn"
+                    :class="{ 'is-on': tab === t.key }"
                     @click="setTab(t.key)"
                 >
                     {{ t.label }}<span v-if="t.key === 'incoming' && incomingCount"> ({{ incomingCount }})</span>
@@ -99,11 +99,12 @@ const loading = ref(false);
 const loadingMore = ref(false);
 const incomingCount = ref(0);
 
+// Màn hình rỗng là lời mời hành động, không phải chỗ để thông báo "không có gì"
 const emptyText = computed(() => ({
-    friends: 'Chưa có bạn bè',
-    incoming: 'Không có lời mời nào',
-    outgoing: 'Chưa gửi lời mời nào',
-    blocked: 'Chưa chặn ai',
+    friends: 'Chưa có bạn bè nào. Tìm người bạn biết ở mục Tìm người dùng rồi gửi lời mời.',
+    incoming: 'Không có lời mời nào đang chờ bạn.',
+    outgoing: 'Bạn chưa gửi lời mời nào.',
+    blocked: 'Bạn chưa chặn ai. Người bị chặn sẽ không thấy bài và không nhắn tin được cho bạn.',
 }[tab.value]));
 
 const setTab = (t) => {

@@ -43,12 +43,12 @@
                     <button class="link" @click="showReply = !showReply">Trả lời</button>
                 </template>
                 <template v-if="isOwner">
-                    <span class="text-gray-300">|</span>
+                    <span class="muted opacity-50">|</span>
                     <button class="link" @click="isShowEditComment = true">Sửa</button>
                     <button class="link text-[var(--danger)]" @click="confirmDelete">Xoá</button>
                 </template>
                 <template v-else-if="isLogin">
-                    <span class="text-gray-300">|</span>
+                    <span class="muted opacity-50">|</span>
                     <button class="link text-[var(--danger)]" @click="confirmReport">Báo cáo</button>
                 </template>
             </div>

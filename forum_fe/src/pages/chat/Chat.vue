@@ -7,7 +7,7 @@
                     <!-- Tạo nhóm mới -->
                     <div>
                         <div class="flex items-center justify-between">
-                            <span class="text-xs font-bold muted uppercase tracking-wide">Tạo nhóm mới</span>
+                            <span class="text-sm font-bold">Tạo nhóm mới</span>
                             <DxButton :icon="showCreate ? 'chevronup' : 'plus'" stylingMode="text" @click="toggleCreate" />
                         </div>
                         <div v-if="showCreate" class="mt-2 flex flex-col gap-2">
@@ -38,7 +38,7 @@
 
                     <!-- Tìm nhóm để tham gia -->
                     <div>
-                        <span class="text-xs font-bold muted uppercase tracking-wide">Tìm nhóm để tham gia</span>
+                        <span class="text-sm font-bold">Tìm nhóm để tham gia</span>
                         <div class="flex gap-2 mt-1">
                             <DxTextBox v-model="searchName" placeholder="Tên nhóm…" class="flex-1" @enter-key="handleSearch" />
                             <DxButton icon="search" @click="handleSearch" />
@@ -55,7 +55,7 @@
 
                 <!-- Cuộc trò chuyện -->
                 <div class="flex-1 overflow-y-auto">
-                    <div class="text-xs font-bold muted uppercase tracking-wide px-3 pt-3 pb-1">Cuộc trò chuyện</div>
+                    <div class="text-sm font-bold px-3 pt-3 pb-1">Cuộc trò chuyện</div>
                     <div v-if="conversations.length === 0" class="muted p-3 text-sm">Chưa có cuộc trò chuyện nào</div>
                     <div v-for="c in conversations" :key="c.conversationId"
                         class="px-3 py-2.5 cursor-pointer border-b transition hover:bg-gray-50"
@@ -69,7 +69,7 @@
                                 <span v-else-if="isDm(c.conversationName)" class="avatar-fallback size-7 text-xs">{{ (displayName(c) || '?')[0] }}</span>
                                 <span v-else class="inline-flex size-7 items-center justify-center rounded-full bg-gray-100 text-sm">👥</span>
                                 <span v-if="dmPeerOnline(c)"
-                                    class="absolute -bottom-0.5 -right-0.5 size-2 rounded-full bg-green-500 ring-1 ring-white"></span>
+                                    class="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full bg-[var(--turmeric)] ring-2 ring-[var(--surface)]"></span>
                             </span>
                             <span class="font-semibold text-sm truncate flex-1"
                                 :class="{ 'font-bold': unreadByConv[c.conversationId] }">{{ displayName(c) }}</span>
@@ -177,7 +177,7 @@
                                     <div
                                         class="px-3 py-2 rounded-2xl text-sm shadow-sm"
                                         :class="[
-                                            m.senderId === myId ? 'bg-[var(--accent)] text-white rounded-br-md' : 'bg-white text-[var(--text)] rounded-bl-md',
+                                            m.senderId === myId ? 'bg-[var(--ink)] text-white' : 'bg-[var(--surface)] text-[var(--text)] border-2 border-[var(--line-soft)]',
                                             m.recalled ? 'italic opacity-70' : ''
                                         ]">
                                         <span v-if="m.recalled">Tin nhắn đã được thu hồi</span>
@@ -217,7 +217,7 @@
                             </template>
                         </div>
 
-                        <div v-if="otherTyping" class="self-start flex items-center gap-1 px-3 py-2 bg-white rounded-2xl rounded-bl-md shadow-sm">
+                        <div v-if="otherTyping" class="self-start flex items-center gap-1 px-3 py-2 bg-[var(--surface)] border-2 border-[var(--line-soft)] rounded-2xl">
                             <span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>
                         </div>
                     </div>
@@ -437,7 +437,7 @@ const statusText = computed(() => {
 });
 const statusClass = computed(() => {
     const on = isDm(active.value?.conversationName) ? activeDmPeerOnline.value : connected.value;
-    return on ? 'text-green-600' : 'muted';
+    return on ? 'status-on' : 'muted';
 });
 
 const otherIdFromDm = (name) => {

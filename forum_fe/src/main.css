@@ -2,49 +2,116 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   BẢNG HIỆU — hệ thiết kế của HIPDN-EA Forum
+   Lấy từ bảng tin công cộng & bảng hiệu sơn tay Việt Nam:
+   khối màu phẳng, viền cứng, bóng lệch đặc (không bóng mờ).
+
+   Ba quy tắc chi phối toàn bộ file này:
+   1. Chrome nói to, mặt đọc nói nhỏ. Nền ngà + chữ mực cho mọi thứ để đọc.
+   2. Không bóng mờ. Bóng là khối đặc lệch đi, như tấm biển kê khỏi tường.
+   3. Màu mã hoá thông tin, không trang trí:
+      vàng nghệ = tiếng nói của trang (đang chọn, bài thường)
+      đỏ son    = hành động của BẠN (đã thích, đã chia sẻ)
+      xanh mực  = cấu trúc
+   ============================================================ */
+
 :root {
-    --bg: #f4f5f7;
-    --surface: #ffffff;
-    --border: #e6e8eb;
-    --text: #1f2430;
-    --text-muted: #6b7280;
-    --brand: #e8590c;
-    --brand-soft: #fff4ec;
-    --accent: #2577b1;
-    --danger: #e03131;
-    --radius: 14px;
-    --shadow: 0 1px 2px rgba(16, 24, 40, .04), 0 4px 16px rgba(16, 24, 40, .06);
+    /* --- màu nền tảng --- */
+    --ink: #0E3B3E;          /* xanh mực — chrome, chữ, viền */
+    --ink-deep: #072528;     /* mực đậm hơn cho bóng lệch */
+    --paper: #FCF8ED;        /* ngà — nền trang */
+    --surface: #FFFFFF;      /* mặt thẻ */
+    --turmeric: #F2B01E;     /* vàng nghệ — CHỈ làm nền khối, không làm chữ trên nền sáng */
+    --turmeric-wash: #FDF0CE;/* vàng rất nhạt cho vùng đang chọn */
+    --cinnabar: #D6402F;     /* đỏ son — nền khối, viền */
+    --cinnabar-ink: #B8291A; /* đỏ son đậm — dùng khi làm CHỮ (đạt AA 5.9:1) */
+
+    --text: #16211F;
+    --text-muted: #5C6B69;
+
+    /* Tên cũ giữ lại để 29 màn hình không phải sửa đồng loạt */
+    --bg: var(--paper);
+    --border: var(--ink);
+    --brand: var(--cinnabar-ink);
+    --brand-soft: var(--turmeric-wash);
+    --accent: var(--ink);
+    --danger: var(--cinnabar);
+
+    /* --- đường nét --- */
+    --line-w: 2px;
+    --line-soft: rgba(14, 59, 62, .16);
+    --wash: rgba(14, 59, 62, .055);   /* nền trung tính — KHÔNG dùng vàng cho việc này */
+    /* Màu NÉT, tách khỏi --ink: nền tối cũng cần nét nhìn thấy được, mà --ink
+       lúc đó đã là màu nền nên không dùng làm viền được nữa. */
+    --stroke: #0E3B3E;
+
+    /* Bán kính có THỨ BẬC, không phải một giá trị cho mọi thứ:
+       0 = khối cấu trúc · 3px = điều khiển nhập liệu · 999px = danh tính (avatar, thẻ) */
+    --radius: 0px;
+    --radius-control: 3px;
+
+    /* --- bóng lệch đặc, không blur --- */
+    --lift: 5px 5px 0 var(--ink);
+    --lift-sm: 3px 3px 0 var(--ink);
+    --shadow: none;
+
+    /* --- thang chữ: major third 1.25 --- */
+    --fs-xs: 12px;
+    --fs-sm: 13px;
+    --fs-ui: 14px;
+    --fs-base: 16px;
+    --fs-lg: 20px;
+    --fs-xl: 25px;
+    --fs-2xl: 31px;
+    --fs-3xl: 39px;
+
+    --measure: 66ch;         /* dài dòng tối đa khi đọc */
+    --ease: cubic-bezier(.2, .7, .3, 1);
 }
 
 :root[data-theme="dark"] {
-    --bg: #14161a;
-    --surface: #1c1f26;
-    --border: #2b2f38;
-    --text: #e6e8eb;
-    --text-muted: #98a1ac;
-    --brand-soft: #33251a;
-    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 6px 18px rgba(0, 0, 0, .4);
+    --ink: #0B1A1B;
+    --ink-deep: #000000;
+    --paper: #0F1E1F;
+    --surface: #16292B;
+    --turmeric: #F2B01E;
+    --turmeric-wash: #33280F;
+    --cinnabar: #E4573F;
+    --cinnabar-ink: #F07A62;
+
+    --text: #F1EDE3;
+    --text-muted: #9DB0AD;
+
+    --border: #2E4C4E;
+    --line-soft: rgba(241, 237, 227, .16);
+    --wash: rgba(241, 237, 227, .06);
+    --stroke: #35595C;
+
+    --lift: 5px 5px 0 #04100F;
+    --lift-sm: 3px 3px 0 #04100F;
 }
+
+/* ============================ NỀN & CHỮ ============================ */
 
 html, body {
-    background: var(--bg);
+    background: var(--paper);
     color: var(--text);
-    font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-family: "Be Vietnam Pro", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: var(--fs-base);
+    line-height: 1.6;              /* dấu tiếng Việt cần chỗ thở */
     -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
 }
 
-/* làm các tiện ích tailwind sáng dịu lại trong dark mode */
-:root[data-theme="dark"] .bg-white { background: var(--surface) !important; }
-:root[data-theme="dark"] .bg-gray-50,
-:root[data-theme="dark"] .bg-gray-100,
-:root[data-theme="dark"] .hover\:bg-gray-50:hover,
-:root[data-theme="dark"] .hover\:bg-gray-100:hover,
-:root[data-theme="dark"] .hover\:bg-gray-200:hover { background: #262a33 !important; }
-:root[data-theme="dark"] .text-black { color: var(--text) !important; }
-:root[data-theme="dark"] .border,
-:root[data-theme="dark"] .border-b,
-:root[data-theme="dark"] .border-t,
-:root[data-theme="dark"] .border-r { border-color: var(--border) !important; }
+h1, h2, h3, h4 {
+    line-height: 1.2;
+    letter-spacing: -.015em;
+    font-weight: 800;
+}
+
+/* Số liệu xếp thẳng cột khi đếm tăng/giảm — không cần đổi sang font mono */
+.tnum { font-variant-numeric: tabular-nums; }
 
 #app {
     min-height: 100vh;
@@ -52,186 +119,770 @@ html, body {
     flex-direction: column;
 }
 
-/* ---- layout primitives ---- */
+::selection { background: var(--turmeric); color: var(--ink); }
+
+:focus-visible {
+    outline: 3px solid var(--turmeric);
+    outline-offset: 2px;
+    border-radius: 0;
+}
+
+/* ============================ BỐ CỤC ============================ */
+
 .page {
     max-width: 960px;
+    width: 100%;
     margin: 0 auto;
-    padding: 24px 16px 64px;
+    padding: 28px 16px 72px;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 20px;
 }
 .page--wide { max-width: 1120px; }
 
+/* Đoạn văn dài thì bó lại cho dễ đọc, không kéo hết 960px */
+.measure { max-width: var(--measure); }
+
+/* ============================ BẢNG HIỆU ============================ */
+
+/* .board = tấm biển: viền cứng + bóng lệch đặc. Dành cho thứ ĐỨNG RA
+   khỏi mặt phẳng (banner, nút chính, trạng thái đang chọn). Thẻ thường
+   KHÔNG có bóng — đó là cách phân cấp thay cho việc bo tròn khác nhau. */
+.board {
+    position: relative;
+    background: var(--ink);
+    color: #FFF;
+    border: var(--line-w) solid var(--stroke);
+    border-radius: var(--radius);
+    box-shadow: var(--lift);
+}
+.board--turmeric { background: var(--turmeric); color: var(--ink); }
+.board--paper { background: var(--surface); color: var(--text); }
+
+/* Viền vàng nghệ: dành riêng cho tấm biển đầu trang */
+.board--framed { border-color: var(--turmeric); }
+
+.board__inner { padding: 26px 26px 24px; }
+@media (max-width: 640px) {
+    .board__inner { padding: 20px 18px 18px; }
+    .board__lede { font-size: var(--fs-xl); }
+    .board-stats { gap: 24px; }
+    .board-stat__num { font-size: var(--fs-xl); }
+    .card { padding: 16px; }
+    .page { padding: 16px 12px 56px; gap: 16px; }
+}
+.board__lede {
+    font-size: var(--fs-2xl);
+    font-weight: 800;
+    line-height: 1.15;
+    letter-spacing: -.03em;
+    max-width: 22ch;
+}
+.board__sub { font-size: var(--fs-ui); color: rgba(255, 255, 255, .72); margin-top: 8px; max-width: 46ch; }
+
+.board-stats { display: flex; gap: 34px; flex-wrap: wrap; }
+.board-stat__num {
+    font-size: var(--fs-2xl);
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -.03em;
+    font-variant-numeric: tabular-nums;
+    color: var(--turmeric);
+}
+.board-stat__label { font-size: var(--fs-sm); color: rgba(255, 255, 255, .7); margin-top: 3px; }
+
+/* Thẻ hashtag khi nằm trên nền mực thì đảo màu */
+.board .tag-chip { border-color: rgba(255, 255, 255, .38); color: #FFF; }
+.board .tag-chip:hover { background: var(--turmeric); color: var(--ink); border-color: var(--turmeric); }
+.board .tag-chip__count { opacity: .6; }
+
+/* ============================ CHUYỂN CHẾ ĐỘ ============================ */
+
+.seg {
+    display: inline-flex;
+    border: var(--line-w) solid var(--stroke);
+    border-radius: var(--radius-control);
+    overflow: hidden;
+}
+.seg__btn {
+    font-family: inherit;
+    font-size: var(--fs-ui);
+    font-weight: 700;
+    padding: 6px 16px;
+    border: 0;
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    transition: background .12s var(--ease);
+}
+.seg__btn + .seg__btn { border-left: var(--line-w) solid var(--stroke); }
+.seg__btn:hover { background: var(--turmeric-wash); }
+.seg__btn.is-on { background: var(--ink); color: #FFF; }
+/* Nền tối: --ink đã gần đen như nền thẻ nên khối "đang chọn" biến mất -> đổ vàng nghệ */
+:root[data-theme="dark"] .seg__btn.is-on { background: var(--turmeric); color: var(--ink); }
+
+/* ============================ THẺ ============================ */
+
 .card {
     background: var(--surface);
-    border: 1px solid var(--border);
+    border: var(--line-w) solid var(--stroke);
     border-radius: var(--radius);
-    box-shadow: var(--shadow);
+    box-shadow: none;
     padding: 20px;
 }
 .card--flush { padding: 0; overflow: hidden; }
+/* Vùng nguy hiểm: viền đỏ son, là chỗ duy nhất thẻ đổi màu viền */
+.card--danger { border-color: var(--cinnabar); }
 
 .section-title {
-    font-size: 20px;
-    font-weight: 700;
+    font-size: var(--fs-lg);
+    font-weight: 800;
+    letter-spacing: -.015em;
     color: var(--text);
-    margin-bottom: 12px;
+    margin-bottom: 14px;
 }
+
 .muted { color: var(--text-muted); }
 
 .link {
-    color: var(--accent);
+    color: var(--cinnabar-ink);
+    font-weight: 600;
     cursor: pointer;
+    text-underline-offset: 3px;
 }
 .link:hover { text-decoration: underline; }
 
 .row-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 
-/* Nút hành động dưới bài viết — đồng bộ kích thước Thích / Lưu / Chia sẻ.
-   Khớp với .reaction-trigger trong ReactionBar.vue. */
+/* Vạch ngăn cứng, dùng thay cho border-b xám nhạt */
+.rule { border-top: var(--line-w) solid var(--stroke); }
+
+/* ============================ GẠCH LOẠI BÀI ============================
+   Thiết bị cấu trúc mang THÔNG TIN: màu của gạch đứng bên trái mỗi bài
+   cho biết đó là loại bài gì, đọc được ngay khi lướt. */
+
+.post-row {
+    position: relative;
+    padding-left: 18px;
+    transition: background .12s var(--ease);
+}
+.post-row::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 14px;
+    bottom: 14px;
+    width: 6px;
+    background: var(--turmeric);           /* bài thường */
+}
+.post-row--repost::before { background: var(--cinnabar); }   /* chia sẻ lại */
+.post-row--draft::before { background: var(--text-muted); }  /* bản nháp */
+.post-row--hidden::before { background: repeating-linear-gradient(45deg, var(--text-muted) 0 3px, transparent 3px 6px); }
+.post-row:hover { background: var(--turmeric-wash); }
+
+/* ============================ NÚT ============================ */
+
 .act-pill {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    font-size: 13px;
+    gap: 6px;
+    font-family: inherit;
+    font-size: var(--fs-sm);
     font-weight: 600;
     line-height: 1.2;
-    padding: 4px 10px;
+    padding: 6px 12px;
     border-radius: 999px;
-    border: 1px solid var(--border);
-    background: var(--surface);
+    border: 1.5px solid var(--line-soft);
+    background: transparent;
     color: var(--text-muted);
     cursor: pointer;
-    transition: background .15s, border-color .15s, color .15s;
+    transition: background .12s var(--ease), border-color .12s var(--ease), color .12s var(--ease);
 }
-.act-pill:hover { background: var(--brand-soft); }
-.act-pill:disabled { opacity: .55; cursor: default; }
-.act-pill.is-on { border-color: currentColor; background: var(--brand-soft); color: var(--brand); }
+.act-pill:hover { background: var(--turmeric-wash); border-color: var(--stroke); color: var(--text); }
+.act-pill:disabled { opacity: .5; cursor: default; }
+/* Đã tác động = đỏ son, đúng quy tắc "đỏ son là hành động của bạn".
+   Nền sáng: chữ trắng trên son đậm (6.3:1). Nền tối phải đảo lại — trắng trên
+   son sáng chỉ được 3.7:1, trượt AA, nên dùng chữ mực trên son (4.7:1). */
+.act-pill.is-on {
+    border-color: var(--cinnabar-ink);
+    background: var(--cinnabar-ink);
+    color: #FFF;
+}
+.act-pill.is-on:hover { background: var(--cinnabar); border-color: var(--cinnabar); color: #FFF; }
+:root[data-theme="dark"] .act-pill.is-on {
+    background: var(--cinnabar);
+    border-color: var(--cinnabar);
+    color: var(--ink);
+}
+:root[data-theme="dark"] .act-pill.is-on:hover { background: var(--cinnabar-ink); color: var(--ink); }
+/* Trạng thái "đang bật/công khai" — khác với is-on: đây là TRẠNG THÁI, không
+   phải hành động của bạn, nên dùng vàng nghệ chứ không dùng đỏ son. */
+.act-pill.is-live {
+    border-color: var(--stroke);
+    background: var(--turmeric);
+    color: var(--ink);
+}
+.act-pill.is-live:hover { background: #FFC03F; color: var(--ink); }
 .act-pill svg { display: block; width: 16px; height: 16px; }
 
-/* letter avatar fallback used across the app */
+/* Nút chính kiểu tấm biển */
+.sign-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-family: inherit;
+    font-size: var(--fs-ui);
+    font-weight: 700;
+    padding: 9px 18px;
+    border: var(--line-w) solid var(--stroke);
+    border-radius: var(--radius-control);
+    background: var(--turmeric);
+    color: var(--ink);
+    cursor: pointer;
+    box-shadow: var(--lift-sm);
+    transition: transform .1s var(--ease), box-shadow .1s var(--ease);
+}
+.sign-btn:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--stroke); }
+.sign-btn:active { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--stroke); }
+.sign-btn--ink { background: var(--ink); color: #FFF; }
+.sign-btn--quiet { background: transparent; box-shadow: none; }
+.sign-btn--quiet:hover { background: var(--turmeric-wash); transform: none; box-shadow: none; }
+
+/* ============================ THẺ HASHTAG ============================ */
+
+.tag-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    padding: 3px 11px;
+    border-radius: 999px;
+    border: 1.5px solid var(--stroke);
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    transition: background .12s var(--ease), color .12s var(--ease);
+}
+.tag-chip:hover { background: var(--ink); color: var(--paper); }
+.tag-chip__count { font-weight: 500; opacity: .65; font-variant-numeric: tabular-nums; }
+.tag-chip--sm { font-size: var(--fs-xs); padding: 1px 9px; border-width: 1px; }
+
+/* Nhãn phạm vi xem: viền mảnh, không nền — là siêu dữ liệu, không phải hành động */
+.post-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    padding: 1px 7px;
+    border: 1px solid var(--line-soft);
+    border-radius: var(--radius-control);
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+/* Nhãn phân loại (hàng đợi báo cáo, trạng thái…). Bốn biến thể là ĐỦ —
+   mỗi biến thể mang một nghĩa cố định, không chọn màu theo cảm hứng. */
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    padding: 2px 9px;
+    border: 1.5px solid var(--stroke);
+    border-radius: var(--radius-control);
+    background: transparent;
+    color: var(--text);
+    white-space: nowrap;
+}
+.chip--ink { background: var(--ink); color: #FFF; }
+.chip--turmeric { background: var(--turmeric); color: var(--ink); }
+.chip--cinnabar { background: var(--cinnabar-ink); color: #FFF; border-color: var(--cinnabar-ink); }
+:root[data-theme="dark"] .chip--cinnabar { background: var(--cinnabar); border-color: var(--cinnabar); color: var(--ink); }
+.chip--quiet { border-color: var(--line-soft); color: var(--text-muted); }
+
+/* Tiêu đề bài viết — mực đậm, không phải xanh dương lạc bảng màu */
+.post-title {
+    font-size: var(--fs-xl);
+    font-weight: 800;
+    line-height: 1.22;
+    letter-spacing: -.02em;
+    color: var(--text);
+    margin-top: 8px;
+    text-underline-offset: 4px;
+    text-decoration-thickness: 2px;
+}
+.post-row:hover .post-title { text-decoration: underline; text-decoration-color: var(--turmeric); }
+.post-title--sm { font-size: var(--fs-lg); }
+.post-title--hero { font-size: var(--fs-2xl); margin-top: 10px; max-width: 30ch; }
+@media (max-width: 640px) { .post-title--hero { font-size: var(--fs-xl); } }
+
+/* Thân bài: cỡ chữ nhỉnh hơn UI và giãn dòng rộng hơn, vì đây là thứ để ĐỌC */
+.post-body { font-size: var(--fs-base); line-height: 1.7; white-space: pre-wrap; }
+
+/* Dòng "đã chia sẻ" đứng trên bài, cùng màu với gạch loại bài */
+.repost-flag {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-left: 18px;
+    padding-top: 12px;
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--cinnabar-ink);
+}
+
+/* ============================ AVATAR ============================ */
+
 .avatar-fallback {
-    background: var(--brand);
-    color: #fff;
+    background: var(--ink);
+    color: var(--turmeric);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 700;
+    font-weight: 800;
     border-radius: 999px;
     text-transform: uppercase;
     flex: none;
 }
 
-/* empty / loading states */
+/* ============================ TRẠNG THÁI RỖNG ============================ */
+
 .state {
     color: var(--text-muted);
-    padding: 24px 8px;
+    padding: 32px 8px;
     text-align: center;
+    font-size: var(--fs-ui);
 }
 
-/* ---- app header ---- */
+/* ============================ HEADER ============================ */
+
 .app-header {
     position: sticky;
     top: 0;
     z-index: 50;
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    box-shadow: 0 1px 8px rgba(16, 24, 40, .05);
+    background: var(--ink);
+    color: #FFF;
+    border-bottom: var(--line-w) solid var(--ink-deep);
 }
 .app-header__inner {
     max-width: 1120px;
     margin: 0 auto;
-    padding: 8px 16px;
+    padding: 10px 16px;
     display: flex;
     align-items: center;
-    gap: 16px;
-}
-.app-brand {
-    font-weight: 800;
-    font-size: 18px;
-    color: var(--brand);
-    cursor: pointer;
-    white-space: nowrap;
-    letter-spacing: .3px;
+    gap: 14px;
 }
 
-/* auth screens share .form-login */
+/* Logo: khối vàng nghệ đóng dấu lên thanh mực — chỗ duy nhất dùng chữ hoa */
+.app-brand {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 1px;
+    font-weight: 800;
+    font-size: var(--fs-lg);
+    letter-spacing: -.025em;
+    color: #FFF;
+    cursor: pointer;
+    white-space: nowrap;
+    flex: none;
+}
+.app-brand__mark {
+    background: var(--turmeric);
+    color: var(--ink);
+    padding: 2px 7px 3px;
+    margin-right: 6px;
+    font-size: var(--fs-ui);
+    letter-spacing: .04em;
+}
+
+/* Điện thoại: brand + các nút giữ một hàng, dải tab xuống hàng riêng full-width
+   và cuộn ngang được — thay vì để mọi thứ tự xuống dòng lộn xộn. */
+@media (max-width: 720px) {
+    .app-header__inner {
+        flex-wrap: wrap;
+        gap: 6px 10px;
+        padding: 8px 12px;
+    }
+    .app-brand { font-size: var(--fs-base); }
+    .app-brand__mark { font-size: var(--fs-sm); padding: 2px 6px; }
+    .hdr-tabs {
+        order: 10;
+        width: 100%;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+    .hdr-tabs::-webkit-scrollbar { display: none; }
+    /* Thu nhỏ các nút để brand + toàn bộ icon nằm gọn MỘT hàng; header sticky
+       trên điện thoại mà chiếm 3 hàng thì ăn hết màn hình. */
+    /* Ô đệm flex-1 giãn hết chỗ trống của hàng 1 rồi đẩy nhóm avatar xuống hàng 2.
+       Bỏ nó đi, dùng auto-margin — auto-margin chỉ hút chỗ thừa SAU khi đã xuống
+       hàng nên không gây wrap. */
+    .app-header__inner > .flex-1 { display: none; }
+    .app-header__inner > .flex-1 + * { margin-left: auto; }
+    .app-header .row-actions { flex-wrap: nowrap; gap: 2px; }
+    .hdr-icon { width: 32px; height: 32px; }
+    .app-header .dx-button { min-width: 32px; padding: 0; }
+    .app-header .dx-button .dx-button-content { padding: 6px; }
+    .notif-tray { width: calc(100vw - 24px); right: -8px; }
+}
+
+.app-header .muted { color: rgba(255, 255, 255, .66); }
+.app-header .link { color: var(--turmeric); }
+.app-header .avatar-fallback { background: var(--turmeric); color: var(--ink); }
+
+/* Nút icon trên thanh mực */
+.hdr-icon {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: 0;
+    background: transparent;
+    color: rgba(255, 255, 255, .85);
+    border-radius: var(--radius-control);
+    cursor: pointer;
+    transition: background .12s var(--ease), color .12s var(--ease);
+}
+.hdr-icon:hover { background: rgba(255, 255, 255, .12); color: #FFF; }
+.hdr-icon.is-active { color: var(--turmeric); }
+
+.hdr-user {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 8px 4px 4px;
+    border-radius: var(--radius-control);
+    cursor: pointer;
+    color: #FFF;
+    transition: background .12s var(--ease);
+}
+.hdr-user:hover { background: rgba(255, 255, 255, .12); }
+
+/* Khay thông báo */
+.notif-tray {
+    position: absolute;
+    right: 0;
+    margin-top: 10px;
+    width: 340px;
+    max-height: 70vh;
+    overflow-y: auto;
+    background: var(--surface);
+    color: var(--text);
+    border: var(--line-w) solid var(--stroke);
+    border-radius: var(--radius);
+    box-shadow: var(--lift);
+    z-index: 60;
+}
+.notif-tray__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 14px;
+    background: var(--ink);
+    color: #FFF;
+    font-weight: 700;
+    font-size: var(--fs-ui);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+.notif-tray__head .link { color: var(--turmeric); }
+.notif-row {
+    width: 100%;
+    text-align: left;
+    display: flex;
+    gap: 11px;
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--line-soft);
+    background: transparent;
+    cursor: pointer;
+    transition: background .12s var(--ease);
+}
+.notif-row:hover { background: var(--turmeric-wash); }
+.notif-row--unread { background: var(--turmeric-wash); box-shadow: inset 4px 0 0 var(--cinnabar); }
+.notif-tray__more {
+    position: sticky;
+    bottom: 0;
+    width: 100%;
+    padding: 11px;
+    background: var(--surface);
+    border-top: var(--line-w) solid var(--stroke);
+    font-weight: 700;
+    font-size: var(--fs-ui);
+    color: var(--cinnabar-ink);
+    cursor: pointer;
+}
+.notif-tray__more:hover { background: var(--turmeric-wash); }
+
+/* Chấm đếm chưa đọc */
+.notif-dot {
+    position: absolute;
+    top: 1px;
+    right: 1px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: var(--cinnabar);
+    color: #FFF;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 18px;
+    text-align: center;
+    border: 2px solid var(--stroke);
+    font-variant-numeric: tabular-nums;
+}
+
+/* ============================ FOOTER ============================ */
+
+.app-footer {
+    margin-top: auto;
+    background: var(--ink);
+    color: rgba(255, 255, 255, .8);
+    border-top: var(--line-w) solid var(--ink-deep);
+    font-size: var(--fs-ui);
+}
+.app-footer a, .app-footer .link { color: rgba(255, 255, 255, .8); font-weight: 500; }
+.app-footer a:hover, .app-footer .link:hover { color: var(--turmeric); }
+
+/* ============================ MÀN ĐĂNG NHẬP ============================ */
+
 .form-login {
     display: flex;
     justify-content: center;
     align-items: flex-start;
-    padding: 48px 16px;
+    padding: 56px 16px;
 }
 .form-login > div {
     width: 100%;
-    max-width: 420px;
+    max-width: 430px;
     background: var(--surface) !important;
-    border: 1px solid var(--border);
+    border: var(--line-w) solid var(--stroke);
     border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    padding: 28px !important;
+    box-shadow: var(--lift);
+    padding: 30px !important;
 }
-.form-login .section-title { text-align: center; }
+.form-login .section-title {
+    text-align: left;
+    font-size: var(--fs-xl);
+}
 
-/* devextreme tweaks */
-.dx-button { border-radius: 10px; }
-.dx-texteditor.dx-editor-outlined { border-radius: 10px; }
+/* ============================ DEVEXTREME ============================ */
 
-/* scrollbar */
-*::-webkit-scrollbar { width: 10px; height: 10px; }
-*::-webkit-scrollbar-thumb { background: #d3d6da; border-radius: 999px; }
-*::-webkit-scrollbar-thumb:hover { background: #b9bdc2; }
-:root[data-theme="dark"] *::-webkit-scrollbar-thumb { background: #3a3f4a; }
+.dx-widget, .dx-button-text { font-family: inherit !important; }
 
-/* toast */
+.dx-button {
+    border-radius: var(--radius-control);
+    border-width: var(--line-w);
+    font-weight: 700;
+}
+.dx-button.dx-button-mode-contained.dx-button-default {
+    background: var(--turmeric);
+    border-color: var(--stroke);
+    color: var(--ink);
+    box-shadow: var(--lift-sm);
+}
+.dx-button.dx-button-mode-contained.dx-button-default .dx-icon,
+.dx-button.dx-button-mode-contained.dx-button-default .dx-button-text { color: var(--ink); }
+.dx-button.dx-button-mode-contained.dx-button-default.dx-state-hover { background: #FFC03F; }
+.dx-button.dx-button-mode-contained.dx-button-success {
+    background: var(--ink);
+    border-color: var(--stroke);
+    color: #FFF;
+    box-shadow: var(--lift-sm);
+}
+.dx-button.dx-button-mode-contained.dx-button-success.dx-state-hover { background: #14524F; }
+.dx-button.dx-button-mode-contained.dx-button-danger {
+    background: var(--cinnabar);
+    border-color: var(--stroke);
+    box-shadow: var(--lift-sm);
+}
+.dx-button.dx-button-mode-text { border-color: transparent; box-shadow: none; }
+.dx-button.dx-button-mode-text.dx-state-hover { background: var(--turmeric-wash); }
+/* DevExtreme cố định icon ở #333 — vô hình trên nền tối. Neo vào --text. */
+.dx-button.dx-button-mode-text .dx-icon,
+.dx-button.dx-button-mode-outlined .dx-icon { color: var(--text) !important; }
+.dx-button.dx-button-mode-outlined {
+    border-color: var(--stroke);
+    background: transparent;
+    color: var(--text);
+}
+.dx-button.dx-button-mode-outlined.dx-state-hover { background: var(--turmeric-wash); }
+.dx-button.dx-button-mode-outlined.dx-button-danger { border-color: var(--cinnabar); color: var(--cinnabar-ink); }
+.dx-button.dx-button-mode-outlined.dx-button-danger .dx-icon { color: var(--cinnabar-ink) !important; }
+.app-header .dx-button.dx-button-mode-text .dx-icon { color: rgba(255, 255, 255, .85) !important; }
+.app-header .dx-button.dx-button-mode-text.dx-state-hover { background: rgba(255, 255, 255, .12); }
+
+.dx-texteditor.dx-editor-outlined {
+    border-radius: var(--radius-control);
+    border-width: 1.5px;
+    border-color: var(--line-soft);
+    background: var(--surface);
+}
+.dx-texteditor.dx-editor-outlined.dx-state-focused {
+    border-color: var(--stroke);
+    box-shadow: none;
+}
+.dx-texteditor-input { font-family: inherit !important; color: var(--text); }
+.dx-placeholder { color: var(--text-muted); }
+
+/* Tabs trong header: khối phẳng, đang chọn thì đổ vàng nghệ */
+/* DevExtreme tô nền cho cả dải tab lẫn từng tab ở styling-mode="secondary",
+   phải ghi đè cả hai thì thanh mực mới liền mạch. */
+.app-header .dx-tabs,
+.app-header .dx-tabs-wrapper,
+.app-header .dx-tabs .dx-scrollable-container {
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+.app-header .dx-tabs {
+    max-width: 100%;
+    overflow: hidden;
+}
+.app-header .dx-tab {
+    background: transparent !important;
+    color: rgba(255, 255, 255, .78);
+    font-weight: 600;
+    font-size: var(--fs-ui);
+    white-space: nowrap;
+    border: 0;
+    border-radius: var(--radius-control);
+    padding: 7px 11px;
+}
+/* Chỗ hẹp thì bỏ chữ, giữ icon (icon nằm TRONG .dx-tab-text nên phải ẩn
+   .dx-tab-text-span, không ẩn cả khối) — tab vẫn bấm được, chữ không bị cắt ngang */
+@media (max-width: 1180px) {
+    .app-header .dx-tab .dx-tab-text-span { display: none; }
+    .app-header .dx-tab .dx-icon { margin: 0; }
+    .app-header .dx-tab { padding: 7px 10px; }
+}
+/* Không dùng `inherit`: icon nằm trong .dx-tab-text mà DevExtreme đặt color:#333
+   cho khối đó, nên inherit sẽ ra xám đen. Phải ghi màu tường minh. */
+.app-header .dx-tab .dx-tab-text,
+.app-header .dx-tab .dx-icon { color: rgba(255, 255, 255, .78) !important; }
+.app-header .dx-tab.dx-state-hover { background: rgba(255, 255, 255, .12) !important; }
+.app-header .dx-tab.dx-state-hover .dx-tab-text,
+.app-header .dx-tab.dx-state-hover .dx-icon { color: #FFF !important; }
+.app-header .dx-tab.dx-tab-selected {
+    background: var(--turmeric) !important;
+    font-weight: 700;
+}
+.app-header .dx-tab.dx-tab-selected .dx-tab-text,
+.app-header .dx-tab.dx-tab-selected .dx-icon { color: var(--ink) !important; }
+.app-header .dx-tabs-wrapper::after,
+.app-header .dx-tab::after { display: none !important; }
+
+/* Popup */
+.dx-overlay-content, .dx-popup-normal {
+    border-radius: var(--radius) !important;
+    border: var(--line-w) solid var(--stroke) !important;
+    box-shadow: var(--lift) !important;
+}
+.dx-popup-title {
+    background: var(--ink);
+    color: #FFF;
+    border-bottom: 0;
+    font-weight: 700;
+}
+.dx-popup-title .dx-toolbar-label > div { font-weight: 700; font-size: var(--fs-base); }
+.dx-popup-title .dx-closebutton .dx-icon { color: #FFF; }
+
+/* ============================ TAILWIND: KÉO VỀ BẢNG MÀU ============================
+   17 file còn dùng class Tailwind thô. Thay vì sửa từng chỗ và bỏ sót,
+   neo chúng vào token — cả sáng lẫn tối đều đúng. */
+
+.bg-white { background: var(--surface) !important; }
+/* Nền tĩnh dùng xám-mực trung tính; vàng nghệ để dành cho trạng thái ĐANG CHỌN
+   và hover — nếu bôi vàng khắp nơi thì tấm biển đầu trang mất trọng tâm. */
+.bg-gray-50, .bg-gray-100 { background: var(--wash) !important; }
+.bg-gray-200 { background: var(--line-soft) !important; }
+.hover\:bg-gray-50:hover, .hover\:bg-gray-100:hover, .hover\:bg-gray-200:hover { background: var(--turmeric-wash) !important; }
+.text-gray-400, .text-gray-500, .text-gray-600, .text-gray-700 { color: var(--text-muted) !important; }
+.text-black, .text-gray-800, .text-gray-900 { color: var(--text) !important; }
+.border, .border-b, .border-t, .border-r, .border-l { border-color: var(--line-soft) !important; }
+.rounded-xl, .rounded-2xl, .rounded-lg, .rounded-md { border-radius: var(--radius-control) !important; }
+.shadow, .shadow-md, .shadow-lg, .shadow-xl { box-shadow: var(--lift-sm) !important; }
+.shadow-sm { box-shadow: none !important; }   /* bong bóng chat: viền cứng thay cho bóng mờ */
+
+/* Đang trực tuyến = trạng thái hoạt động -> vàng nghệ, nhưng làm NỀN chứ không
+   làm chữ (vàng trên nền sáng chỉ đạt 1.9:1). */
+.status-on {
+    background: var(--turmeric);
+    color: var(--ink);
+    font-weight: 700;
+    padding: 1px 9px;
+    border-radius: 999px;
+}
+
+/* Xanh dương mặc định của Tailwind không nằm trong bảng màu -> kéo về mực/son */
+.bg-blue-500, .bg-blue-600 { background: var(--ink) !important; }
+.text-blue-500, .text-blue-600 { color: var(--cinnabar-ink) !important; }
+.bg-red-500, .bg-red-600 { background: var(--cinnabar) !important; }
+.text-red-500, .text-red-600 { color: var(--cinnabar-ink) !important; }
+.bg-green-500, .bg-green-600 { background: var(--ink) !important; }
+
+/* ============================ THANH CUỘN ============================ */
+
+*::-webkit-scrollbar { width: 11px; height: 11px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: var(--line-soft); border-radius: 0; }
+*::-webkit-scrollbar-thumb:hover { background: var(--ink); }
+
+/* ============================ TOAST ============================ */
+
 .toast-wrap {
     position: fixed;
-    right: 16px;
-    bottom: 16px;
+    right: 18px;
+    bottom: 18px;
     z-index: 200;
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    max-width: 340px;
+    gap: 10px;
+    max-width: 360px;
 }
 .toast {
     display: flex;
     align-items: center;
-    gap: 10px;
-    background: #1f2430;
-    color: #fff;
-    padding: 10px 12px;
-    border-radius: 12px;
-    box-shadow: var(--shadow);
-    font-size: 14px;
-    animation: toast-in .18s ease;
+    gap: 11px;
+    background: var(--ink);
+    color: #FFF;
+    padding: 12px 14px;
+    border: var(--line-w) solid var(--ink-deep);
+    border-radius: var(--radius);
+    box-shadow: var(--lift);
+    font-size: var(--fs-ui);
+    animation: toast-in .16s var(--ease);
 }
-.toast--success { background: #15803d; }
-.toast--error { background: #b91c1c; }
-.toast--info { background: #1d4ed8; }
+.toast--success { background: #14524F; }
+.toast--error { background: var(--cinnabar-ink); }
+.toast--info { background: var(--ink); }
 .toast--clickable { cursor: pointer; }
-.toast--clickable:hover { filter: brightness(1.08); }
+.toast--clickable:hover { background: #14524F; }
 .toast__avatar {
     flex: none;
     width: 34px;
     height: 34px;
     border-radius: 999px;
-    background: rgba(255, 255, 255, .22);
+    background: var(--turmeric);
+    color: var(--ink);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 700;
+    font-weight: 800;
     text-transform: uppercase;
 }
-.toast__avatar--img {
-    object-fit: cover;
-    background: rgba(255, 255, 255, .22);
-    padding: 0;
-}
+.toast__avatar--img { object-fit: cover; padding: 0; }
 .toast__body { flex: 1; min-width: 0; }
-.toast__msg { line-height: 1.3; }
-.toast__sub { font-size: 12px; opacity: .8; margin-top: 1px; }
+.toast__msg { line-height: 1.35; }
+.toast__sub { font-size: var(--fs-xs); opacity: .75; margin-top: 2px; }
 .toast__x {
     flex: none;
     background: transparent;
@@ -245,37 +896,37 @@ html, body {
 }
 .toast__x:hover { opacity: 1; }
 @keyframes toast-in {
-    from { opacity: 0; transform: translateY(8px); }
+    from { opacity: 0; transform: translate(6px, 6px); }
     to { opacity: 1; transform: none; }
 }
 
-/* ---------- nháy sáng bình luận khi mở từ thông báo ---------- */
-.comment-flash {
-    animation: comment-flash 2.2s ease-out;
-}
+/* ============================ NHÁY BÌNH LUẬN ============================ */
+
+.comment-flash { animation: comment-flash 2.2s ease-out; }
 @keyframes comment-flash {
-    0%, 25% { background: var(--brand-soft); }
+    0%, 25% { background: var(--turmeric-wash); }
     100% { background: transparent; }
 }
 
-/* ---------- lightbox xem ảnh ---------- */
+/* ============================ LIGHTBOX ============================ */
+
 .lightbox {
     position: fixed;
     inset: 0;
     z-index: 3000;
-    background: rgba(0, 0, 0, .82);
+    background: rgba(7, 37, 40, .93);
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 24px;
     cursor: zoom-out;
-    animation: toast-in .12s ease-out;
+    animation: toast-in .12s var(--ease);
 }
 .lightbox__img {
     max-width: 94vw;
     max-height: 92vh;
-    border-radius: 8px;
-    box-shadow: 0 12px 48px rgba(0, 0, 0, .5);
+    border: var(--line-w) solid var(--turmeric);
+    border-radius: 0;
     cursor: default;
 }
 .lightbox__x {
@@ -284,10 +935,20 @@ html, body {
     right: 20px;
     background: transparent;
     border: 0;
-    color: #fff;
+    color: var(--turmeric);
     font-size: 34px;
     line-height: 1;
     cursor: pointer;
-    opacity: .8;
+    opacity: .85;
 }
 .lightbox__x:hover { opacity: 1; }
+
+/* ============================ GIẢM CHUYỂN ĐỘNG ============================ */
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: .001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .001ms !important;
+    }
+}

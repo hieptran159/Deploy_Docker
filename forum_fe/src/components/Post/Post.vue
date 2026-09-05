@@ -1,15 +1,19 @@
 <template>
   <div>
-    <div v-if="post?.repostedBy" class="flex items-center gap-1.5 text-xs muted pt-2 pl-1">
-        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <div v-if="post?.repostedBy" class="repost-flag">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" />
             <polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 0 1-4 4H3" />
         </svg>
-        <span><b class="text-[var(--text)]">{{ isMyRepost ? 'Bạn' : post.repostedBy }}</b> đã chia sẻ</span>
+        <span>{{ isMyRepost ? 'Bạn' : post.repostedBy }} đã chia sẻ</span>
     </div>
-    <div v-if="post?.repostNote" class="text-sm pl-1 pt-1 whitespace-pre-wrap">{{ post.repostNote }}</div>
+    <div v-if="post?.repostNote" class="text-sm pl-[18px] pt-1 whitespace-pre-wrap measure">{{ post.repostNote }}</div>
 
-    <div class="py-3 cursor-pointer group" @click="viewDetail">
+    <div
+        class="post-row py-3 cursor-pointer group"
+        :class="{ 'post-row--repost': !!post?.repostedBy, 'post-row--draft': post?.status === 'draft' }"
+        @click="viewDetail"
+    >
         <!-- dòng tác giả -->
         <div class="flex items-center gap-2">
             <img
@@ -26,71 +30,72 @@
                 <span class="link font-medium text-[var(--text)]" @click.stop="goProfile">{{ userCreatedPost || '—' }}</span>
                 · {{ calculateTimeDifference(post?.postedAt) }} trước
                 <span v-if="post?.editedAt">· đã chỉnh sửa</span>
-                <span v-if="post?.visibility === 'friends'" class="ml-1 px-1.5 py-0.5 rounded bg-gray-100 text-[11px] font-semibold">👥 Bạn bè</span>
-                <span v-else-if="post?.visibility === 'private'" class="ml-1 px-1.5 py-0.5 rounded bg-gray-100 text-[11px] font-semibold">🔒 Chỉ mình tôi</span>
+                <span v-if="post?.visibility === 'friends'" class="post-badge ml-1">👥 Bạn bè</span>
+                <span v-else-if="post?.visibility === 'private'" class="post-badge ml-1">🔒 Chỉ mình tôi</span>
             </div>
         </div>
 
-        <!-- nội dung: tiêu đề + trích đoạn, full-width -->
-        <div class="font-bold text-2xl leading-snug text-[#2577b1] mt-2 group-hover:underline">
-            {{ post?.title }}
-        </div>
-        <div v-if="excerpt" class="text-sm text-[var(--text)] mt-1 line-clamp-3 whitespace-pre-wrap">{{ excerpt }}</div>
+        <!-- nội dung: tiêu đề + trích đoạn -->
+        <div class="post-title">{{ post?.title }}</div>
+        <div v-if="excerpt" class="text-sm mt-1.5 line-clamp-3 whitespace-pre-wrap measure">{{ excerpt }}</div>
 
         <!-- hashtag -->
-        <div v-if="hashtags.length" class="flex flex-wrap gap-1.5 mt-2">
+        <div v-if="hashtags.length" class="flex flex-wrap gap-1.5 mt-3">
             <button
                 v-for="t in hashtags"
                 :key="t"
-                class="text-xs font-semibold text-[var(--brand)] bg-[var(--brand-soft)] rounded-full px-2 py-0.5 hover:underline"
+                class="tag-chip tag-chip--sm"
                 @click.stop="goTag(t)"
             >#{{ t }}</button>
         </div>
 
         <!-- thanh thao tác -->
-        <div class="flex items-center gap-2 mt-2.5 text-xs">
+        <!-- Số liệu là DỮ LIỆU nên để im lặng; chỉ nút chia sẻ đổi sang đỏ son
+             khi chính bạn đã chia sẻ — đúng quy tắc "đỏ son = hành động của bạn". -->
+        <div class="row-actions mt-3">
             <button
                 v-if="isMyPost"
-                class="px-2 py-1 rounded-full font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 inline-flex items-center gap-1"
+                class="act-pill"
                 title="Sửa bài viết"
                 @click.stop="editing = true"
             >
-                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
                 </svg>
+                Sửa
             </button>
-            <span class="px-2 py-1 rounded-full bg-rose-50 text-rose-600 font-semibold inline-flex items-center gap-1">
-                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <span class="act-pill" style="cursor: default">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z" />
                 </svg>
-                {{ post?.likesQuantity ?? 0 }}
+                <span class="tnum">{{ post?.likesQuantity ?? 0 }}</span>
             </span>
-            <span class="px-2 py-1 rounded-full bg-amber-50 text-amber-600 font-semibold inline-flex items-center gap-1">
-                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <span class="act-pill" style="cursor: default">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
                 </svg>
-                {{ post?.commentsQuantity ?? 0 }}
+                <span class="tnum">{{ post?.commentsQuantity ?? 0 }}</span>
             </span>
             <button
                 v-if="canRepost"
-                class="px-2 py-1 rounded-full font-semibold transition inline-flex items-center gap-1"
-                :class="post?.reposted ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'"
+                class="act-pill"
+                :class="{ 'is-on': post?.reposted }"
                 :title="post?.reposted ? 'Bỏ chia sẻ' : 'Chia sẻ'"
                 :disabled="busy"
                 @click.stop="toggleRepost"
             >
-                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" />
                     <polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 0 1-4 4H3" />
                 </svg>
-                {{ post?.repostCount ?? 0 }}
+                <span class="tnum">{{ post?.repostCount ?? 0 }}</span>
             </button>
-            <span v-else-if="post?.repostCount" class="px-2 py-1 rounded-full bg-emerald-50 text-emerald-600 font-semibold inline-flex items-center gap-1">
-                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+            <span v-else-if="post?.repostCount" class="act-pill" style="cursor: default">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" />
                     <polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 0 1-4 4H3" />
                 </svg>
-                {{ post.repostCount }}
+                <span class="tnum">{{ post.repostCount }}</span>
             </span>
         </div>
     </div>
