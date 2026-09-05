@@ -64,4 +64,38 @@ class JwtUtilsTest {
         Exception e = assertThrows(Exception.class, () -> jwt.validateRefreshToken(rt));
         assertTrue(e.getMessage().contains("thu hồi"));
     }
+
+    /**
+     * JWT chỉ ghi iat/exp theo GIÂY. Không có claim ngẫu nhiên thì hai token cấp
+     * trong cùng một giây cho cùng người dùng sẽ GIỐNG HỆT nhau — đã gặp thật:
+     * hai thiết bị dùng chung refresh token, và xoay vòng thì đụng khoá duy nhất
+     * uk_user_sessions_refresh làm /auth/refresh hỏng.
+     */
+    @Test
+    void tokenCapLienTiepPhaiKhacNhau() {
+        for (int i = 0; i < 50; i++) {
+            assertNotEquals(jwt.generateRefreshToken("u-1", true), jwt.generateRefreshToken("u-1", true),
+                    "refresh token cấp liên tiếp bị trùng");
+            assertNotEquals(jwt.generateAccessToken("u-1", true), jwt.generateAccessToken("u-1", true),
+                    "access token cấp liên tiếp bị trùng");
+        }
+    }
+
+    /** Token phải nằm gọn trong cột blacklist_token.token (varchar 512). */
+    @Test
+    void tokenKhongVuotQuaChoLuuBlacklist() {
+        assertTrue(jwt.generateRefreshToken("0123456789abcdef0123456789abcdef0123", true).length() < 512);
+        assertTrue(jwt.generateAccessToken("0123456789abcdef0123456789abcdef0123", true).length() < 512);
+    }
+
+    /** Thêm jti không được làm hỏng việc đọc lại claim.
+     *  Dùng remember=true vì setUp không nạp shortRefreshExpirationMs (mặc định 0
+     *  -> token phiên tạm hết hạn ngay lập tức). */
+    @Test
+    void themJtiKhongPhaVoCacClaimCu() throws Exception {
+        String rt = jwt.generateRefreshToken("u-9", true);
+        jwt.validateRefreshToken(rt);
+        assertEquals("u-9", jwt.getUserIdFromAccessToken(rt));
+        assertTrue(jwt.isRememberRefreshToken(rt));
+    }
 }

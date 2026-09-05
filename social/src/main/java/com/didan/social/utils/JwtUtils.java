@@ -20,6 +20,8 @@ import org.springframework.util.StringUtils;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.security.SecureRandom;
+import java.util.Base64;
 import java.util.Date;
 
 @Component
@@ -61,6 +63,24 @@ public class JwtUtils {
     @Value("${jwt.short-refresh-expiration-ms:1800000}") // 30 phút
     private long shortRefreshExpirationMs;
 
+    /**
+     * Định danh ngẫu nhiên cho từng token.
+     *
+     * Không có nó thì JWT là TẤT ĐỊNH từ (subject, remember, iat, exp), mà iat/exp
+     * chỉ tính theo GIÂY — hai lần đăng nhập trong cùng một giây sinh ra token
+     * giống hệt nhau. Hậu quả thật đã gặp: hai thiết bị dùng chung một refresh
+     * token, và khi xoay vòng thì đụng khoá duy nhất
+     * uk_user_sessions_refresh nên /auth/refresh hỏng.
+     */
+    private static final SecureRandom RANDOM = new SecureRandom();
+    private static final String CLAIM_JTI = "jti";
+
+    private static String newJti() {
+        byte[] b = new byte[9];   // 72 bit, đủ duy nhất mà token không dài thêm nhiều
+        RANDOM.nextBytes(b);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(b);
+    }
+
     private static final String CLAIM_TYPE = "typ";
     private static final String TYPE_REFRESH = "refresh";
     private static final String CLAIM_REMEMBER = "rmb";
@@ -74,7 +94,8 @@ public class JwtUtils {
         Date now = new Date();
         Date exp = new Date(now.getTime() + (remember ? accessExpirationMs : shortAccessExpirationMs));
         SecretKey key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(this.secretKey));
-        return Jwts.builder().signWith(key).subject(data).issuedAt(now).expiration(exp).compact();
+        return Jwts.builder().signWith(key).subject(data).claim(CLAIM_JTI, newJti())
+                .issuedAt(now).expiration(exp).compact();
     }
 
     // Refresh token: sống lâu hơn, mang claim typ=refresh để phân biệt với access token.
@@ -87,7 +108,8 @@ public class JwtUtils {
         Date exp = new Date(now.getTime() + (remember ? refreshExpirationMs : shortRefreshExpirationMs));
         SecretKey key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(this.secretKey));
         return Jwts.builder().signWith(key).subject(data).claim(CLAIM_TYPE, TYPE_REFRESH)
-                .claim(CLAIM_REMEMBER, remember).issuedAt(now).expiration(exp).compact();
+                .claim(CLAIM_REMEMBER, remember).claim(CLAIM_JTI, newJti())
+                .issuedAt(now).expiration(exp).compact();
     }
 
     // Đọc cờ "ghi nhớ" từ refresh token (token cũ không có claim -> coi như true, giữ hành vi cũ).
