@@ -27,6 +27,17 @@ jobs:
       # runner ubuntu-latest có sẵn Docker).
       - name: Tests
         run: sh ./mvnw -B -ntp test
+      # Log của Actions chỉ tải được nếu có quyền admin repo, còn artifact thì đọc
+      # công khai — nên khi test hỏng, đẩy báo cáo surefire ra artifact để xem được
+      # nguyên nhân mà không cần vào giao diện web.
+      - name: Báo cáo test (khi hỏng)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: social/target/surefire-reports/
+          if-no-files-found: warn
+          retention-days: 7
       # Build jar đúng như Dockerfile chạy
       - name: Package
         run: sh ./mvnw -B -ntp -DskipTests package
