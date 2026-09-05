@@ -175,10 +175,11 @@
                                         </template>
                                     </div>
                                     <div
-                                        class="px-3 py-2 rounded-2xl text-sm shadow-sm"
+                                        class="px-3 py-2 rounded-2xl text-sm"
                                         :class="[
                                             m.senderId === myId ? 'bg-[var(--ink)] text-white' : 'bg-[var(--surface)] text-[var(--text)] border-2 border-[var(--line-soft)]',
-                                            m.recalled ? 'italic opacity-70' : ''
+                                            m.recalled ? 'italic opacity-70' : '',
+                                            (m.messageImg && !m.content && !m.recalled) ? 'msg-bubble--media' : ''
                                         ]">
                                         <span v-if="m.recalled">Tin nhắn đã được thu hồi</span>
                                         <template v-else>
@@ -186,7 +187,9 @@
                                                 v-if="p.mention" class="font-semibold underline cursor-pointer"
                                                 @click="() => router.push('/user/' + p.id)">@{{ p.mention }}</span><template v-else>{{ p.t }}</template></template></span>
                                             <img v-if="m.messageImg && !String(m.messageImg).includes('null')"
-                                                :src="IMAGE_BASE + m.messageImg" class="mt-1 max-w-[220px] rounded-lg cursor-zoom-in"
+                                                :src="IMAGE_BASE + m.messageImg" class="msg-img"
+                                                :class="{ 'mt-1.5': !!m.content }"
+                                                alt="Ảnh đã gửi"
                                                 @click="openLightbox(IMAGE_BASE + m.messageImg)" />
                                         </template>
                                     </div>
@@ -222,10 +225,18 @@
                         </div>
                     </div>
 
-                    <div class="p-3 border-t flex items-center gap-2">
+                    <div class="p-3 border-t">
+                      <!-- Ảnh đang chờ gửi: xem trước + tên tệp + nút bỏ chọn -->
+                      <div v-if="pendingImg" class="pending-img">
+                          <img v-if="pendingImgUrl" :src="pendingImgUrl" class="pending-img__thumb" alt="" />
+                          <span class="pending-img__name">{{ pendingImg.name }}</span>
+                          <span class="muted flex-none">{{ formatBytes(pendingImg.size) }}</span>
+                          <button class="pending-img__x" title="Bỏ ảnh này" @click="clearPendingImg">✕</button>
+                      </div>
+
+                      <div class="flex items-center gap-2">
                         <DxButton
-                            :icon="pendingImg ? 'photo' : 'image'"
-                            :type="pendingImg ? 'success' : 'normal'"
+                            icon="image"
                             stylingMode="text"
                             hint="Đính kèm ảnh"
                             @click="pickImg"
@@ -246,6 +257,7 @@
                             </div>
                         </div>
                         <DxButton text="Gửi" type="default" @click="sendMessage" />
+                      </div>
                     </div>
                 </template>
             </div>
@@ -731,7 +743,20 @@ const handleLeave = () => {
 
 /* ---------- messages / socket ---------- */
 const scrollToBottom = () => {
-    nextTick(() => { if (listEl.value) listEl.value.scrollTop = listEl.value.scrollHeight; });
+    nextTick(() => {
+        const el = listEl.value;
+        if (!el) return;
+        el.scrollTop = el.scrollHeight;
+        // nextTick chỉ đảm bảo DOM đã cập nhật, KHÔNG đảm bảo ảnh đã tải. Ảnh
+        // load xong sau đó làm khung cao thêm -> view kẹt lại phía trên tin nhắn
+        // vừa gửi. Cuộn lại một lần nữa khi từng ảnh chưa tải xong hoàn tất.
+        el.querySelectorAll('img').forEach((img) => {
+            if (img.complete) return;
+            const again = () => { if (listEl.value) listEl.value.scrollTop = listEl.value.scrollHeight; };
+            img.addEventListener('load', again, { once: true });
+            img.addEventListener('error', again, { once: true });
+        });
+    });
 }
 
 const teardownSocket = () => {
@@ -958,8 +983,7 @@ const sendMessage = async () => {
         } catch (e) {
             showDialog?.('Thông báo', e?.description || 'Gửi ảnh thất bại');
         }
-        pendingImg.value = null;
-        if (fileEl.value) fileEl.value.value = '';
+        clearPendingImg();
         draft.value = '';
         chatPicked.value = [];
         mentionOpen.value = false;
@@ -1038,7 +1062,25 @@ const confirmRecall = (m) => {
 };
 
 const pickImg = () => fileEl.value?.click();
-const onPickImg = (e) => { pendingImg.value = e.target.files[0] || null; };
+
+/* Xem trước ảnh đang chờ gửi. objectURL phải revoke tay, nếu không mỗi lần chọn
+   ảnh lại giữ nguyên blob trong bộ nhớ cho tới khi rời trang. */
+const pendingImgUrl = ref('');
+const setPendingImg = (file) => {
+    if (pendingImgUrl.value) URL.revokeObjectURL(pendingImgUrl.value);
+    pendingImgUrl.value = file ? URL.createObjectURL(file) : '';
+    pendingImg.value = file;
+};
+const onPickImg = (e) => setPendingImg(e.target.files[0] || null);
+const clearPendingImg = () => {
+    setPendingImg(null);
+    if (fileEl.value) fileEl.value.value = '';
+};
+
+const formatBytes = (n) => {
+    if (!n && n !== 0) return '';
+    return n < 1024 * 1024 ? Math.round(n / 1024) + ' KB' : (n / 1024 / 1024).toFixed(1) + ' MB';
+};
 
 /* ---------- mở từ query ?c= ---------- */
 const openFromQuery = () => {
@@ -1073,6 +1115,7 @@ onBeforeUnmount(() => {
     teardownSocket();
     clearInterval(sidebarTimer);
     activeConversationId.value = null;
+    if (pendingImgUrl.value) URL.revokeObjectURL(pendingImgUrl.value);
 });
 </script>
 

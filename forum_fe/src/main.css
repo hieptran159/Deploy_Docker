@@ -815,6 +815,10 @@ h1, h2, h3, h4 {
 /* Đang trực tuyến = trạng thái hoạt động -> vàng nghệ, nhưng làm NỀN chứ không
    làm chữ (vàng trên nền sáng chỉ đạt 1.9:1). */
 .status-on {
+    /* inline-flex là bắt buộc: class này được gắn lên một <div> khối, nếu để
+       display mặc định thì nền vàng kéo dài hết chiều ngang thành một thanh. */
+    display: inline-flex;
+    align-items: center;
     background: var(--turmeric);
     color: var(--ink);
     font-weight: 700;
@@ -828,6 +832,57 @@ h1, h2, h3, h4 {
 .bg-red-500, .bg-red-600 { background: var(--cinnabar) !important; }
 .text-red-500, .text-red-600 { color: var(--cinnabar-ink) !important; }
 .bg-green-500, .bg-green-600 { background: var(--ink) !important; }
+
+/* ============================ TIN NHẮN ẢNH ============================ */
+
+/* Tin nhắn chỉ có ảnh: bỏ hẳn bong bóng. Nếu giữ, tấm ảnh bị đóng khung trong
+   nền mực gần đen — trông như viền đen dày chứ không phải bong bóng chat.
+   Ảnh tự mang viền cứng của hệ thiết kế. */
+.msg-bubble--media {
+    padding: 0 !important;
+    background: transparent !important;
+    border: 0 !important;
+}
+.msg-img {
+    display: block;
+    max-width: 240px;
+    border: var(--line-w) solid var(--stroke);
+    border-radius: 0;
+    cursor: zoom-in;
+}
+
+/* Ảnh đang chờ gửi: phải thấy được đã chọn ảnh nào và bỏ chọn được.
+   Trước đây chỉ đổi icon nút, không có cách nào biết hay huỷ. */
+.pending-img {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px 6px 6px;
+    margin-bottom: 8px;
+    border: var(--line-w) solid var(--stroke);
+    background: var(--wash);
+    font-size: var(--fs-sm);
+}
+.pending-img__thumb {
+    width: 34px;
+    height: 34px;
+    object-fit: cover;
+    border: 1px solid var(--stroke);
+    flex: none;
+}
+.pending-img__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pending-img__x {
+    flex: none;
+    border: 0;
+    background: transparent;
+    color: var(--cinnabar-ink);
+    font-weight: 700;
+    font-size: var(--fs-base);
+    line-height: 1;
+    padding: 4px 6px;
+    cursor: pointer;
+}
+.pending-img__x:hover { background: var(--turmeric-wash); }
 
 /* ============================ THANH CUỘN ============================ */
 
