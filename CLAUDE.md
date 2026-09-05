@@ -373,7 +373,15 @@ frontend tests.
   `DDL_AUTO=update` + `FLYWAY_ENABLED=false` in `.env` to fall back to the old behaviour.
   `baseline-on-migrate=true` + `baseline-version=1` → an existing DB (no
   `flyway_schema_history`) is marked at V1 and V1 is **not** re-run; only V2+ apply. New
-  schema change = add `V<n>__*.sql`, never edit an applied one. `validate` is strict about
+  schema change = add `V<n>__*.sql`, never edit an applied one (editing one that already ran
+  makes Flyway abort on a checksum mismatch, so a bad migration must be fixed by a *new*
+  migration — that's why `V5` exists to repair `V4`'s `remember tinyint` → `int`).
+  **`validate` is strict about column TYPE**: an `Integer` field needs an `int` column, not
+  `tinyint` — match the existing flag columns (`users.is_admin`, `twofa_enabled`,
+  `deactivated` are all `int`). `java.util.Date` ↔ `datetime` is fine (precedent:
+  `posts.posted_at`). **Never deploy a migration before CI is green** — `SocialApplicationTests`
+  runs the whole V1→Vn chain against a real MySQL and catches exactly these mismatches; it
+  caught the `V4` one hours before that deploy crash-looped the backend. `validate` is strict about
   a mapped column/table being **missing**, lenient about extra columns, length, index/FK
   names, nullability. (Watch out: Spring Boot's `CamelCaseToUnderscoresNamingStrategy` is
   applied to explicit `@Column(name=…)` values too — so `Messages`' `@Column(name="messageImg")`
