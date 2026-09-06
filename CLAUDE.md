@@ -363,6 +363,14 @@ frontend tests.
   cap is `UPLOAD_MULTIPART_MAX` (12MB); `controller/UploadExceptionHandler`
   (`@RestControllerAdvice`) turns `MaxUploadSizeExceededException` / `MultipartException` into
   the standard 503 + `statusCode:500` ResponseData body.
+- There is **no bootstrap script at startup any more**. A `config/DatabaseConfig`
+  `CommandLineRunner` used to run `classpath:db.sql` (a MySQL Workbench forward-engineering
+  dump from March 2024) on every boot, starting with `CREATE SCHEMA IF NOT EXISTS socialapp`.
+  Both were deleted Sep 2026: Flyway owns the schema and compose already creates the database
+  via `MYSQL_DATABASE`. It was a no-op on prod but **required the DB user to hold CREATE
+  SCHEMA rights**, which is why `SocialApplicationTests` failed from the day it was added —
+  Testcontainers' `test` user has no such right (`Access denied for user 'test'@'%' to
+  database 'socialapp'`). Don't reintroduce a startup DDL script.
 - **DB schema is Flyway-managed** (`flyway-core` + `flyway-mysql`, version via Spring Boot
   3.1.7 BOM). Migrations in `social/src/main/resources/db/migration/` (`V1__baseline.sql` =
   point-in-time dump of the prod schema, 21 tables, no data; `V2`+`V3` collapse the two
