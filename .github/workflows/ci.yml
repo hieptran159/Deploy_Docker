@@ -13,9 +13,6 @@ concurrency:
 jobs:
   backend:
     runs-on: ubuntu-latest
-    # Cần quyền ghi để đăng lỗi test lên commit comment (xem bước cuối).
-    permissions:
-      contents: write
     defaults:
       run:
         working-directory: social
@@ -26,13 +23,10 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: maven
-      # Toàn bộ test: 72 unit test + SocialApplicationTests (dùng Testcontainers MySQL,
+      # Toàn bộ test: 84 unit test + SocialApplicationTests (dùng Testcontainers MySQL,
       # runner ubuntu-latest có sẵn Docker).
-      # Kéo sẵn image MySQL, tách thời gian tải ra khỏi đồng hồ chờ của Testcontainers.
-      # Ghi chú: ban đầu thêm bước này vì nghi job hỏng do quá ngưỡng chờ 60s.
-      # ĐÃ BÁC BỎ — sau khi kéo sẵn, bước Tests hỏng ở 47s thay vì 66-70s, tức là
-      # hỏng vì lỗi thật chứ không phải hết giờ. Vẫn giữ bước này vì nó rút ngắn
-      # thời gian chạy và làm tín hiệu thời lượng dễ đọc hơn.
+      # Kéo sẵn image để thời gian tải không tính vào ngưỡng chờ khởi động
+      # container của Testcontainers, và rút ngắn bước test.
       - name: Kéo sẵn image MySQL cho Testcontainers
         run: docker pull mysql:8.0
       - name: Tests
@@ -48,26 +42,6 @@ jobs:
           path: social/target/surefire-reports/
           if-no-files-found: warn
           retention-days: 7
-      # Log job và artifact đều cần xác thực mới tải được (403 / 401), còn commit
-      # comment thì đọc được qua API công khai. Đăng phần lỗi lên đó để chẩn đoán
-      # được từ ngoài. Bước tạm, gỡ khi đã tìm ra nguyên nhân.
-      - name: Đăng lỗi test lên commit comment
-        if: failure()
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          SHA: ${{ github.sha }}
-        run: |
-          BODY=$(cat target/surefire-reports/*.txt 2>/dev/null \
-                 | grep -vE '^\s*at (java|jdk|org\.junit|org\.apache\.maven|sun\.)' \
-                 | tail -n 150 | head -c 55000)
-          [ -z "$BODY" ] && BODY="(khong co file surefire-reports/*.txt)"
-          jq -n --arg b "$BODY" '{body: ("Ket qua test CI (tu dong):\n\n```\n" + $b + "\n```")}' > /tmp/comment.json
-          curl -sS -X POST \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/$REPO/commits/$SHA/comments" \
-            -d @/tmp/comment.json -o /dev/null -w "dang comment: HTTP %{http_code}\n"
       # Build jar đúng như Dockerfile chạy
       - name: Package
         run: sh ./mvnw -B -ntp -DskipTests package
