@@ -118,7 +118,7 @@ const submit = async (draft) => {
         emits("close");
     } catch (e) {
         if (draft) showDialog?.('Thông báo', e?.description || 'Lưu nháp thất bại');
-        else emits("post-fail");
+        else emits("post-fail", e?.description);
     } finally {
         busy.value = false;
     }

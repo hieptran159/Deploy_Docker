@@ -1,5 +1,5 @@
 <template>
-    <div class="rp-overlay" @click.self="close">
+    <dialog ref="el" class="rp-overlay" @click.self="close" @close="close" @cancel.prevent="close">
         <div class="rp-box">
             <div class="rp-title">Báo cáo {{ label || 'nội dung này' }}</div>
             <p class="muted text-sm">Chọn lý do để gửi tới quản trị viên.</p>
@@ -25,11 +25,11 @@
                 </button>
             </div>
         </div>
-    </div>
+    </dialog>
 </template>
 
 <script setup>
-import { ref, computed, inject } from 'vue';
+import { ref, computed, inject, onBeforeUnmount, onMounted } from 'vue';
 import { sendReport } from '@/apis/report';
 
 const props = defineProps({
@@ -74,18 +74,32 @@ const submit = async () => {
 };
 
 const close = () => { if (!busy.value) emit('close'); };
+
+// Phải là <dialog> modal chứ không phải div z-index: AppModal cũng là <dialog>,
+// mà top layer nằm trên mọi z-index nên hộp báo cáo sẽ bị popup che mất.
+const el = ref(null);
+onMounted(() => el.value?.showModal());
+onBeforeUnmount(() => { if (el.value?.open) el.value.close(); });
 </script>
 
 <style scoped>
 .rp-overlay {
     position: fixed;
     inset: 0;
-    z-index: 1000;
-    background: rgba(16, 24, 40, .45);
+    width: 100%;
+    max-width: 100%;
+    height: 100%;
+    max-height: 100%;
+    margin: 0;
+    border: 0;
+    background: transparent;   /* nền mờ do ::backdrop lo, thân dialog phải trong suốt */
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 16px;
+}
+.rp-overlay::backdrop {
+    background: rgba(16, 24, 40, .45);
 }
 .rp-box {
     background: var(--surface);

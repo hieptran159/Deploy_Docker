@@ -34,6 +34,12 @@ export const updateCover = (file) => {
     return authApiFormData.patch('/user/cover', { cover: file });
 }
 
+// Endpoint riêng, KHÔNG cần mật khẩu (giống ảnh bìa). /user/edit vẫn đòi mật khẩu
+// vì nó đổi được cả email lẫn mật khẩu — đổi ảnh thì không đáng phải qua cửa đó.
+export const updateAvatar = (file) => {
+    return authApiFormData.patch('/user/avatar', { avatar: file });
+}
+
 // Cập nhật hồ sơ mở rộng (JSON, không cần mật khẩu)
 export const updateProfile = (data) => {
     return authApi.patch('/user/profile', data);

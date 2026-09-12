@@ -1,12 +1,15 @@
 /* Hộp thoại xác nhận / thông báo. Neo vào token của hệ "Bảng hiệu":
-   viền cứng + bóng lệch đặc, không bo tròn, không bóng mờ, không màu cứng. */
-.m-dialog-overlay {
-}
+   viền cứng + bóng lệch đặc, không bo tròn, không bóng mờ, không màu cứng.
+
+   Là <dialog> mở bằng showModal() nên nằm ở top layer — không cần z-index, và
+   quan trọng hơn: không bị AppModal (cũng là <dialog>) che mất. */
 .m-dialog {
 	position: fixed;
 	left: 50%;
 	top: 86px;
 	transform: translateX(-50%);
+	margin: 0;                 /* <dialog> mặc định auto-margin, sẽ phá translateX */
+	padding: 0;
 	background-color: var(--surface);
 	color: var(--text);
 	border: var(--line-w) solid var(--stroke);
@@ -15,7 +18,9 @@
 	box-shadow: var(--lift);
 	width: 415px;
 	max-width: calc(100vw - 32px);
-	z-index: 10000;
+}
+.m-dialog::backdrop {
+	background: rgba(14, 59, 62, .46);
 }
 .m-dialog__header {
 	padding: 20px 24px 12px;

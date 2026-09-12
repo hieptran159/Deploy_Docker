@@ -29,10 +29,20 @@
                 <span v-if="visible.address && profile.address"><span class="muted">Địa chỉ:</span> {{ profile.address }}</span>
                 <span v-if="visible.hobbies && profile.hobbies" class="whitespace-pre-wrap"><span class="muted">Sở thích:</span> {{ profile.hobbies }}</span>
             </div>
-            <div class="px-4 pb-4">
+            <div class="px-4 pb-4 flex flex-wrap items-center gap-2">
+                <!-- Nút nằm ngay cạnh ảnh chúng nó sửa, không phải ở tận cuối trang -->
+                <button class="sign-btn sign-btn--outline" @click="avatarInput?.click()">
+                    <AppIcon name="camera" :size="16" /> Đổi ảnh đại diện
+                </button>
+                <button class="sign-btn sign-btn--outline" @click="coverInput?.click()">
+                    <AppIcon name="image" :size="16" /> Đổi ảnh bìa
+                </button>
                 <button class="sign-btn sign-btn--quiet" @click="route.push('/user/' + myId)">
                     <AppIcon name="user" :size="16" /> Xem trang công khai của tôi
                 </button>
+                <!-- input file ẩn: nút bấm xong là tải luôn, không cần bấm "Cập nhật" lần nữa -->
+                <input ref="avatarInput" type="file" accept="image/*" class="hidden" @change="onAvatarPicked" />
+                <input ref="coverInput" type="file" accept="image/*" class="hidden" @change="onCoverPicked" />
             </div>
         </div>
 
@@ -132,22 +142,6 @@
             </div>
         </div>
 
-        <div class="card">
-            <div class="section-title">Đổi ảnh đại diện</div>
-            <div class="flex flex-col sm:flex-row sm:items-center gap-2">
-                <input type="file" accept="image/*" class="flex-1" @change="handleFileChange" />
-                <button type="button" class="sign-btn" @click="updateAvatar">Cập nhật ảnh</button>
-            </div>
-        </div>
-
-        <div class="card">
-            <div class="section-title">Đổi ảnh bìa</div>
-            <div class="flex flex-col sm:flex-row sm:items-center gap-2">
-                <input type="file" accept="image/*" class="flex-1" @change="handleCoverChange" />
-                <button type="button" class="sign-btn" @click="saveCover">Cập nhật ảnh bìa</button>
-            </div>
-        </div>
-
         <div class="card card--danger">
             <div class="section-title" style="color: var(--cinnabar-ink)">Vùng nguy hiểm</div>
             <p class="muted text-sm mb-2">
@@ -172,7 +166,7 @@ import AppIcon from '@/components/AppIcon.vue';
 import { useRouter } from 'vue-router';
 import { computed, inject, onMounted, ref } from 'vue';
 import { editUser, updateProfile, getUserInfo, deleteAccount, deactivateAccount, updateCover,
-         getMySessions, revokeSession } from '@/apis/user';
+         updateAvatar, getMySessions, revokeSession } from '@/apis/user';
 import { enableTwoFactor, disableTwoFactor } from '@/apis/auth';
 import { LOCALKEYS, getItemLocal, setItemLocal, clearAuth } from '@/storages/localStorage';
 import { IMAGE_BASE } from '@/config';
@@ -205,11 +199,8 @@ const previewCover = computed(() => (prevCoverOk.value && rawUser.value.coverUrl
 const currentPassword = ref("");
 const newEmail = ref("");
 const newPassword = ref("");
-const avatarFile = ref(null);
-
-function handleFileChange(event) {
-    avatarFile.value = event.target.files[0] || null;
-}
+const avatarInput = ref(null);
+const coverInput = ref(null);
 
 const requirePassword = () => {
     if (!currentPassword.value) {
@@ -303,32 +294,34 @@ const updatePassword = async () => {
     }
 }
 
-const updateAvatar = async () => {
-    if (!requirePassword()) return;
-    if (!avatarFile.value) { showDialog("Thông báo", "Chọn ảnh đại diện mới"); return; }
+/* Chọn ảnh xong là tải luôn — không bắt bấm thêm "Cập nhật", và KHÔNG hỏi mật
+   khẩu: đổi ảnh không phải thao tác nhạy cảm như đổi email hay mật khẩu.
+   /user/avatar và /user/cover đều là endpoint riêng, không đi qua /user/edit. */
+const onAvatarPicked = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';           // chọn lại đúng file đó vẫn phải kích hoạt change
+    if (!file) return;
     try {
-        await editUser({ password: currentPassword.value, avatar: avatarFile.value });
+        await updateAvatar(file);
         await refreshLocalUser();
         await loadProfile();
         if (rawUser.value?.avtUrl) applyAvatarUpdate(getItemLocal(LOCALKEYS.USER_ID), rawUser.value.avtUrl);
-        showDialog("Thông báo", "Cập nhật ảnh đại diện thành công");
-        avatarFile.value = null;
-    } catch (e) {
-        showDialog("Thông báo", e?.description || "Cập nhật ảnh thất bại");
+        toast?.('Đã cập nhật ảnh đại diện');
+    } catch (err) {
+        showDialog('Thông báo', err?.description || 'Cập nhật ảnh thất bại');
     }
-}
+};
 
-const coverFile = ref(null);
-const handleCoverChange = (e) => { coverFile.value = e.target.files[0] || null; };
-const saveCover = async () => {
-    if (!coverFile.value) { showDialog('Thông báo', 'Chọn ảnh bìa'); return; }
+const onCoverPicked = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
     try {
-        await updateCover(coverFile.value);
+        await updateCover(file);
         await loadProfile();
         toast?.('Đã cập nhật ảnh bìa');
-        coverFile.value = null;
-    } catch (e) {
-        showDialog('Thông báo', e?.description || 'Cập nhật ảnh bìa thất bại');
+    } catch (err) {
+        showDialog('Thông báo', err?.description || 'Cập nhật ảnh bìa thất bại');
     }
 };
 

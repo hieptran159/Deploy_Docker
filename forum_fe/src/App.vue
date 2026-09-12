@@ -11,7 +11,7 @@
         @close="dismissDialog"
     />
 
-    <div class="toast-wrap">
+    <div ref="toastWrap" class="toast-wrap" popover="manual">
         <div
             v-for="t in toasts"
             :key="t.id"
@@ -30,10 +30,11 @@
         </div>
     </div>
 
-    <div v-if="lightbox" class="lightbox" @click="lightbox = ''">
+    <dialog v-if="lightbox" ref="lightboxEl" class="lightbox"
+            @click="lightbox = ''" @close="lightbox = ''" @cancel.prevent="lightbox = ''">
         <img :src="lightbox" class="lightbox__img" @click.stop />
         <button class="lightbox__x" @click="lightbox = ''">×</button>
-    </div>
+    </dialog>
 
     <ReportDialog
         v-if="report.show"
@@ -49,7 +50,7 @@ import TheHeader from '@/components/layout/TheHeader.vue';
 import TheFooter from '@/components/layout/TheFooter.vue';
 import MDialog from './components/Dialog/MDialog.vue';
 import ReportDialog from '@/components/ReportDialog.vue';
-import { provide, ref, onMounted, onBeforeUnmount } from 'vue';
+import { provide, ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
 
 /* ---------- modal (lỗi + xác nhận) ---------- */
 const dlg = ref({ show: false, title: '', content: '', buttons: [], onDismiss: null });
@@ -127,7 +128,22 @@ const openReport = (targetType, targetId, label = '') => {
 
 /* ---------- lightbox xem ảnh phóng to ---------- */
 const lightbox = ref('');
+const lightboxEl = ref(null);
 const openLightbox = (url) => { if (url) lightbox.value = url; };
+// <dialog> chỉ vào top layer khi showModal(); v-if mới render nên phải đợi nextTick
+watch(lightbox, async (v) => {
+    if (!v) return;
+    await nextTick();
+    if (!lightboxEl.value?.open) lightboxEl.value?.showModal();
+});
+
+/* Toast phải nằm TRÊN hộp thoại đang mở. <dialog> modal ở top layer, cao hơn mọi
+   z-index, nên popover là cách duy nhất đưa toast lên cùng tầng. Trình duyệt cũ
+   không có popover thì giữ nguyên như trước — vẫn hiện, chỉ là bị hộp thoại che. */
+const toastWrap = ref(null);
+onMounted(() => {
+    try { toastWrap.value?.showPopover?.(); } catch (e) { /* trình duyệt chưa hỗ trợ */ }
+});
 const onEsc = (e) => { if (e.key === 'Escape') lightbox.value = ''; };
 onMounted(() => document.addEventListener('keydown', onEsc));
 onBeforeUnmount(() => document.removeEventListener('keydown', onEsc));

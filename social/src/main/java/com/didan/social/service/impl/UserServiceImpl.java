@@ -271,6 +271,28 @@ public class UserServiceImpl extends ConvertDTO implements UserService {
         return true;
     }
 
+    @Override
+    public boolean updateAvatar(org.springframework.web.multipart.MultipartFile avatar) throws Exception {
+        if (avatar == null || avatar.isEmpty()) {
+            throw new Exception("Chưa chọn ảnh đại diện");
+        }
+        String userId = authorizePathService.getUserIdAuthoried();
+        Users user = userRepository.findFirstByUserId(userId);
+        if (user == null) {
+            throw new Exception("User is not found");
+        }
+        if (org.springframework.util.StringUtils.hasText(user.getAvtUrl())) {
+            try { fileUploadsService.deleteFile(user.getAvtUrl()); } catch (Exception ignore) { }
+        }
+        // Tên kèm mốc thời gian -> URL đổi theo, client không dùng lại ảnh cũ trong cache
+        String fileName = fileUploadsService.storeFile(avatar, "avatar",
+                user.getUserId() + "-" + System.currentTimeMillis());
+        user.setAvtUrl("avatar/" + fileName);
+        userRepository.save(user);
+        broadcastAvatar(user.getUserId(), user.getAvtUrl());
+        return true;
+    }
+
     @org.springframework.transaction.annotation.Transactional
     @Override
     public boolean deactivateMyAccount(String password) throws Exception {
