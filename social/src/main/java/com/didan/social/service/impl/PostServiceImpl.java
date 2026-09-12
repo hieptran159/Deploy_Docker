@@ -266,6 +266,43 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         }
         return s;
     }
+    /** innodb_ft_min_token_size của server. Đổi ở my.cnf thì chỉnh luôn giá trị này. */
+    @org.springframework.beans.factory.annotation.Value("${app.search.ft-min-token:3}")
+    private int ftMinToken;
+
+    /**
+     * FULLTEXT khi truy vấn dùng được, còn lại rơi về LIKE.
+     *
+     * Không phải vì FULLTEXT "tốt hơn nói chung", mà vì nó KHÔNG tìm được âm tiết 2
+     * chữ của tiếng Việt (innodb_ft_min_token_size = 3). Dùng FULLTEXT cho mọi truy
+     * vấn là lặng lẽ mất kết quả với "bò", "ăn", "gì"... — LIKE chậm hơn nhưng đúng.
+     */
+    private List<Posts> searchPosts(String q, java.util.Set<String> ex,
+                                    java.util.Collection<String> vids, String meId,
+                                    int page, int size) {
+        PageRequest pr = PageRequest.of(page, size);
+        if (!com.didan.social.utils.SearchQuery.canUseFulltext(q, ftMinToken)) {
+            return ex.isEmpty()
+                    ? postRepository.searchByKeyword(q, vids, meParam(meId), pr)
+                    : postRepository.searchByKeywordExcludingAuthors(q, ex, vids, meParam(meId), pr);
+        }
+        // Native IN/NOT IN không nhận tập rỗng -> sentinel, đúng cách FEED_UNION đang làm
+        java.util.Collection<String> exParam = ex.isEmpty() ? java.util.List.of("-") : ex;
+        List<String> ids = postRepository.searchFulltextIds(
+                com.didan.social.utils.SearchQuery.booleanExpression(q),
+                exParam, vids, meParam(meId), size, page * size);
+        if (ids.isEmpty()) return java.util.List.of();
+        // Nạp entity rồi xếp lại theo đúng thứ tự điểm khớp mà DB đã trả về
+        java.util.Map<String, Posts> byId = new java.util.HashMap<>();
+        for (Posts p : postRepository.findByPostIdIn(ids)) byId.put(p.getPostId(), p);
+        List<Posts> out = new ArrayList<>();
+        for (String id : ids) {
+            Posts p = byId.get(id);
+            if (p != null) out.add(p);
+        }
+        return out;
+    }
+
     @Transactional
     @Override
     public String createPost(CreatePostRequest createPostRequest) throws Exception {
@@ -889,10 +926,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         String meId = currentUserOrNull();
         java.util.Set<String> ex = blockRelatedIds(meId);
         java.util.Collection<String> vids = visibleAuthorIds(meId);
-        PageRequest pr = PageRequest.of(page, size);
-        List<Posts> posts = ex.isEmpty()
-                ? postRepository.searchByKeyword(searchName.trim(), vids, meParam(meId), pr)
-                : postRepository.searchByKeywordExcludingAuthors(searchName.trim(), ex, vids, meParam(meId), pr);
+        List<Posts> posts = searchPosts(searchName.trim(), ex, vids, meId, page, size);
         if (posts.isEmpty()) {
             logger.info("No posts are here");
             return Collections.emptyList();

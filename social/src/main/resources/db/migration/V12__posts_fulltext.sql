@@ -1,0 +1,23 @@
+-- Chỉ mục FULLTEXT cho tìm kiếm bài viết.
+--
+-- Trước: LIKE '%tu khoa%' trên title + body -> quét toàn bảng, và sắp xếp theo NGÀY
+-- chứ không theo mức khớp, nên bài liên quan nhất chưa chắc lên đầu.
+--
+-- HAI chỉ mục, không phải một:
+--   ft_posts_title_body  -> dùng ở WHERE. Một chỉ mục gộp thì MATCH tìm được cả
+--                           trường hợp từ A ở tiêu đề còn từ B ở thân bài.
+--   ft_posts_title       -> dùng ở ORDER BY để ưu tiên khớp tiêu đề.
+--
+-- Vì sao cần cái thứ hai: MATCH(title, body) tính MỘT điểm cho cả cụm cột, MySQL
+-- không biết title quan trọng hơn. Đo trên MySQL thật (PostSearchFulltextTest):
+-- bài chỉ nhắc "BRICS" một lần trong thân bài xếp TRÊN bài có BRICS ở tiêu đề, vì
+-- văn bản của nó ngắn hơn nên tf-idf cao hơn.
+--
+-- CẢNH BÁO tiếng Việt: innodb_ft_min_token_size = 3 KÝ TỰ (đã đo), nên âm tiết
+-- 2 chữ ("bò", "ăn", "gì") KHÔNG được đánh chỉ mục. Ứng dụng chỉ dùng FULLTEXT khi
+-- mọi token đủ dài, còn lại rơi về LIKE. Xem SearchQuery + PostSearchFulltextTest.
+-- HAI câu ALTER riêng, không gộp: InnoDB chỉ tạo được MỘT chỉ mục FULLTEXT mỗi
+-- câu lệnh (lỗi 1795 "InnoDB presently supports one FULLTEXT index creation at a
+-- time"). Gộp lại thì Flyway chết ngay lúc khởi động.
+ALTER TABLE posts ADD FULLTEXT KEY ft_posts_title_body (title, body);
+ALTER TABLE posts ADD FULLTEXT KEY ft_posts_title (title);
