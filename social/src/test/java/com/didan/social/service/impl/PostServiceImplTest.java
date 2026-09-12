@@ -45,6 +45,7 @@ class PostServiceImplTest {
     @Mock com.didan.social.repository.PollOptionRepository pollOptionRepository;
     @Mock com.didan.social.repository.PollVoteRepository pollVoteRepository;
     @Mock com.didan.social.repository.PostImageRepository postImageRepository;
+    @Mock com.didan.social.repository.HashtagFollowRepository hashtagFollowRepository;
 
     PostServiceImpl svc;
     static final String ME = "me-1";
@@ -56,7 +57,7 @@ class PostServiceImplTest {
                 postLikeRepository, commentRepository, authorizePathService, notificationService,
                 blockRepository, repostRepository, followService, postHashtagRepository, bookmarkRepository,
                 postViewThrottle, pollRepository, pollOptionRepository, pollVoteRepository,
-                postImageRepository);
+                postImageRepository, hashtagFollowRepository);
         when(authorizePathService.getUserIdAuthoried()).thenReturn(ME);
         Users me = new Users(); me.setUserId(ME); me.setFullName("Me");
         when(userRepository.findFirstByUserId(ME)).thenReturn(me);
@@ -491,5 +492,66 @@ class PostServiceImplTest {
     private org.springframework.web.multipart.MultipartFile img(String name) {
         return new org.springframework.mock.web.MockMultipartFile(
                 "postImgs", name, "image/jpeg", new byte[]{1, 2, 3});
+    }
+
+    /* ---------- Theo dõi hashtag ---------- */
+
+    @Test
+    void theoDoiHashtagChuanHoaTagTruocKhiLuu() throws Exception {
+        svc.followTag("  #TIN_Tuc  ");
+
+        ArgumentCaptor<com.didan.social.entity.HashtagFollows> cap =
+                ArgumentCaptor.forClass(com.didan.social.entity.HashtagFollows.class);
+        verify(hashtagFollowRepository).save(cap.capture());
+        assertEquals(ME, cap.getValue().getHashtagFollowId().getUserId());
+        assertEquals("tin_tuc", cap.getValue().getHashtagFollowId().getTag(),
+                "phải bỏ #, cắt khoảng trắng và hạ chữ thường như HashtagUtils");
+    }
+
+    @Test
+    void tagKhongHopLeThiTuChoi() {
+        assertThrows(Exception.class, () -> svc.followTag("có khoảng trắng"));
+        // HashtagUtils chỉ nhận [chữ, số, _] — gạch ngang không hợp lệ
+        assertThrows(Exception.class, () -> svc.followTag("tin-tuc"));
+        assertThrows(Exception.class, () -> svc.followTag("12345"));
+        assertThrows(Exception.class, () -> svc.followTag(null));
+        verify(hashtagFollowRepository, never()).save(any());
+    }
+
+    @Test
+    void boTheoDoiXoaDungHangCuaMinh() throws Exception {
+        svc.unfollowTag("#Tin");
+        verify(hashtagFollowRepository).deleteById(
+                new com.didan.social.entity.keys.HashtagFollowId(ME, "tin"));
+    }
+
+    /**
+     * `IN ()` với tập rỗng là SQL không hợp lệ. Chưa theo dõi tag nào thì phải trả
+     * về rỗng chứ không được chạm vào truy vấn.
+     */
+    @Test
+    void chuaTheoDoiTagNaoThiKhongChayTruyVanIN() throws Exception {
+        when(hashtagFollowRepository.findTagsOfUser(ME)).thenReturn(java.util.List.of());
+
+        java.util.Map<String, Object> m = svc.getFollowedTagsFeed(0, 10);
+
+        assertEquals(0L, m.get("total"));
+        assertTrue(((java.util.List<?>) m.get("items")).isEmpty());
+        verify(postHashtagRepository, never()).findPostsByTags(any(), any(), anyString(), any());
+        verify(postHashtagRepository, never()).countPostsByTags(any(), any(), anyString());
+    }
+
+    @Test
+    void feedHashtagDungDungCacTagDangTheoDoi() throws Exception {
+        when(hashtagFollowRepository.findTagsOfUser(ME)).thenReturn(java.util.List.of("tin", "vuejs"));
+        when(postHashtagRepository.findPostsByTags(any(), any(), anyString(), any()))
+                .thenReturn(java.util.List.of());
+        when(postHashtagRepository.countPostsByTags(any(), any(), anyString())).thenReturn(0L);
+
+        java.util.Map<String, Object> m = svc.getFollowedTagsFeed(0, 10);
+
+        assertEquals(java.util.List.of("tin", "vuejs"), m.get("tags"));
+        verify(postHashtagRepository).findPostsByTags(eq(java.util.List.of("tin", "vuejs")),
+                any(), anyString(), any());
     }
 }
