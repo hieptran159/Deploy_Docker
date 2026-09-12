@@ -16,5 +16,8 @@ RUN npm run build
 FROM nginx:stable-alpine AS production-stage
 COPY --from=build-stage /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Bắt lỗi cú pháp nginx.conf ngay lúc build (job `images` của CI), thay vì để container
+# crash-loop sau khi deploy.
+RUN nginx -t
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]

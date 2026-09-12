@@ -564,10 +564,12 @@ but `VITE_API_URL` in `.env.local` is **not** — Vite loads `.env.local` in bui
   key = mail sending is skipped, OTP/verify codes still print to the backend log as
   `[verify] ... code=`. `SENDGRID_FROM_EMAIL` must be on a SendGrid-authenticated
   domain/sender. An OS env var of the same name overrides the `.env` file.
-- Hostnames/ports are pinned to a specific deployment (`hp11.hipe.id.vn`,
-  `hipe.id.vn`, `didan.id.vn`). Changing target environment means editing the hardcoded
-  frontend `BASE_URL`/`.env`, `nginx.conf` `server_name`/`proxy_pass`, and the compose
-  environment blocks together.
+- Hostnames/ports are pinned to a specific deployment. The live ones, behind Cloudflare:
+  frontend **`forum.hipe.id.vn`**, REST **`api.hipe.id.vn`**, socket **`ws.hipe.id.vn`**.
+  The apex `hipe.id.vn` has **no A record** — don't assume it serves the SPA (`hp11.hipe.id.vn`
+  and `www.*` don't resolve either; `didan.id.vn` resolves but answers 522). Changing target
+  environment means editing the hardcoded frontend `BASE_URL`/`.env`, `nginx.conf`
+  `server_name`/`proxy_pass`, and the compose environment blocks together.
 - The root `docker-compose.yml` is the only supported entrypoint (see `DEPLOY.md`).
   (Stale `social/compose.yml` / `social/docker-compose.yml` drafts were deleted Sep 2026.)
 
