@@ -75,7 +75,7 @@ npm run build     # → dist/, served by nginx in the Docker image
 
 ## Tests
 
-JUnit 5 unit-test suite (97 tests) under `social/src/test/java` — **no DB / Docker / Spring
+JUnit 5 unit-test suite (103 tests) under `social/src/test/java` — **no DB / Docker / Spring
 context**, runs on plain `./mvnw test` (deps already in `spring-boot-starter-test` +
 `spring-security-test`). Service tests use `@ExtendWith(MockitoExtension.class)` +
 `@MockitoSettings(strictness = LENIENT)`, mock every constructor dep, and instantiate the
@@ -89,6 +89,7 @@ impl directly in `@BeforeEach`:
 | `service/impl/FollowServiceImplTest` | block/unblock guards (self, already-blocked no-op, not-blocked reject), `friendStatus` block direction (`blocked_out`/`blocked_in`/`self`/`none`), `isBlockedEither`, `sendRequest` guards (blocked, deactivated target, self) — Mockito, no context |
 | `service/impl/PostServiceImplTest` | `createPost` visibility (`friends`/`private`/default `public`) + draft rules (title-only ok, empty rejected, published missing body); `publishPost` guards (non-author, already published, missing content, happy path); `repost` guards (friends-only, own post, draft, idempotent, saves + notifies) — `ArgumentCaptor<Posts>` |
 | `service/impl/ReportServiceImplTest` | `ReportServiceImpl.create` auto-hide threshold: invalid type, below threshold no-hide, at threshold sets `status=hidden` + saves, already-hidden untouched, duplicate open report no-op, threshold `0` disables — `ReflectionTestUtils` for `@Value autoHideThreshold` |
+| `service/PostViewThrottleTest` | dedup window for post views: first hit counts, a refresh inside the window does not, different viewers/posts count separately, expiry re-counts, blank viewer never counts, and the key map is swept instead of growing without bound |
 | `service/impl/NotificationServiceImplTest` | `listMinePaged` page/size clamping (negative page→0, size<1→20, size>50→50) via `ArgumentCaptor<Pageable>` |
 | `utils/EmailTemplateTest` | `EmailTemplate.otp` HTML + HTML-escaping |
 | `utils/HashtagUtilsTest` | `HashtagUtils.extract` (lowercase/dedup, Unicode + `_`, skip all-digit, 20-tag cap) + `normalize` (strip `#`, reject spaces/empty/all-digit/null) |
@@ -202,6 +203,19 @@ frontend tests.
   `CreatePostRequest`/`EditPostRequest` carry `visibility`; FE `CreatePost`/`EditPost` have a
   "Ai xem được" select (🌐/👥/🔒); `Post.vue`/`PostDetail.vue` show a "👥 Bạn bè" / "🔒 Chỉ
   mình tôi" badge.
+- Post views: `posts.views` (`int NOT NULL DEFAULT 0`, Flyway `V8`), carried on every
+  `PostDTO` via `basePostDTO` so feed/search/detail all show it. Counted **only** in
+  `getPostById`, after every visibility gate (a post you may not see is not a view) and never
+  for the author (self-inflation makes the number meaningless). `PostRepository.incrementViews`
+  is an atomic `UPDATE … views + 1` — read-modify-write would swallow concurrent views and
+  would dirty the entity being mapped. Dedup is `service/PostViewThrottle`, an in-memory
+  (postId, viewer) map with a 30-min window (`app.post.view-window-ms`) capped at
+  `app.post.view-cache-max` keys; viewer = userId, or the client IP for guests
+  (`ClientIpUtils`). **Same single-instance assumption as `RateLimitFilter`** — per-process
+  RAM, forgotten on restart; move to Redis or a `post_views` table before running more than
+  one instance. Without the throttle the number would be "page loads", not views. FE shows
+  "· N lượt xem" next to the timestamp and **hides it at 0**; a response with no `views`
+  field (old backend) renders nothing rather than "undefined".
 - Draft posts: `Posts.status` (`null`/`"published"` = live, `"draft"` = draft). Every feed
   and search query carries `PostRepository.PUBLISHED` (`p.status IS NULL OR p.status =
   'published'`) so drafts never leak; `countPublished()` backs `feedPageInfo`. `createPost`

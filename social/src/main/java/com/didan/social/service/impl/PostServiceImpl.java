@@ -1,6 +1,10 @@
 package com.didan.social.service.impl;
 
 import com.didan.social.dto.*;
+import com.didan.social.utils.ClientIpUtils;
+import org.springframework.web.context.request.RequestAttributes;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import com.didan.social.entity.*;
 import com.didan.social.entity.keys.PostLikeId;
 import com.didan.social.entity.keys.UserPostId;
@@ -55,8 +59,10 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
                        com.didan.social.repository.RepostRepository repostRepository,
                        com.didan.social.service.FollowService followService,
                        com.didan.social.repository.PostHashtagRepository postHashtagRepository,
-                       com.didan.social.repository.BookmarkRepository bookmarkRepository
+                       com.didan.social.repository.BookmarkRepository bookmarkRepository,
+                       com.didan.social.service.PostViewThrottle postViewThrottle
     ){
+        this.postViewThrottle = postViewThrottle;
         this.bookmarkRepository = bookmarkRepository;
         this.postRepository = postRepository;
         this.userPostRepository = userPostRepository;
@@ -71,6 +77,12 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         this.followService = followService;
         this.postHashtagRepository = postHashtagRepository;
     }
+
+    private final com.didan.social.service.PostViewThrottle postViewThrottle;
+
+    /** Cùng cờ với RateLimitFilter / màn hình phiên: chỉ tin header proxy khi đứng sau proxy. */
+    @org.springframework.beans.factory.annotation.Value("${app.ratelimit.trust-forwarded:false}")
+    private boolean trustForwarded;
 
     // Đồng bộ hashtag của 1 bài: xóa hết tag cũ, chèn lại từ tiêu đề + nội dung hiện tại.
     private void syncHashtags(String postId, String title, String body) {
@@ -354,10 +366,36 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
                 return null;
             }
         }
+        // Đếm lượt xem SAU mọi cửa kiểm tra: bài không được phép xem thì không tính.
+        // Tác giả tự xem cũng không tính — tự thổi số của chính mình thì con số vô nghĩa.
+        if (!isAuthor) countView(post, meId);
         PostDTO dto = (PostDTO) convertToDTO(post);
         applyRepostInfo(java.util.Collections.singletonList(dto), currentUserOrNull());
         applyHashtags(java.util.Collections.singletonList(dto));
         return dto;
+    }
+
+    /**
+     * Khách vãng lai phân biệt bằng IP; đăng nhập rồi thì bằng userId. Cùng người,
+     * cùng bài, trong một cửa sổ -> chỉ tính một lần (xem PostViewThrottle).
+     */
+    private void countView(Posts post, String meId) {
+        String viewer = meId;
+        if (viewer == null) {
+            RequestAttributes attrs = RequestContextHolder.getRequestAttributes();
+            if (attrs instanceof ServletRequestAttributes sra)
+                viewer = ClientIpUtils.resolve(sra.getRequest(), trustForwarded);
+        }
+        if (!postViewThrottle.shouldCount(post.getPostId(), viewer)) return;
+        try {
+            postRepository.incrementViews(post.getPostId());
+            // UPDATE nguyên tử không đụng tới entity đang cầm trên tay -> cộng thêm
+            // cho khớp, khỏi phải đọc lại cả bài chỉ vì một con số.
+            post.setViews((post.getViews() == null ? 0 : post.getViews()) + 1);
+        } catch (Exception e) {
+            // Đếm hụt một lượt xem không đáng để hỏng cả trang bài viết
+            logger.warn("Khong dem duoc luot xem cho {}: {}", post.getPostId(), e.getMessage());
+        }
     }
 
     @Override
@@ -765,6 +803,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         dto.setBody(post.getBody());
         dto.setPostedAt(post.getPostedAt().toString());
         dto.setEditedAt(post.getEditedAt() == null ? null : post.getEditedAt().toString());
+        dto.setViews(post.getViews() == null ? 0 : post.getViews());
         Set<PostLikes> postLikes = post.getPostLikes();
         dto.setUserLikedPost(postLikes.stream().map(pl -> pl.getUsers().getUserId()).collect(Collectors.toList()));
         dto.setLikesQuantity(postLikes.size());

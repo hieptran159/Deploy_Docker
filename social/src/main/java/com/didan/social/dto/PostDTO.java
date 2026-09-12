@@ -29,6 +29,8 @@ public class PostDTO {
     private String repostNote;
     private List<String> hashtags = new java.util.ArrayList<>();
     private String editedAt;
+    /** Lượt xem; đếm ở getPostById, chống trùng bằng PostViewThrottle. */
+    private int views;
 
     public PostDTO() {
     }
@@ -191,4 +193,8 @@ public class PostDTO {
     public void setMyReaction(String myReaction) {
         this.myReaction = myReaction;
     }
+
+    public int getViews() { return views; }
+
+    public void setViews(int views) { this.views = views; }
 }

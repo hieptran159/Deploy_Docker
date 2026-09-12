@@ -4,8 +4,10 @@ import com.didan.social.entity.Posts;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Repository;
 
 import java.util.Collection;
@@ -136,4 +138,14 @@ public interface PostRepository extends JpaRepository<Posts, String> {
                                                 @Param("vids") Collection<String> vids,
                                                 @Param("me") String me,
                                                 Pageable pageable);
+
+    /**
+     * Cộng lượt xem bằng một UPDATE nguyên tử thay vì đọc-sửa-ghi: hai người mở
+     * cùng lúc mà đọc-sửa-ghi thì một lượt bị nuốt. Cũng tránh làm bẩn entity
+     * đang được dùng để dựng DTO.
+     */
+    @Modifying
+    @Transactional
+    @Query("UPDATE posts p SET p.views = p.views + 1 WHERE p.postId = :id")
+    void incrementViews(@Param("id") String id);
 }
