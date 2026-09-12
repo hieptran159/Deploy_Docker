@@ -64,4 +64,10 @@ public interface PostService {
 
     // Xóa bài viết
     boolean deletePost(String postId) throws Exception;
+
+    /** Bỏ phiếu (hoặc đổi phiếu) cho một phương án. Trả về kết quả mới nhất. */
+    com.didan.social.dto.PollDTO vote(String postId, String optionId) throws Exception;
+
+    /** Rút phiếu của mình khỏi cuộc bình chọn của bài. */
+    com.didan.social.dto.PollDTO unvote(String postId) throws Exception;
 }

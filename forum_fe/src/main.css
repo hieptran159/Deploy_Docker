@@ -425,6 +425,58 @@ h1, h2, h3, h4 {
 .field:disabled { opacity: .6; cursor: default; }
 textarea.field { resize: vertical; min-height: 60px; }
 
+/* ============================ BÌNH CHỌN ============================
+   Thanh tỉ lệ là khối màu phẳng nằm SAU chữ, không phải progress bar bo tròn —
+   cùng ngôn ngữ với .board và .post-row. Vàng nghệ = tiếng nói của trang (kết quả
+   chung), đỏ son = hành động của BẠN (phương án bạn chọn), đúng quy ước bảng màu. */
+.poll {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 10px 0 2px;
+}
+.poll-opt {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 9px 12px;
+    font-family: inherit;
+    font-size: var(--fs-ui);
+    text-align: left;
+    color: var(--text);
+    background: var(--surface);
+    border: 1.5px solid var(--line-soft);
+    border-radius: var(--radius-control);
+    cursor: pointer;
+    overflow: hidden;
+}
+.poll-opt:hover:not(:disabled) { border-color: var(--stroke); }
+.poll-opt:disabled { cursor: default; }
+/* Thanh nằm dưới chữ; chữ phải có z-index để không bị khối màu nuốt mất */
+.poll-opt__bar {
+    position: absolute;
+    inset: 0 auto 0 0;
+    background: var(--turmeric-wash);
+    transition: width .25s var(--ease);
+}
+.poll-opt__text { position: relative; flex: 1; min-width: 0; }
+.poll-opt__num { position: relative; flex: none; font-weight: 700; }
+.poll-opt.is-mine { border-color: var(--cinnabar); font-weight: 600; }
+.poll-opt.is-mine .poll-opt__bar { background: rgba(214, 64, 47, .16); }
+.poll-opt.is-mine .poll-opt__num { color: var(--cinnabar-ink); }
+.poll__foot {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: var(--fs-sm);
+    color: var(--text-muted);
+}
+@media (prefers-reduced-motion: reduce) {
+    .poll-opt__bar { transition: none; }
+}
+
 /* ============================ THẺ HASHTAG ============================ */
 
 .tag-chip {

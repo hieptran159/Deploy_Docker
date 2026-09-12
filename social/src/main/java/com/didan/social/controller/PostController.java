@@ -130,6 +130,35 @@ public class PostController {
         }
     }
     // Create one Post
+    @Operation(summary = "Bỏ phiếu bình chọn", description = "Bỏ hoặc đổi phiếu; trả về kết quả mới nhất",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @PostMapping("/{postId}/vote")
+    public ResponseEntity<?> vote(@PathVariable String postId, @RequestParam String optionId){
+        return pollResponse(() -> postService.vote(postId, optionId), "Đã bỏ phiếu");
+    }
+
+    @Operation(summary = "Rút phiếu bình chọn", security = @SecurityRequirement(name = "bearerAuth"))
+    @DeleteMapping("/{postId}/vote")
+    public ResponseEntity<?> unvote(@PathVariable String postId){
+        return pollResponse(() -> postService.unvote(postId), "Đã rút phiếu");
+    }
+
+    private interface PollCall { com.didan.social.dto.PollDTO run() throws Exception; }
+
+    private ResponseEntity<?> pollResponse(PollCall call, String ok){
+        ResponseData payload = new ResponseData();
+        try {
+            payload.setData(call.run());
+            payload.setDescription(ok);
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e){
+            payload.setSuccess(false);
+            payload.setStatusCode(500);
+            payload.setDescription(e.getMessage());
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
     @Operation(summary = "Create a post",
             description = "Create a post by entering properties of post",
             security = @SecurityRequirement(name = "bearerAuth"))

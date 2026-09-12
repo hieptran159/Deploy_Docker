@@ -60,9 +60,15 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
                        com.didan.social.service.FollowService followService,
                        com.didan.social.repository.PostHashtagRepository postHashtagRepository,
                        com.didan.social.repository.BookmarkRepository bookmarkRepository,
-                       com.didan.social.service.PostViewThrottle postViewThrottle
+                       com.didan.social.service.PostViewThrottle postViewThrottle,
+                       com.didan.social.repository.PollRepository pollRepository,
+                       com.didan.social.repository.PollOptionRepository pollOptionRepository,
+                       com.didan.social.repository.PollVoteRepository pollVoteRepository
     ){
         this.postViewThrottle = postViewThrottle;
+        this.pollRepository = pollRepository;
+        this.pollOptionRepository = pollOptionRepository;
+        this.pollVoteRepository = pollVoteRepository;
         this.bookmarkRepository = bookmarkRepository;
         this.postRepository = postRepository;
         this.userPostRepository = userPostRepository;
@@ -79,6 +85,9 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
     }
 
     private final com.didan.social.service.PostViewThrottle postViewThrottle;
+    private final com.didan.social.repository.PollRepository pollRepository;
+    private final com.didan.social.repository.PollOptionRepository pollOptionRepository;
+    private final com.didan.social.repository.PollVoteRepository pollVoteRepository;
 
     /** Cùng cờ với RateLimitFilter / màn hình phiên: chỉ tin header proxy khi đứng sau proxy. */
     @org.springframework.beans.factory.annotation.Value("${app.ratelimit.trust-forwarded:false}")
@@ -102,6 +111,54 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
     }
 
     // Điền danh sách hashtag cho nhiều DTO bằng 1 truy vấn gộp (không N+1)
+    /**
+     * Gắn bình chọn vào một loạt PostDTO bằng 4 truy vấn gộp, bất kể trang có bao
+     * nhiêu bài — mỗi bài một truy vấn là N+1, đúng thứ applyHashtags/applyRepostInfo
+     * đã tránh.
+     */
+    private void applyPolls(List<PostDTO> dtos, String meId) {
+        if (dtos == null || dtos.isEmpty()) return;
+        List<String> postIds = dtos.stream().map(PostDTO::getPostId).collect(Collectors.toList());
+        List<com.didan.social.entity.Polls> polls = pollRepository.findByPostIdIn(postIds);
+        if (polls.isEmpty()) return;
+
+        List<String> pollIds = polls.stream().map(com.didan.social.entity.Polls::getPollId)
+                .collect(Collectors.toList());
+        java.util.Map<String, Long> votesByOption = new java.util.HashMap<>();
+        for (Object[] row : pollVoteRepository.countByOptionForPolls(pollIds)) {
+            votesByOption.put((String) row[0], ((Number) row[1]).longValue());
+        }
+        java.util.Map<String, String> myVoteByPoll = new java.util.HashMap<>();
+        if (meId != null) {
+            for (com.didan.social.entity.PollVotes v :
+                    pollVoteRepository.findByPollVoteId_PollIdInAndPollVoteId_UserId(pollIds, meId)) {
+                myVoteByPoll.put(v.getPollVoteId().getPollId(), v.getOptionId());
+            }
+        }
+        java.util.Map<String, List<com.didan.social.entity.PollOptions>> optsByPoll = new java.util.HashMap<>();
+        for (com.didan.social.entity.PollOptions o : pollOptionRepository.findByPollIdInOrderByPositionAsc(pollIds)) {
+            optsByPoll.computeIfAbsent(o.getPollId(), k -> new java.util.ArrayList<>()).add(o);
+        }
+
+        java.util.Map<String, PollDTO> byPost = new java.util.HashMap<>();
+        for (com.didan.social.entity.Polls poll : polls) {
+            PollDTO dto = new PollDTO();
+            dto.setPollId(poll.getPollId());
+            dto.setMyOptionId(myVoteByPoll.get(poll.getPollId()));
+            List<PollDTO.Option> opts = new java.util.ArrayList<>();
+            long total = 0;
+            for (com.didan.social.entity.PollOptions o : optsByPoll.getOrDefault(poll.getPollId(), java.util.List.of())) {
+                long n = votesByOption.getOrDefault(o.getOptionId(), 0L);
+                total += n;
+                opts.add(new PollDTO.Option(o.getOptionId(), o.getOptionText(), n));
+            }
+            dto.setOptions(opts);
+            dto.setTotalVotes(total);
+            byPost.put(poll.getPostId(), dto);
+        }
+        for (PostDTO d : dtos) d.setPoll(byPost.get(d.getPostId()));
+    }
+
     private void applyHashtags(List<PostDTO> dtos) {
         if (dtos == null || dtos.isEmpty()) return;
         java.util.List<String> pids = dtos.stream().map(PostDTO::getPostId).distinct().collect(Collectors.toList());
@@ -180,7 +237,80 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         postRepository.save(post);
         userPostRepository.save(userPost);
         syncHashtags(postId.toString(), post.getTitle(), post.getBody());
+        createPoll(postId.toString(), createPostRequest.getPollOptions());
         return postId.toString();
+    }
+
+    /**
+     * Tạo bình chọn kèm bài, nếu có ít nhất 2 phương án hợp lệ. Dưới 2 thì không
+     * phải bình chọn, chỉ là bài thường — im lặng bỏ qua thay vì báo lỗi, vì
+     * người dùng chỉ đơn giản là không dùng tính năng này.
+     */
+    private void createPoll(String postId, List<String> rawOptions) {
+        if (rawOptions == null) return;
+        List<String> opts = new java.util.ArrayList<>();
+        for (String o : rawOptions) {
+            if (o == null) continue;
+            // Dùng lại đúng bộ làm sạch của tên hiển thị (bỏ < > + ký tự điều khiển,
+            // cắt theo độ dài cột) thay vì viết lại một bản dễ lệch.
+            String t = UserServiceImpl.clean(o, 200);
+            if (t == null || t.isEmpty()) continue;
+            if (opts.size() < MAX_POLL_OPTIONS) opts.add(t);
+        }
+        if (opts.size() < 2) return;
+        try {
+            String pollId = UUID.randomUUID().toString();
+            pollRepository.save(new com.didan.social.entity.Polls(pollId, postId, new Date()));
+            for (int i = 0; i < opts.size(); i++) {
+                pollOptionRepository.save(new com.didan.social.entity.PollOptions(
+                        UUID.randomUUID().toString(), pollId, opts.get(i), i));
+            }
+        } catch (Exception e) {
+            // Bài đã lưu xong rồi; hỏng phần bình chọn thì không nên nuốt luôn bài viết
+            logger.error("Tao binh chon that bai cho bai {}: {}", postId, e.getMessage());
+        }
+    }
+
+    /** Trần số phương án — không chặn thì một request có thể nhét vào hàng nghìn hàng. */
+    private static final int MAX_POLL_OPTIONS = 10;
+
+    @Override
+    public PollDTO vote(String postId, String optionId) throws Exception {
+        String meId = authorizePathService.getUserIdAuthoried();
+        // Đi qua getPostById để dùng lại TOÀN BỘ luật hiển thị (riêng tư / bạn bè /
+        // nháp / bị ẩn / tác giả vô hiệu hoá). Viết lại ở đây là chắc chắn lệch.
+        PostDTO post = getPostById(postId);
+        if (post == null) throw new Exception("Không xem được bài viết này");
+        if (post.getPoll() == null) throw new Exception("Bài viết không có bình chọn");
+
+        boolean valid = post.getPoll().getOptions().stream()
+                .anyMatch(o -> o.getOptionId().equals(optionId));
+        if (!valid) throw new Exception("Phương án không thuộc bình chọn này");
+
+        String pollId = post.getPoll().getPollId();
+        // Khoá chính (poll_id, user_id) lo phần "một người một phiếu"; save() ở đây
+        // vừa là thêm mới vừa là đổi phiếu.
+        pollVoteRepository.save(new com.didan.social.entity.PollVotes(
+                new com.didan.social.entity.keys.PollVoteId(pollId, meId), optionId, new Date()));
+        return reloadPoll(postId, meId);
+    }
+
+    @Override
+    public PollDTO unvote(String postId) throws Exception {
+        String meId = authorizePathService.getUserIdAuthoried();
+        com.didan.social.entity.Polls poll = pollRepository.findFirstByPostId(postId);
+        if (poll == null) throw new Exception("Bài viết không có bình chọn");
+        pollVoteRepository.deleteById(
+                new com.didan.social.entity.keys.PollVoteId(poll.getPollId(), meId));
+        return reloadPoll(postId, meId);
+    }
+
+    /** Đọc lại kết quả sau khi bỏ/rút phiếu, dùng chung đúng đường nạp với feed. */
+    private PollDTO reloadPoll(String postId, String meId) {
+        PostDTO shell = new PostDTO();
+        shell.setPostId(postId);
+        applyPolls(java.util.Collections.singletonList(shell), meId);
+        return shell.getPoll();
     }
 
     @Override
@@ -281,6 +411,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         }
         applyRepostInfo(out, meId);
         applyHashtags(out);
+        applyPolls(out, meId);
         return out;
     }
 
@@ -372,6 +503,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         PostDTO dto = (PostDTO) convertToDTO(post);
         applyRepostInfo(java.util.Collections.singletonList(dto), currentUserOrNull());
         applyHashtags(java.util.Collections.singletonList(dto));
+        applyPolls(java.util.Collections.singletonList(dto), meId);
         return dto;
     }
 
@@ -407,6 +539,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         List<Posts> drafts = postRepository.findDraftsOfAuthor(meId, PageRequest.of(page, size));
         List<PostDTO> items = drafts.stream().map(p -> toListDTO(p, meId)).collect(Collectors.toList());
         applyHashtags(items);
+        applyPolls(items, meId);
         long total = postRepository.countDraftsOfAuthor(meId);
         java.util.Map<String, Object> m = new java.util.HashMap<>();
         m.put("items", items);
@@ -461,6 +594,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         List<PostDTO> items = posts.stream().map(p -> toListDTO(p, meId)).collect(Collectors.toList());
         applyRepostInfo(items, meId);
         applyHashtags(items);
+        applyPolls(items, meId);
         long total = postRepository.countPublishedByAuthor(userId, vids, meParam(meId));
         java.util.Map<String, Object> m = new java.util.HashMap<>();
         m.put("items", items);
@@ -491,6 +625,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         List<PostDTO> items = posts.stream().map(p -> toListDTO(p, meId)).collect(Collectors.toList());
         applyRepostInfo(items, meId);
         applyHashtags(items);
+        applyPolls(items, meId);
         long total = postHashtagRepository.countPostsByTag(norm, vids, meParam(meId));
         m.put("items", items);
         m.put("total", total);
@@ -541,6 +676,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
             }
             applyRepostInfo(out, meId);
             applyHashtags(out);
+            applyPolls(out, meId);
         }
         long total = repostRepository.countByRepostId_UserId(userId);
         java.util.Map<String, Object> m = new java.util.HashMap<>();
@@ -630,6 +766,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         List<PostDTO> out = posts.stream().map(post -> toListDTO(post, meId)).collect(Collectors.toList());
         applyRepostInfo(out, meId);
         applyHashtags(out);
+        applyPolls(out, meId);
         return out;
     }
 
@@ -758,6 +895,16 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
             postHashtagRepository.deleteByPostHashtagId_PostId(postId);
             bookmarkRepository.deleteByBookmarkId_PostId(postId);
             repostRepository.deleteByRepostId_PostId(postId);
+            // Bình chọn: phiếu -> phương án -> cuộc bình chọn, đúng thứ tự khoá ngoại.
+            // polls.post_id có FK trỏ vào posts nên bỏ sót là xoá bài thất bại 503 —
+            // đúng cái bẫy mà bookmarks đã gây ra một lần rồi.
+            com.didan.social.entity.Polls poll = pollRepository.findFirstByPostId(postId);
+            if (poll != null) {
+                java.util.List<String> pollIds = java.util.List.of(poll.getPollId());
+                pollVoteRepository.deleteByPollIdIn(pollIds);
+                pollOptionRepository.deleteByPollIdIn(pollIds);
+                pollRepository.deleteByPostId(postId);
+            }
             postRepository.delete(post);
             if(StringUtils.hasText(post.getPostImg())){
                 fileUploadsService.deleteFile(post.getPostImg());

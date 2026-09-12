@@ -75,7 +75,7 @@ npm run build     # → dist/, served by nginx in the Docker image
 
 ## Tests
 
-JUnit 5 unit-test suite (103 tests) under `social/src/test/java` — **no DB / Docker / Spring
+JUnit 5 unit-test suite (113 tests) under `social/src/test/java` — **no DB / Docker / Spring
 context**, runs on plain `./mvnw test` (deps already in `spring-boot-starter-test` +
 `spring-security-test`). Service tests use `@ExtendWith(MockitoExtension.class)` +
 `@MockitoSettings(strictness = LENIENT)`, mock every constructor dep, and instantiate the
@@ -88,6 +88,7 @@ impl directly in `@BeforeEach`:
 | `service/impl/NormReactionTest` | `PostServiceImpl.normReaction` (static pkg-private) |
 | `service/impl/FollowServiceImplTest` | block/unblock guards (self, already-blocked no-op, not-blocked reject), `friendStatus` block direction (`blocked_out`/`blocked_in`/`self`/`none`), `isBlockedEither`, `sendRequest` guards (blocked, deactivated target, self) — Mockito, no context |
 | `service/impl/PostServiceImplTest` | `createPost` visibility (`friends`/`private`/default `public`) + draft rules (title-only ok, empty rejected, published missing body); `publishPost` guards (non-author, already published, missing content, happy path); `repost` guards (friends-only, own post, draft, idempotent, saves + notifies) — `ArgumentCaptor<Posts>` |
+| `service/impl/PostServiceImplTest` (poll part) | `deletePost` clears `poll_votes` → `poll_options` → `polls` **in FK order** before the post (same trap `bookmarks` sprang once), and skips those tables when the post has no poll; `createPost` builds a poll only at ≥2 valid options, sanitises option text and caps at 10; `vote` rejects an option from another poll, a post the caller cannot see, and a post with no poll; `unvote` deletes the caller's own row |
 | `service/impl/ReportServiceImplTest` | `ReportServiceImpl.create` auto-hide threshold: invalid type, below threshold no-hide, at threshold sets `status=hidden` + saves, already-hidden untouched, duplicate open report no-op, threshold `0` disables — `ReflectionTestUtils` for `@Value autoHideThreshold` |
 | `service/PostViewThrottleTest` | dedup window for post views: first hit counts, a refresh inside the window does not, different viewers/posts count separately, expiry re-counts, blank viewer never counts, and the key map is swept instead of growing without bound |
 | `service/impl/NotificationServiceImplTest` | `listMinePaged` page/size clamping (negative page→0, size<1→20, size>50→50) via `ArgumentCaptor<Pageable>` |
@@ -203,6 +204,25 @@ frontend tests.
   `CreatePostRequest`/`EditPostRequest` carry `visibility`; FE `CreatePost`/`EditPost` have a
   "Ai xem được" select (🌐/👥/🔒); `Post.vue`/`PostDetail.vue` show a "👥 Bạn bè" / "🔒 Chỉ
   mình tôi" badge.
+- Polls: `polls` / `poll_options` / `poll_votes` (Flyway `V9`). Scope is deliberately narrow —
+  **one choice per person, no closing date, not anonymous, options can't be edited after
+  creation**; adding those later is easier than taking them away. There is **no `question`
+  column**: the question is the post title, so nobody types it twice. `poll_votes` has
+  PK `(poll_id, user_id)`, so *the database* enforces one vote per person — changing your
+  vote is an UPDATE of `option_id`, not application-level bookkeeping.
+  Created with the post: `CreatePostRequest.pollOptions` (a **repeated** multipart key —
+  `apis/post.js#createdPost` builds the `FormData` by hand for exactly this reason; letting
+  axios serialise the array yields `pollOptions[0]`, which relies on the data binder's
+  auto-grow and is more fragile). Options run through `UserServiceImpl.clean` like every other
+  display string and are capped at `MAX_POLL_OPTIONS` = 10.
+  `POST /post/{id}/vote?optionId=` / `DELETE /post/{id}/vote` both return the fresh `PollDTO`,
+  so the FE never reloads the post to refresh a count. **`vote` goes through `getPostById`** to
+  reuse the entire visibility rulebook (private / friends / draft / hidden / deactivated
+  author) — re-implementing those checks is how they drift apart.
+  `PostServiceImpl.applyPolls` is batched (4 grouped queries per page, never per post) and is
+  called next to `applyHashtags` at every list site. FE: `components/Post/PollBox.vue` in both
+  `Post.vue` and `PostDetail.vue`; results are **always visible** (one state fewer than
+  hide-until-voted), clicking your current choice withdraws it.
 - Post views: `posts.views` (`int NOT NULL DEFAULT 0`, Flyway `V8`), carried on every
   `PostDTO` via `basePostDTO` so feed/search/detail all show it. Counted **only** in
   `getPostById`, after every visibility gate (a post you may not see is not a view) and never

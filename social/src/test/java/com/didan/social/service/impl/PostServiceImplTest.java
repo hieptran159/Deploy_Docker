@@ -1,5 +1,7 @@
 package com.didan.social.service.impl;
 
+import com.didan.social.dto.PollDTO;
+import com.didan.social.dto.PostDTO;
 import com.didan.social.entity.Posts;
 import com.didan.social.entity.UserPosts;
 import com.didan.social.entity.Users;
@@ -39,6 +41,9 @@ class PostServiceImplTest {
     @Mock PostHashtagRepository postHashtagRepository;
     @Mock BookmarkRepository bookmarkRepository;
     @Mock com.didan.social.service.PostViewThrottle postViewThrottle;
+    @Mock com.didan.social.repository.PollRepository pollRepository;
+    @Mock com.didan.social.repository.PollOptionRepository pollOptionRepository;
+    @Mock com.didan.social.repository.PollVoteRepository pollVoteRepository;
 
     PostServiceImpl svc;
     static final String ME = "me-1";
@@ -49,7 +54,7 @@ class PostServiceImplTest {
         svc = new PostServiceImpl(postRepository, userPostRepository, fileUploadsService, userRepository,
                 postLikeRepository, commentRepository, authorizePathService, notificationService,
                 blockRepository, repostRepository, followService, postHashtagRepository, bookmarkRepository,
-                postViewThrottle);
+                postViewThrottle, pollRepository, pollOptionRepository, pollVoteRepository);
         when(authorizePathService.getUserIdAuthoried()).thenReturn(ME);
         Users me = new Users(); me.setUserId(ME); me.setFullName("Me");
         when(userRepository.findFirstByUserId(ME)).thenReturn(me);
@@ -242,5 +247,170 @@ class PostServiceImplTest {
         assertTrue(e.getMessage().contains("không có quyền"));
         verify(postRepository, never()).delete(any());
         verify(bookmarkRepository, never()).deleteByBookmarkId_PostId(anyString());
+    }
+
+    /* ---------- Bình chọn ---------- */
+
+    /**
+     * polls.post_id có khoá ngoại trỏ vào posts, y hệt bookmarks. Bỏ sót là xoá bài
+     * thất bại 503 — đúng cái bẫy bookmarks đã gây ra một lần rồi. Thứ tự cũng quan
+     * trọng: phiếu -> phương án -> cuộc bình chọn -> bài.
+     */
+    @Test
+    void deletePostClearsPollTablesInForeignKeyOrder() throws Exception {
+        Posts p = post(ME, "published", "public", "T", "B");
+        when(postRepository.findFirstByPostId("p-1")).thenReturn(p);
+        when(userPostRepository.findFirstByPosts_PostIdAndUsers_UserId("p-1", ME)).thenReturn(new UserPosts());
+        when(commentRepository.findCommentIdNotInUserComment()).thenReturn(java.util.Collections.emptyList());
+        when(pollRepository.findFirstByPostId("p-1"))
+                .thenReturn(new com.didan.social.entity.Polls("poll-1", "p-1", new java.util.Date()));
+
+        assertTrue(svc.deletePost("p-1"));
+
+        org.mockito.InOrder ord = inOrder(pollVoteRepository, pollOptionRepository, pollRepository, postRepository);
+        ord.verify(pollVoteRepository).deleteByPollIdIn(java.util.List.of("poll-1"));
+        ord.verify(pollOptionRepository).deleteByPollIdIn(java.util.List.of("poll-1"));
+        ord.verify(pollRepository).deleteByPostId("p-1");
+        ord.verify(postRepository).delete(p);
+    }
+
+    @Test
+    void deletePostKhongCoBinhChonThiKhongDungToiBangPoll() throws Exception {
+        Posts p = post(ME, "published", "public", "T", "B");
+        when(postRepository.findFirstByPostId("p-1")).thenReturn(p);
+        when(userPostRepository.findFirstByPosts_PostIdAndUsers_UserId("p-1", ME)).thenReturn(new UserPosts());
+        when(commentRepository.findCommentIdNotInUserComment()).thenReturn(java.util.Collections.emptyList());
+        when(pollRepository.findFirstByPostId("p-1")).thenReturn(null);
+
+        assertTrue(svc.deletePost("p-1"));
+
+        verify(pollVoteRepository, never()).deleteByPollIdIn(any());
+        verify(pollOptionRepository, never()).deleteByPollIdIn(any());
+        verify(pollRepository, never()).deleteByPostId(anyString());
+    }
+
+    @Test
+    void taoBaiVoiHaiPhuongAnTroLenThiTaoBinhChon() throws Exception {
+        CreatePostRequest req = new CreatePostRequest();
+        req.setTitle("Trưa nay ăn gì?");
+        req.setBody("Chọn đi");
+        req.setPollOptions(java.util.List.of("Cơm tấm", "Bún bò", "Phở"));
+
+        assertNotNull(svc.createPost(req));
+
+        verify(pollRepository).save(any(com.didan.social.entity.Polls.class));
+        ArgumentCaptor<com.didan.social.entity.PollOptions> cap =
+                ArgumentCaptor.forClass(com.didan.social.entity.PollOptions.class);
+        verify(pollOptionRepository, times(3)).save(cap.capture());
+        assertEquals(java.util.List.of("Cơm tấm", "Bún bò", "Phở"),
+                cap.getAllValues().stream().map(com.didan.social.entity.PollOptions::getOptionText).toList());
+        assertEquals(java.util.List.of(0, 1, 2),
+                cap.getAllValues().stream().map(com.didan.social.entity.PollOptions::getPosition).toList(),
+                "position phải giữ đúng thứ tự tác giả nhập");
+    }
+
+    @Test
+    void duoiHaiPhuongAnThiKhongPhaiBinhChon() throws Exception {
+        CreatePostRequest req = new CreatePostRequest();
+        req.setTitle("T"); req.setBody("B");
+        req.setPollOptions(java.util.List.of("Chỉ một"));
+        assertNotNull(svc.createPost(req));
+        verify(pollRepository, never()).save(any());
+
+        // Phương án rỗng / chỉ khoảng trắng bị loại -> còn 1 -> vẫn không tạo
+        req.setPollOptions(java.util.Arrays.asList("Có", "   ", "", null));
+        assertNotNull(svc.createPost(req));
+        verify(pollRepository, never()).save(any());
+    }
+
+    @Test
+    void phuongAnBiLamSachVaChanSoLuong() throws Exception {
+        CreatePostRequest req = new CreatePostRequest();
+        req.setTitle("T"); req.setBody("B");
+        java.util.List<String> many = new java.util.ArrayList<>();
+        many.add("<script>alert(1)</script>");
+        for (int i = 0; i < 30; i++) many.add("Phương án " + i);
+        req.setPollOptions(many);
+
+        assertNotNull(svc.createPost(req));
+
+        ArgumentCaptor<com.didan.social.entity.PollOptions> cap =
+                ArgumentCaptor.forClass(com.didan.social.entity.PollOptions.class);
+        verify(pollOptionRepository, atLeastOnce()).save(cap.capture());
+        assertEquals(10, cap.getAllValues().size(), "phải chặn ở 10 phương án");
+        assertEquals("scriptalert(1)/script", cap.getAllValues().get(0).getOptionText(),
+                "dấu < > phải bị bóc như mọi chuỗi hiển thị khác");
+    }
+
+    /** DTO bài viết có sẵn một cuộc bình chọn, dùng cho các test bỏ phiếu. */
+    private PostDTO postWithPoll() {
+        PollDTO poll = new PollDTO();
+        poll.setPollId("poll-1");
+        poll.setOptions(java.util.List.of(
+                new PollDTO.Option("opt-a", "Cơm tấm", 3),
+                new PollDTO.Option("opt-b", "Bún bò", 1)));
+        poll.setTotalVotes(4);
+        PostDTO dto = new PostDTO();
+        dto.setPostId("p-1");
+        dto.setPoll(poll);
+        return dto;
+    }
+
+    @Test
+    void boPhieuLuuDungPhieuCuaNguoiGoi() throws Exception {
+        PostServiceImpl spy = spy(svc);
+        doReturn(postWithPoll()).when(spy).getPostById("p-1");
+
+        spy.vote("p-1", "opt-a");
+
+        ArgumentCaptor<com.didan.social.entity.PollVotes> cap =
+                ArgumentCaptor.forClass(com.didan.social.entity.PollVotes.class);
+        verify(pollVoteRepository).save(cap.capture());
+        assertEquals("poll-1", cap.getValue().getPollVoteId().getPollId());
+        assertEquals(ME, cap.getValue().getPollVoteId().getUserId());
+        assertEquals("opt-a", cap.getValue().getOptionId());
+    }
+
+    @Test
+    void khongBoPhieuChoPhuongAnKhongThuocBinhChonNay() throws Exception {
+        PostServiceImpl spy = spy(svc);
+        doReturn(postWithPoll()).when(spy).getPostById("p-1");
+
+        assertThrows(Exception.class, () -> spy.vote("p-1", "opt-cua-poll-khac"));
+        verify(pollVoteRepository, never()).save(any());
+    }
+
+    /**
+     * Đi qua getPostById nghĩa là dùng lại TOÀN BỘ luật hiển thị (riêng tư / bạn bè /
+     * nháp / bị ẩn). Bài không xem được thì cũng không bỏ phiếu được.
+     */
+    @Test
+    void khongBoPhieuVaoBaiKhongXemDuoc() throws Exception {
+        PostServiceImpl spy = spy(svc);
+        doReturn(null).when(spy).getPostById("p-1");
+
+        assertThrows(Exception.class, () -> spy.vote("p-1", "opt-a"));
+        verify(pollVoteRepository, never()).save(any());
+    }
+
+    @Test
+    void baiKhongCoBinhChonThiKhongBoPhieuDuoc() throws Exception {
+        PostServiceImpl spy = spy(svc);
+        PostDTO khongPoll = new PostDTO(); khongPoll.setPostId("p-1");
+        doReturn(khongPoll).when(spy).getPostById("p-1");
+
+        assertThrows(Exception.class, () -> spy.vote("p-1", "opt-a"));
+        verify(pollVoteRepository, never()).save(any());
+    }
+
+    @Test
+    void rutPhieuXoaDungHangCuaMinh() throws Exception {
+        when(pollRepository.findFirstByPostId("p-1"))
+                .thenReturn(new com.didan.social.entity.Polls("poll-1", "p-1", new java.util.Date()));
+
+        svc.unvote("p-1");
+
+        verify(pollVoteRepository).deleteById(
+                new com.didan.social.entity.keys.PollVoteId("poll-1", ME));
     }
 }
