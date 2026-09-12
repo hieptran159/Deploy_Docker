@@ -141,7 +141,15 @@ frontend tests.
   `countByStatus("blocked")`, or expired bans keep inflating the number. Re-banning someone
   whose ban expired **reuses the existing row** — `user_id` is the primary key, inserting a
   second one throws. `BlacklistUserDTO` carries `bannedUntil` plus a server-computed
-  `activeBan` so the FE never compares dates itself (timezone skew). FE: duration picker in
+  `activeBan` so the FE never compares dates itself (timezone skew).
+  **`banned_until` is written as a true instant** (`new Date(now + days)`), *not* through the
+  `Timestamp.valueOf(LocalDateTime.now(Asia/Ho_Chi_Minh))` idiom the other 9 timestamp writes
+  in this codebase use. That idiom takes Vietnam wall-clock time and reinterprets it in the
+  JVM's zone, so on a UTC server every such value lands 7 hours ahead — harmless while those
+  columns are only displayed and are all written the same way, but `isActiveBan()` compares
+  `banned_until` against `new Date()`, a real instant. Mixing the two conventions made a
+  "7 day" ban last 7 days 7 hours on a UTC host. CI (which runs UTC) caught it; the test
+  passes under UTC, Asia/Ho_Chi_Minh and America/New_York. FE: duration picker in
   `AdminPage.vue` (vĩnh viễn / 1 / 7 / 30 ngày) and an "Đến khi" column; the status chip
   distinguishes "đang chặn" from "hết hạn".
 - Admin audit log: `entity/AdminLog` (table `admin_logs`, `ddl-auto`). `service/AdminLogService.record(action,targetType,targetId,detail)` is a standalone bean, fire-and-forget (swallows its own errors), called from `AdminServiceImpl` (`GRANT_ADMIN`/`BAN_USER`/`UNBAN_USER`) and `ReportServiceImpl` (`HANDLE_REPORT`/`REMOVE_TARGET`/`RESTORE_TARGET`) after the action succeeds. `GET /admin/logs?page=&size=` (`AdminService.getLogs`, admin-gated, newest first). FE: "Nhật ký quản trị" card in `AdminPage.vue` with "Xem thêm".

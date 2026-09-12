@@ -189,7 +189,17 @@ public class AdminServiceImpl implements AdminService {
         sessionService.revokeAllSessions(userId);
         LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
         Date nowSql = Timestamp.valueOf(now);
-        Date until = days > 0 ? Timestamp.valueOf(now.plusDays(days)) : null;
+        // MỐC THẬT, không đi qua LocalDateTime.
+        //
+        // Chỗ khác trong dự án đều làm Timestamp.valueOf(LocalDateTime.now(Asia/Ho_Chi_Minh)),
+        // tức lấy giờ treo tường ở VN rồi diễn giải theo múi giờ của JVM. Máy chạy
+        // UTC thì giá trị lệch đi 7 tiếng. Các cột đó chỉ để hiển thị và đều được
+        // ghi cùng một kiểu nên vẫn nhất quán với nhau.
+        //
+        // banned_until thì KHÁC: isActiveBan() so nó với new Date() — một mốc thật.
+        // Trộn hai quy ước là lệnh cấm "7 ngày" thành 7 ngày 7 tiếng trên máy UTC.
+        // CI (chạy UTC) đã bắt đúng chỗ này.
+        Date until = days > 0 ? new Date(System.currentTimeMillis() + days * 86_400_000L) : null;
 
         BlacklistUser blacklistUser = blacklistUserRepository.findByUserId(userId);
         if (blacklistUser != null && blacklistUser.isActiveBan()){
