@@ -31,6 +31,7 @@ docker compose up -d --build
   health: `/actuator/health` — only `health` is exposed, `permitAll` in `CustomFilterSecurity`)
 - backend Socket.IO server → port 8082
 - MySQL → host port 3307 (container 3306), db `socialapp`, root pw from `.env`
+- Redis → **no host port** (cache only, reachable at `redis:6379` inside `app-network`)
 
 The compose file: `db` has a TCP healthcheck and `backend` waits on
 `condition: service_healthy`; `backend` itself has a `curl`-based healthcheck against
@@ -75,7 +76,7 @@ npm run build     # → dist/, served by nginx in the Docker image
 
 ## Tests
 
-JUnit 5 unit-test suite (153 tests) under `social/src/test/java` — **no DB / Docker / Spring
+JUnit 5 unit-test suite (162 tests) under `social/src/test/java` — **no DB / Docker / Spring
 context**, runs on plain `./mvnw test` (deps already in `spring-boot-starter-test` +
 `spring-security-test`). Service tests use `@ExtendWith(MockitoExtension.class)` +
 `@MockitoSettings(strictness = LENIENT)`, mock every constructor dep, and instantiate the
@@ -99,14 +100,20 @@ impl directly in `@BeforeEach`:
 | `utils/EmailTemplateTest` | `EmailTemplate.otp` HTML + HTML-escaping |
 | `utils/HashtagUtilsTest` | `HashtagUtils.extract` (lowercase/dedup, Unicode + `_`, skip all-digit, 20-tag cap) + `normalize` (strip `#`, reject spaces/empty/all-digit/null) |
 | `utils/UserAgentUtilsTest` | `UserAgentUtils.label` — the ordering traps: Edge/Opera/Cốc Cốc all claim to be Chrome, Chrome claims to be Safari, and an Android UA also contains "Linux" |
+| `config/CacheConfigTest` | the two promises that make a Redis dependency safe: the `CacheErrorHandler` swallows every Redis failure (get/put/evict/clear) so a cache outage is a cache miss, not a 503; and every declared cache name has a **finite** TTL — evictions can fail, so an unexpiring cache would keep wrong data forever |
+| `service/impl/FollowServiceCacheTest` | `friendIdsOf` is cached per user and **evicted** on accept / unfriend / block. Runs in a tiny `AnnotationConfigApplicationContext` (mocked repos, in-RAM cache) because `@Cacheable` only works through a proxy — a plain `new FollowServiceImpl()` test would pass whether or not the annotations are there |
 | `utils/JwtUtilsTest` | refresh-token round-trip; `validateRefreshToken` rejects an access token; `validateAccessToken` rejects a refresh token; blacklisted refresh token rejected — `ReflectionTestUtils` for `@Value` secret/expiry |
 | `service/impl/AuthServiceImplTest` | `login` withholds tokens + saves a code + sets `twofaRequired` when 2FA on (issues tokens when off); `verifyTwoFactor` guards (wrong code, expired, 2FA disabled) + happy path (case-insensitive code, clears code, issues access+refresh) — 8 mocked ctor deps |
 
 `SocialApplicationTests` (`@SpringBootTest` context-load) spins up a throwaway MySQL 8 via
 **Testcontainers** (`@Container @ServiceConnection MySQLContainer`) — needs a Docker daemon
 (CI `ubuntu-latest` has one; a dev box needs Docker running). It supplies a test
-`jwt.secretkey` + `socket-server.port=0` via `@SpringBootTest(properties=…)`, and also
-exercises the full Flyway V1→Vn chain on an empty DB + Hibernate `validate`. `./mvnw test`
+`jwt.secretkey` + `socket-server.port=0` + `spring.cache.type=simple` via
+`@SpringBootTest(properties=…)`, and also
+exercises the full Flyway V1→Vn chain on an empty DB + Hibernate `validate`. Its second test
+asserts that `@Cacheable` on a **Spring Data repository method** actually takes effect
+(`BlockRepository.blockedIdsOf` lands in the cache) — nothing else would notice if that
+annotation silently did nothing. `./mvnw test`
 runs the whole suite; the release build still uses `./mvnw install -DskipTests`. No
 frontend tests.
 
@@ -533,14 +540,53 @@ frontend tests.
   names, nullability. (Watch out: Spring Boot's `CamelCaseToUnderscoresNamingStrategy` is
   applied to explicit `@Column(name=…)` values too — so `Messages`' `@Column(name="messageImg")`
   actually maps to the physical column `message_img`, not `messageImg`.)
+- **Read cache (Redis)** — `config/CacheConfig`, compose service `redis` (redis:7-alpine, no
+  host port, `--maxmemory 128mb --maxmemory-policy allkeys-lru`, RDB/AOF **off**). Redis holds
+  nothing but copies of query results: wipe it and the app behaves exactly as before, only
+  slower. That is the condition for adding another service to the dependency chain, and two
+  rules keep it true. (a) `CacheConfig.errorHandler()` **swallows every Redis error**, timeouts
+  included, so a Redis outage degrades to a DB read instead of a 503 — Spring's default is to
+  let the exception out. (b) Nothing is cached where reading a stale answer is *wrong* rather
+  than merely old. Specifically **not the token blacklist**: caching "this token is not revoked"
+  means a logged-out token keeps working until the TTL expires, and the lookup it would save is
+  a primary-key hit (`blacklist_token.token` is the `@Id`), ~1 ms.
+  Cached today, with TTLs in `CacheConfig.TTL`: `friendIds` (10 m), `blockedIds` / `blockerIds`
+  (10 m), `deactivatedIds` (60 s), `trending` (5 m), `feedCount` (60 s) — the first four run on
+  **every** feed/search request, and the last two on every home-page load. `friendIds` and the
+  two block sets are evicted explicitly in `FollowServiceImpl` (accept / unfriend / block /
+  unblock) with `allEntries = true`: evicting exactly the two affected users would need the
+  caller's id, which SpEL can't reach from inside the method, and a half-evicted symmetric
+  relation is a silent bug. Friendship changes a few times a day; rebuilding all of it costs
+  nothing. `deactivatedIds` deliberately has **no** eviction — it changes in three scattered
+  places (self-deactivate, login, 2FA verify) and a 60 s TTL is cheaper than three chances to
+  forget one.
+  **Every TTL must stay finite** (`CacheConfigTest` enforces it): eviction itself can fail —
+  that is exactly what the error handler swallows — and TTL is then the only thing left to
+  clear a stale entry.
+  Serialization is the **JDK default, not JSON**, on purpose: `GenericJackson2JsonRedisSerializer`
+  reads a small integer back as `Integer`, so a method returning `long` (`feedCount`) throws
+  `ClassCastException` on a cache hit.
+  `spring.cache.type` defaults to **`none`** — `./mvnw test`, `./mvnw spring-boot:run` and CI
+  need no Redis at all; compose sets `CACHE_TYPE=redis`, and `CACHE_TYPE=none` there turns every
+  `@Cacheable` back into a no-op without removing the service.
+  `management.health.redis.enabled=false`, because a dead *cache* must not make
+  `/actuator/health` report the backend as down.
+  Measured before adding it, not assumed: with 43 users and ~4,100 posts MySQL answers most of
+  these from its buffer pool in single-digit ms, so this is a load-and-growth measure, not a fix
+  for a user-visible delay (that one is a 503 KB avatar, not a query). `RateLimitFilter` and
+  `PostViewThrottle` are still per-process RAM — move them to Redis when a **second backend
+  instance** appears, not before.
 - **Dead dependencies removed (Sep 2026)** — don't re-add them. `log4j-api`/`log4j-core`/
   `log4j-slf4j-impl` **2.7** were declared *twice* each (Maven warned on every build), used by
   zero lines of code, and carried Log4Shell (CVE-2021-44228; message lookups are on by default
   in 2.7). They also put a second SLF4J provider next to Boot's `logback-classic` alongside
   `log4j-to-slf4j`, so which logger won was undefined. Logging is plain Boot/logback now
   (`log4j-api` still appears in the tree as the `log4j-to-slf4j` bridge — no `log4j-core`, so no
-  lookup engine). `spring-boot-starter-data-redis` + `lettuce-core` + `jedis` had no Redis
-  anywhere, and `gson` appeared only in a comment. Deleting them also let the
+  lookup engine). `lettuce-core` + `jedis` were declared with no Redis
+  anywhere, and `gson` appeared only in a comment. (`spring-boot-starter-data-redis` came
+  *back* in Sep 2026, this time with a real Redis behind it — see the read-cache note above.
+  `lettuce-core` still must not be declared by hand: the starter pulls the version the Boot
+  BOM manages.) Deleting them also let the
   `spring.autoconfigure.exclude=` line go from `application.properties` — it existed purely to
   suppress `RedisAutoConfiguration` and `Log4J2MetricsAutoConfiguration` (the latter needs
   log4j-core ≥ 2.13, so 2.7 crashed it with `NoClassDefFoundError`).

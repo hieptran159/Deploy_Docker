@@ -804,6 +804,11 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
     }
 
     @Override
+    // Truy vấn nặng nhất còn lại: GROUP BY toàn bộ post_hashtags nối posts, không LIMIT
+    // nào đẩy xuống được vì phải gộp xong mới xếp hạng. Chạy mỗi lần mở trang chủ, mà kết
+    // quả giống hệt nhau cho tất cả mọi người -> cache 5 phút.
+    @org.springframework.cache.annotation.Cacheable(cacheNames = com.didan.social.config.CacheConfig.TRENDING,
+            key = "#limit")
     public java.util.List<java.util.Map<String, Object>> getTrendingHashtags(int limit) throws Exception {
         if (limit < 1) limit = 10;
         if (limit > 50) limit = 50;

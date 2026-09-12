@@ -48,6 +48,35 @@ services:
     networks:
       - app-network
 
+  # Cache đọc cho backend. CHỈ là cache: không bật AOF/RDB, mất dữ liệu là chuyện bình
+  # thường, backend tự rơi về truy vấn MySQL (xem social/.../config/CacheConfig.java).
+  # Không mở cổng ra host -> chỉ container trong app-network nói chuyện được, nên không
+  # cần đặt mật khẩu.
+  redis:
+    image: redis:7-alpine
+    container_name: forum-redis
+    restart: unless-stopped
+    logging: *default-logging
+    command:
+      - redis-server
+      - --maxmemory
+      - ${REDIS_MAXMEMORY:-128mb}
+      # Đầy bộ nhớ thì đuổi khoá ít dùng nhất, KHÔNG được từ chối ghi (cache mà báo lỗi
+      # ghi thì thà không có cache).
+      - --maxmemory-policy
+      - allkeys-lru
+      - --save
+      - ""
+      - --appendonly
+      - "no"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    networks:
+      - app-network
+
   backend:
     build:
       context: ./social
@@ -57,6 +86,11 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      # CHỈ service_started, KHÔNG phải service_healthy: cache hỏng mà chặn backend khởi
+      # động thì thứ đáng lẽ tuỳ chọn lại thành điểm chết. Lettuce kết nối lười, lỗi cache
+      # bị nuốt -> backend chạy bình thường kể cả khi redis không lên.
+      redis:
+        condition: service_started
     environment:
       MYSQL_HOST: db
       MYSQL_PORT: 3306
@@ -92,6 +126,11 @@ services:
       UPLOAD_JPEG_QUALITY: ${UPLOAD_JPEG_QUALITY:-0.82}
       # Tự ẩn bài khi đạt số báo cáo OPEN này (0 = tắt)
       MOD_POST_AUTOHIDE: ${MOD_POST_AUTOHIDE:-3}
+      # Cache Redis. CACHE_TYPE=none để tắt hẳn cache (mọi @Cacheable thành no-op) —
+      # dùng khi cần loại trừ cache lúc chẩn đoán, không phải xoá dịch vụ redis.
+      CACHE_TYPE: ${CACHE_TYPE:-redis}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
       # Kích thước connection pool (mặc định hợp lý; chỉ set khi cần)
       DB_POOL_MAX: ${DB_POOL_MAX:-15}
       DB_POOL_MIN: ${DB_POOL_MIN:-5}
