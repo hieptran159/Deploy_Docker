@@ -148,4 +148,28 @@ public interface PostRepository extends JpaRepository<Posts, String> {
     @Transactional
     @Query("UPDATE posts p SET p.views = p.views + 1 WHERE p.postId = :id")
     void incrementViews(@Param("id") String id);
+
+    // ---------- Tìm kiếm FULLTEXT ----------
+    // Native vì JPQL không có MATCH ... AGAINST. Cùng bộ lọc hiển thị với FEED_UNION.
+    // :ex và :vids phải KHÁC RỖNG (native IN/NOT IN) -> service truyền sentinel "-".
+    // Xếp theo ĐIỂM KHỚP trước, rồi mới tới ngày — LIKE cũ chỉ xếp theo ngày nên bài
+    // liên quan nhất chưa chắc lên đầu.
+    String FT_WHERE =
+        "FROM posts p JOIN user_posts up ON up.post_id = p.post_id "
+      + "WHERE MATCH(p.title, p.body) AGAINST (:q IN BOOLEAN MODE) "
+      + "AND (p.status IS NULL OR p.status = 'published') AND up.user_id NOT IN (:ex) "
+      + "AND (p.visibility IS NULL OR p.visibility = 'public' OR up.user_id = :me "
+      + "     OR (p.visibility = 'friends' AND up.user_id IN (:vids)))";
+
+    // Xếp hạng hai tầng: khớp TIÊU ĐỀ trước (điểm 0 nếu không khớp -> mọi bài khớp
+    // tiêu đề lên trên), rồi mới tới điểm khớp chung, rồi mới tới ngày.
+    // Cần chỉ mục riêng ft_posts_title: MATCH(title, body) tính một điểm cho cả cụm
+    // cột nên KHÔNG ưu tiên tiêu đề — đã đo trên MySQL thật.
+    @Query(value = "SELECT p.post_id " + FT_WHERE
+                 + " ORDER BY MATCH(p.title) AGAINST (:q IN BOOLEAN MODE) DESC,"
+                 + " MATCH(p.title, p.body) AGAINST (:q IN BOOLEAN MODE) DESC,"
+                 + " p.posted_at DESC, p.post_id ASC LIMIT :lim OFFSET :off", nativeQuery = true)
+    List<String> searchFulltextIds(@Param("q") String q, @Param("ex") Collection<String> ex,
+                                   @Param("vids") Collection<String> vids, @Param("me") String me,
+                                   @Param("lim") int lim, @Param("off") int off);
 }
