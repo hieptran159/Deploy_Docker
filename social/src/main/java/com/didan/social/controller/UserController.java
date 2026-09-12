@@ -215,6 +215,23 @@ public class UserController {
         }
     }
 
+    @Operation(summary = "Đổi ảnh đại diện", description = "Không cần mật khẩu",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @PatchMapping(value = "/avatar", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
+    public ResponseEntity<?> patchAvatar(@RequestParam("avatar") org.springframework.web.multipart.MultipartFile avatar){
+        ResponseData payload = new ResponseData();
+        try {
+            userService.updateAvatar(avatar);
+            payload.setDescription("Đã cập nhật ảnh đại diện");
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e){
+            payload.setDescription(e.getMessage());
+            payload.setStatusCode(500);
+            payload.setSuccess(false);
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
     @Operation(summary = "Edit user info", description = "Require password",
             security = @SecurityRequirement(name = "bearerAuth"))
     @PatchMapping(value = "/edit", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})

@@ -137,6 +137,13 @@ frontend tests.
   post status into the admin queue; `POST /report/admin/{id}/restore-target`
   (`restoreReportedTarget`) sets it back to `published` and resolves that post's OPEN
   reports (shared `resolveOpenFor` helper with `removeReportedTarget`).
+- Avatar / cover: **`PATCH /user/avatar`** and `PATCH /user/cover`, both multipart, both
+  **password-free** — changing a picture is not the same class of action as changing an email
+  or a password, and `/user/edit` (which does both of those) still demands the current
+  password. Each stores as `<userId>-<timestamp>` so the URL changes and clients don't reuse a
+  cached image; the avatar one also broadcasts `user_avatar` over the socket. FE puts both
+  buttons in the profile **preview card at the top** of `EditProfile.vue`, next to the images
+  they change, and uploads on file-pick — no second "Cập nhật" click.
 - Deactivate: `Users.deactivated` (`null`/`0` = active, `1` = self-deactivated). `POST
   /user/deactivate?password=` (`UserServiceImpl.deactivateMyAccount`) sets the flag +
   blacklists the current token. **`AuthServiceImpl.login` auto-clears it** — logging back in
@@ -571,6 +578,18 @@ The replacements, all native: `DxButton` → `<button class="sign-btn …">`, `D
 `DxPopup` → **`components/ui/AppModal.vue`**, a ~40-line wrapper over native `<dialog>`
 (`v-model:open`, `title`, `width`). `<dialog>` brings Esc-to-close, focus trapping,
 `::backdrop` and top-layer stacking for free.
+
+**Everything that must appear ABOVE a modal has to be in the top layer too.** A `<dialog>`
+opened with `showModal()` sits in the browser's *top layer*, which is above **every** z-index —
+so the old `z-index: 10000` on `MDialog` was not enough and the "Đăng bài thất bại" error
+rendered *behind* the still-open "Tạo bài viết" popup, invisible. Fixed by moving the whole
+overlay family into the top layer: `MDialog`, `ReportDialog` and the lightbox are now
+`<dialog>` + `showModal()` (two top-layer elements stack by open order, so a dialog opened
+later wins), and the toast container uses `popover="manual"` + `showPopover()` — `popover` is
+the only way to put a *non-modal* element in the top layer. Keep `z-index` on those rules as a
+fallback for browsers without `popover`. A `<dialog>` also needs `margin: 0` when you position
+it yourself (the UA sets auto margins) and a transparent background when the dim comes from
+`::backdrop`.
 
 Two traps that cost real debugging when this was done — both verified in a browser, not
 reasoned about:

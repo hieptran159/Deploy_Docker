@@ -54,7 +54,7 @@
             >
                 <CreatePost
                     @close="() => { ishowCreatePost = false; getListPost(); loadTrending() }"
-                    @post-fail="showDialog('Đăng bài thất bại')"
+                    @post-fail="(msg) => showDialog('Đăng bài thất bại', msg || 'Đã có lỗi xảy ra.')"
                 />
             </AppModal>
         </div>
