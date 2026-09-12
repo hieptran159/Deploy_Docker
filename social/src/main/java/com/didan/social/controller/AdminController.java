@@ -87,13 +87,14 @@ public class AdminController{
             return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
         }
     }
-    @Operation(summary = "Ban user", description = "Require admin to do this",
+    @Operation(summary = "Ban user", description = "days > 0 = cấm tạm thời; bỏ trống = vĩnh viễn",
             security = @SecurityRequirement(name = "bearerAuth"))
     @PostMapping(value = "/ban/{userId}")
-    public ResponseEntity<?> blockUser(@PathVariable String userId){
+    public ResponseEntity<?> blockUser(@PathVariable String userId,
+                                       @RequestParam(defaultValue = "0") int days){
         ResponseData payload = new ResponseData();
         try {
-            if (adminService.blockUser(userId)){
+            if (adminService.blockUser(userId, days)){
                 payload.setDescription(String.format("Block user %s successful", userId));
             }
             return new ResponseEntity<>(payload, HttpStatus.OK);

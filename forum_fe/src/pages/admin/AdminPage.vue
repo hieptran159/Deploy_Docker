@@ -44,10 +44,16 @@
 
             <div class="card">
                 <div class="section-title">Chặn người dùng</div>
-                <div class="flex gap-2">
+                <div class="flex gap-2 flex-wrap">
                     <input type="text" class="field flex-1" v-model="banId" placeholder="userId cần chặn" />
-                    <button type="button" class="sign-btn sign-btn--danger" @click="() => doBan(banId)">Chặn</button>
+                    <select v-model.number="banDays" class="field flex-none" style="width: auto">
+                        <option v-for="d in BAN_DURATIONS" :key="d.days" :value="d.days">{{ d.label }}</option>
+                    </select>
+                    <button type="button" class="sign-btn sign-btn--danger" @click="() => doBan(banId, banDays)">Chặn</button>
                 </div>
+                <p class="muted text-xs mt-2">
+                    Chặn có thời hạn tự hết khi tới ngày, không cần vào gỡ tay.
+                </p>
             </div>
 
             <div class="card">
@@ -103,6 +109,7 @@
                                 <th class="pr-3">Trạng thái</th>
                                 <th class="pr-3">Báo cáo</th>
                                 <th class="pr-3">Bị chặn lúc</th>
+                                <th class="pr-3">Đến khi</th>
                                 <th></th>
                             </tr>
                         </thead>
@@ -111,16 +118,17 @@
                                 <td class="py-2 pr-3 font-medium">{{ u.fullName }}</td>
                                 <td class="pr-3">{{ u.email }}</td>
                                 <td class="pr-3">
-                                    <span class="chip"
-                                        :class="u.reportStatus === 'blocked' ? 'chip--cinnabar' : 'chip--quiet'">
-                                        {{ u.reportStatus }}
+                                    <!-- activeBan do backend tính, FE không tự so ngày (lệch múi giờ) -->
+                                    <span class="chip" :class="u.activeBan ? 'chip--cinnabar' : 'chip--quiet'">
+                                        {{ u.activeBan ? 'đang chặn' : (u.reportStatus === 'blocked' ? 'hết hạn' : u.reportStatus) }}
                                     </span>
                                 </td>
                                 <td class="pr-3">{{ u.reportedQuantity }}</td>
                                 <td class="pr-3">{{ u.blockedAt || '-' }}</td>
+                                <td class="pr-3">{{ u.bannedUntil || (u.activeBan ? 'vĩnh viễn' : '-') }}</td>
                                 <td>
                                     <button type="button" class="sign-btn sign-btn--outline" v-if="u.reportStatus === 'blocked'" @click="() => doUnban(u.userId)">Bỏ chặn</button>
-                                    <button type="button" class="sign-btn sign-btn--outline sign-btn--outline-danger" v-else @click="() => doBan(u.userId)">Chặn</button>
+                                    <button type="button" class="sign-btn sign-btn--outline sign-btn--outline-danger" v-else @click="() => doBan(u.userId, banDays)">Chặn</button>
                                 </td>
                             </tr>
                         </tbody>
@@ -166,6 +174,13 @@ const deniedMsg = ref('Đang kiểm tra quyền...');
 const blacklist = ref([]);
 const grantId = ref('');
 const banId = ref('');
+const BAN_DURATIONS = [
+    { days: 0, label: 'Vĩnh viễn' },
+    { days: 1, label: '1 ngày' },
+    { days: 7, label: '7 ngày' },
+    { days: 30, label: '30 ngày' },
+];
+const banDays = ref(0);
 const reports = ref([]);
 const reportFilter = ref('OPEN');
 
@@ -297,12 +312,13 @@ const doGrant = () => {
     });
 }
 
-const doBan = (userId) => {
+const doBan = (userId, days = 0) => {
     const uid = (userId || '').trim();
     if (!uid) return;
-    openConfirm?.('Chặn người dùng', `Chặn user ${uid}?`, async () => {
+    const han = days > 0 ? `${days} ngày` : 'vĩnh viễn';
+    openConfirm?.('Chặn người dùng', `Chặn user ${uid} — ${han}?`, async () => {
         try {
-            await banUser(uid);
+            await banUser(uid, days);
             toast?.('Đã chặn người dùng');
             banId.value = '';
             await loadBlacklist();

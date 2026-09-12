@@ -26,8 +26,9 @@ export const grantAdmin = (userId) => {
     return authApi.patch(`/admin/grant?userId=${encodeURIComponent(userId)}`);
 }
 
-export const banUser = (userId) => {
-    return authApi.post(`/admin/ban/${userId}`);
+// days > 0 = cấm tạm thời rồi tự hết; 0 = vĩnh viễn
+export const banUser = (userId, days = 0) => {
+    return authApi.post(`/admin/ban/${userId}?days=${days}`);
 }
 
 export const unbanUser = (userId) => {

@@ -9,6 +9,9 @@ public interface AdminService {
     boolean grantAdmin(String userId) throws Exception;
     List<BlacklistUserDTO> getAllBlacklistUser() throws Exception;
     boolean blockUser(String userId) throws Exception;
+
+    /** Cấm có thời hạn. days > 0 -> tự hết sau ngần ấy ngày; <= 0 -> vĩnh viễn. */
+    boolean blockUser(String userId, int days) throws Exception;
     boolean unblockUser(String userId) throws Exception;
     // Số liệu tổng quan cho bảng điều khiển admin
     java.util.Map<String, Object> getStats() throws Exception;

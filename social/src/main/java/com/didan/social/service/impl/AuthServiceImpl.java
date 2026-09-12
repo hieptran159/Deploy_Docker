@@ -90,7 +90,7 @@ public class AuthServiceImpl implements AuthService {
             throw new Exception("Email and Password does not match");
         }
         BlacklistUser blacklistUser = blacklistUserRepository.findByUserId(user.getUserId());
-        if (blacklistUser != null && blacklistUser.getStatus().equals("blocked")){
+        if (blacklistUser != null && blacklistUser.isActiveBan()){
             logger.error("User is blocked");
             throw new Exception("User is blocked");
         }
@@ -222,7 +222,7 @@ public class AuthServiceImpl implements AuthService {
         if (session == null || !userId.equals(session.getUserId()))
             throw new Exception("Refresh token không hợp lệ");
         BlacklistUser blacklistUser = blacklistUserRepository.findByUserId(userId);
-        if (blacklistUser != null && "blocked".equals(blacklistUser.getStatus())) throw new Exception("Tài khoản đã bị khóa");
+        if (blacklistUser != null && blacklistUser.isActiveBan()) throw new Exception("Tài khoản đã bị khóa");
         // Giữ nguyên loại phiên (ghi nhớ / tạm) khi xoay vòng token
         boolean remember = jwtUtils.isRememberRefreshToken(refreshToken);
         // Xoay vòng TRONG phiên đó: chặn refresh token vừa dùng rồi ghi cặp mới vào
@@ -254,7 +254,7 @@ public class AuthServiceImpl implements AuthService {
         if (user.getTwofaExpires() == null || user.getTwofaExpires().before(new java.util.Date()))
             throw new Exception("Mã xác thực đã hết hạn. Vui lòng đăng nhập lại.");
         BlacklistUser blacklistUser = blacklistUserRepository.findByUserId(user.getUserId());
-        if (blacklistUser != null && "blocked".equals(blacklistUser.getStatus()))
+        if (blacklistUser != null && blacklistUser.isActiveBan())
             throw new Exception("User is blocked");
         user.setTwofaCode(null);
         user.setTwofaExpires(null);
