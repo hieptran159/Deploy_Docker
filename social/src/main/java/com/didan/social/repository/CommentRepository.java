@@ -14,4 +14,7 @@ public interface CommentRepository extends JpaRepository<Comments, String> {
     Comments findByCommentId(String commentId);
     @Query("SELECT c.commentId FROM comments c WHERE c.commentId NOT IN (SELECT uc.comments.commentId FROM user_comment uc)")
     List<String> findCommentIdNotInUserComment();
+
+    /** Nạp nhiều bình luận trong MỘT truy vấn (xem trước ở hàng đợi báo cáo). */
+    java.util.List<Comments> findByCommentIdIn(java.util.Collection<String> ids);
 }

@@ -13,4 +13,14 @@ public interface ReportRepository extends JpaRepository<Reports, String> {
     Reports findFirstByReporterIdAndTargetTypeAndTargetIdAndStatus(String reporterId, String targetType, String targetId, String status);
     long countByTargetTypeAndTargetIdAndStatus(String targetType, String targetId, String status);
     long countByStatus(String status);
+
+    /**
+     * [targetType, targetId, số báo cáo OPEN] cho cả trang bằng MỘT truy vấn, thay vì
+     * countByTargetTypeAndTargetIdAndStatus cho từng dòng.
+     */
+    @org.springframework.data.jpa.repository.Query(
+            "SELECT r.targetType, r.targetId, COUNT(r) FROM reports r "
+          + "WHERE r.status = 'OPEN' AND r.targetId IN :ids GROUP BY r.targetType, r.targetId")
+    java.util.List<Object[]> countOpenByTargets(
+            @org.springframework.data.repository.query.Param("ids") java.util.Collection<String> ids);
 }

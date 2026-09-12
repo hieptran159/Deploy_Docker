@@ -1,6 +1,8 @@
 package com.didan.social.service.impl;
 
 import com.didan.social.dto.UserDTO;
+import org.springframework.data.domain.PageRequest;
+import com.didan.social.dto.UserLiteDTO;
 import com.didan.social.entity.BlacklistUser;
 import com.didan.social.entity.Posts;
 import com.didan.social.entity.UserPosts;
@@ -87,10 +89,72 @@ public class UserServiceImpl extends ConvertDTO implements UserService {
         for (Users user : users){
             if (user.getDeactivated() != null && user.getDeactivated() == 1) continue;
             UserDTO userDTO = (UserDTO) convertToDTO(user);
+            hideForList(userDTO, user.getUserId());
             userDTOS.add(userDTO);
         }
         userDTOS.sort(Comparator.comparingInt(UserDTO::getFollowers).reversed());
         return userDTOS;
+    }
+
+    /**
+     * Che trường riêng tư trong DANH SÁCH. getUserById đã gọi hidePrivate từ lâu,
+     * nhưng getAllUser/searchUser thì không — nên số điện thoại của người đã TẮT
+     * công khai vẫn lọt ra, và ngày sinh lọt của tất cả (trường này không có cờ
+     * công khai nào cả). Đo trên production: 2 người lộ phone, 42 người lộ dob.
+     */
+    private void hideForList(UserDTO dto, String ownerId) {
+        boolean isOwner = false;
+        try {
+            isOwner = ownerId.equals(authorizePathService.getUserIdAuthoried());
+        } catch (Exception ignored) {}
+        if (isOwner) return;
+        hidePrivate(dto);
+        dto.setDob(null);
+    }
+
+    /**
+     * Tìm người dùng, phân trang PHÍA SERVER, chỉ lấy ba cột + hai con số đếm.
+     *
+     * 4 truy vấn cho một trang, bất kể trang bao nhiêu dòng: đếm tổng, lấy trang,
+     * đếm người theo dõi theo lô, đếm bài theo lô.
+     *
+     * Đường cũ (getAllUser rồi lọc ở client) dựng UserDTO đầy đủ cho TOÀN BỘ người
+     * dùng, mà convertToDTO chạm bốn quan hệ lazy mỗi user -> 43 user thành ~172
+     * truy vấn, 190 KB, 1,5 giây.
+     */
+    @Override
+    public java.util.Map<String, Object> searchUsersLite(String q, int page, int size) {
+        if (page < 0) page = 0;
+        if (size < 1) size = 20;
+        if (size > 50) size = 50;
+        String key = q == null ? "" : q.trim();
+
+        java.util.Map<String, Object> m = new java.util.HashMap<>();
+        m.put("page", page);
+        long total = userRepository.countSearchLite(key);
+        m.put("total", total);
+        m.put("totalPages", (int) Math.max(1, Math.ceil(total / (double) size)));
+        if (total == 0) {
+            m.put("items", Collections.emptyList());
+            return m;
+        }
+
+        List<UserLiteDTO> items = new ArrayList<>();
+        List<String> ids = new ArrayList<>();
+        for (Object[] r : userRepository.searchLite(key, PageRequest.of(page, size))) {
+            items.add(new UserLiteDTO((String) r[0], (String) r[1], (String) r[2]));
+            ids.add((String) r[0]);
+        }
+        java.util.Map<String, Long> fol = new java.util.HashMap<>();
+        for (Object[] r : userRepository.countFollowersOf(ids)) fol.put((String) r[0], ((Number) r[1]).longValue());
+        java.util.Map<String, Long> pos = new java.util.HashMap<>();
+        for (Object[] r : userRepository.countPostsOf(ids)) pos.put((String) r[0], ((Number) r[1]).longValue());
+        for (UserLiteDTO d : items) {
+            d.setFollowers(fol.getOrDefault(d.getUserId(), 0L));
+            d.setPosts(pos.getOrDefault(d.getUserId(), 0L));
+        }
+        m.put("items", items);
+        return m;
     }
 
     @Override
@@ -159,23 +223,6 @@ public class UserServiceImpl extends ConvertDTO implements UserService {
         if (req.getSloganPublic() != null) user.setSloganPublic(req.getSloganPublic());
         userRepository.save(user);
         return true;
-    }
-
-    @Override
-    public List<UserDTO> searchUser(String searchName) throws Exception {
-        List<Users> users = userRepository.findByFullNameContainingOrEmailLike(searchName, searchName);
-        if (users.isEmpty()) {
-            logger.info("No one");
-            return Collections.emptyList();
-        }
-        List<UserDTO> userDTOS = new ArrayList<>();
-        for (Users user : users){
-            if (user.getDeactivated() != null && user.getDeactivated() == 1) continue;
-            UserDTO userDTO = (UserDTO) convertToDTO(user);
-            userDTOS.add(userDTO);
-        }
-        userDTOS.sort(Comparator.comparingInt(UserDTO::getFollowers).reversed());
-        return userDTOS;
     }
 
     @Override

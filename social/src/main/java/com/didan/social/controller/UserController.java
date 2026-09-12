@@ -130,7 +130,7 @@ public class UserController {
         }
     }
 
-    @Operation(summary = "Get all users",
+    @Operation(summary = "Get all users (KHÔNG DÙNG NỮA — dùng /user/search)",
             description = "Get all users",
             security = @SecurityRequirement(name = "bearerAuth"))
     @GetMapping("/getAllUser")
@@ -175,20 +175,19 @@ public class UserController {
         }
     }
 
-    @Operation(summary = "Search user",
-            description = "Enter the name user you want to find",
+    @Operation(summary = "Tìm người dùng",
+            description = "Phân trang phía server; chỉ trả id/tên/ảnh + số theo dõi + số bài. "
+                    + "`name` là tên cũ của `q`, giữ lại cho client cũ.",
             security = @SecurityRequirement(name = "bearerAuth"))
     @GetMapping("/search")
-    public ResponseEntity<?> searchUser(@RequestParam(name = "name") String name){
+    public ResponseEntity<?> searchUser(@RequestParam(required = false) String q,
+                                        @RequestParam(required = false) String name,
+                                        @RequestParam(defaultValue = "0") int page,
+                                        @RequestParam(defaultValue = "20") int size){
         ResponseData payload = new ResponseData();
         try{
-            List<UserDTO> data = userService.searchUser(name);
-            if (data != null){
-                payload.setData(data);
-                payload.setDescription("Get all users successful");
-            } else {
-                payload.setDescription("No users are here");
-            }
+            payload.setData(userService.searchUsersLite(q != null ? q : name, page, size));
+            payload.setDescription("Danh sách người dùng");
             return new ResponseEntity<>(payload, HttpStatus.OK);
         }catch (Exception e){
             payload.setSuccess(false);

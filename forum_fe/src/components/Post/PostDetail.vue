@@ -191,7 +191,7 @@ import { getPostById } from '@/apis/post';
 import { createComment, getCommentsPage } from '@/apis/comment';
 import { likePostApi, unLikePostApi, deletePost, repostPost, unrepostPost } from '@/apis/post';
 import { checkBookmark, toggleBookmark } from '@/apis/bookmark';
-import { getAllUsersCached } from '@/apis/user';
+import { searchUserApi } from '@/apis/user';
 import { markReadByTarget } from '@/apis/notification';
 import { useRouter } from 'vue-router';
 import { calculateTimeDifference } from '@/js/helper';
@@ -242,34 +242,38 @@ const commentFileEl = ref(null);
 const bookmarked = ref(false);
 
 /* ---------- @nhắc tên (hiển thị @Tên, gửi kèm id ẩn) ---------- */
-const allUsers = ref([]);
 const mentionOpen = ref(false);
 const mentionResults = ref([]);
 const pickedMentions = ref([]);           // [{ name, id }] đã chọn
 const MENTION_TAIL = /@([^\s@[\]]{0,30})$/;
 
-let usersLoaded = false;
-let usersLoading = false;
-const loadUsers = async () => {
-    if (!isLogin.value || usersLoaded || usersLoading) return;
-    usersLoading = true;
-    try {
-        const res = await getAllUsersCached();
-        allUsers.value = (res?.data?.data || []).filter((u) => u.userId !== getItemLocal(LOCALKEYS.USER_ID));
-        usersLoaded = true;
-    } catch (e) { allUsers.value = []; }
-    finally { usersLoading = false; }
-};
+/* Hỏi server theo từng chữ gõ, thay vì tải TOÀN BỘ danh sách người dùng về rồi lọc
+   ở client. Cách cũ tốn 190 KB và 1,5 giây cho 43 người, và tăng tuyến tính theo số
+   thành viên; cách này luôn là một truy vấn nhỏ, giới hạn 6 dòng.
 
-const detectMention = async (val) => {
+   Hoãn 200 ms: gõ "@ngu" mà bắn 3 request thì vừa phí vừa dễ về sai thứ tự. */
+let mentionTimer = null;
+let mentionSeq = 0;
+
+const detectMention = (val) => {
     const mm = (val || '').match(MENTION_TAIL);
-    if (!mm) { mentionOpen.value = false; return; }
-    if (!usersLoaded) await loadUsers();   // chỉ nạp danh sách khi thật sự gõ '@'
-    const q = mm[1].toLowerCase();
-    mentionResults.value = allUsers.value
-        .filter((u) => (u.fullName || '').toLowerCase().includes(q))
-        .slice(0, 6);
-    mentionOpen.value = mentionResults.value.length > 0;
+    if (!mm || !isLogin.value) { mentionOpen.value = false; return; }
+    const q = mm[1];
+    clearTimeout(mentionTimer);
+    mentionTimer = setTimeout(async () => {
+        const seq = ++mentionSeq;
+        try {
+            const d = (await searchUserApi(q, 0, 6))?.data?.data || {};
+            // Bỏ qua phản hồi về muộn hơn lần gõ mới nhất
+            if (seq !== mentionSeq) return;
+            const me = getItemLocal(LOCALKEYS.USER_ID);
+            mentionResults.value = (d.items || []).filter((u) => u.userId !== me);
+            mentionOpen.value = mentionResults.value.length > 0;
+        } catch (e) {
+            mentionResults.value = [];
+            mentionOpen.value = false;
+        }
+    }, 200);
 };
 
 // DxTextBox v-model chỉ đồng bộ khi blur -> đọc trực tiếp từ sự kiện input
