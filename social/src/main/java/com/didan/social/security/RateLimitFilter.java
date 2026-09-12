@@ -1,5 +1,6 @@
 package com.didan.social.security;
 
+import com.didan.social.utils.ClientIpUtils;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -9,7 +10,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.Ordered;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -132,23 +132,9 @@ public class RateLimitFilter extends OncePerRequestFilter implements Ordered {
         buckets.entrySet().removeIf(e -> now - e.getValue().start > maxWindow);
     }
 
+    /** Chính sách nằm ở ClientIpUtils — dùng chung với màn hình phiên đăng nhập. */
     private String clientIp(HttpServletRequest request) {
-        if (trustForwarded) {
-            // Header do proxy ghi đè (1 giá trị) -> đáng tin hơn X-Forwarded-For
-            String cf = request.getHeader("CF-Connecting-IP");
-            if (StringUtils.hasText(cf)) return cf.trim();
-            String real = request.getHeader("X-Real-IP");
-            if (StringUtils.hasText(real)) return real.trim();
-            // X-Forwarded-For: lấy entry CUỐI (hop tin cậy gần nhất thêm vào),
-            // tránh phần đầu do client tự bịa để giả IP.
-            String xff = request.getHeader("X-Forwarded-For");
-            if (StringUtils.hasText(xff)) {
-                String[] parts = xff.split(",");
-                return parts[parts.length - 1].trim();
-            }
-        }
-        // Mặc định: IP TCP thật, không thể giả bằng header
-        return request.getRemoteAddr();
+        return ClientIpUtils.resolve(request, trustForwarded);
     }
 
     private static final class Window {

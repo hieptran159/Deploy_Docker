@@ -51,6 +51,14 @@ public class UserSessions {
     @Temporal(TemporalType.TIMESTAMP)
     private Date lastUsedAt;
 
+    /** User-Agent lúc đăng nhập. Giữ nguyên bản gốc; nhãn hiển thị do UserAgentUtils rút ra. */
+    @Column(name = "user_agent", length = 255)
+    private String userAgent;
+
+    /** IPv6 dài nhất 45 ký tự. Chỉ chủ tài khoản xem được, để nhận ra phiên lạ. */
+    @Column(name = "ip", length = 45)
+    private String ip;
+
     public UserSessions() {}
 
     public UserSessions(String sessionId, String userId, String refreshHash,
@@ -84,4 +92,10 @@ public class UserSessions {
 
     public Date getLastUsedAt() { return lastUsedAt; }
     public void setLastUsedAt(Date lastUsedAt) { this.lastUsedAt = lastUsedAt; }
+
+    public String getUserAgent() { return userAgent; }
+    public void setUserAgent(String userAgent) { this.userAgent = userAgent; }
+
+    public String getIp() { return ip; }
+    public void setIp(String ip) { this.ip = ip; }
 }
