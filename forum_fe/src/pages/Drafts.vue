@@ -4,8 +4,8 @@
             <div class="flex flex-wrap items-center gap-2 mb-1">
                 <div class="section-title flex-1">Bản nháp ({{ total }})</div>
                 <template v-if="total > 0">
-                    <DxButton type="default" stylingMode="outlined" text="Đăng tất cả" :disabled="busy" @click="confirmPublishAll" />
-                    <DxButton type="danger" stylingMode="outlined" text="Xoá tất cả" :disabled="busy" @click="confirmDeleteAll" />
+                    <button type="button" class="sign-btn sign-btn--outline" :disabled="busy" @click="confirmPublishAll">Đăng tất cả</button>
+                    <button type="button" class="sign-btn sign-btn--outline sign-btn--outline-danger" :disabled="busy" @click="confirmDeleteAll">Xoá tất cả</button>
                 </template>
             </div>
 
@@ -21,9 +21,9 @@
                 <div class="muted text-sm line-clamp-2 whitespace-pre-wrap">{{ d.body || '(chưa có nội dung)' }}</div>
                 <div class="text-xs muted mt-1">Sửa lần cuối: {{ timeAgo(d.postedAt) }}</div>
                 <div class="flex gap-2 mt-2">
-                    <DxButton type="default" text="Đăng" @click="() => doPublish(d)" />
-                    <DxButton stylingMode="outlined" text="Sửa" @click="() => openEdit(d)" />
-                    <DxButton type="danger" stylingMode="text" text="Xoá" @click="() => confirmDelete(d)" />
+                    <button type="button" class="sign-btn" @click="() => doPublish(d)">Đăng</button>
+                    <button type="button" class="sign-btn sign-btn--outline" @click="() => openEdit(d)">Sửa</button>
+                    <button type="button" class="sign-btn sign-btn--quiet sign-btn--quiet-danger" @click="() => confirmDelete(d)">Xoá</button>
                 </div>
             </div>
 
@@ -34,13 +34,11 @@
             </div>
         </div>
 
-        <DxPopup
+        <AppModal
             v-if="editing && editTarget"
             title="Sửa bản nháp"
-            v-model:visible="editing"
+            v-model:open="editing"
             :width="700"
-            :height="420"
-            :hide-on-outside-click="true"
         >
             <EditPost
                 :postId="editTarget.postId"
@@ -50,14 +48,13 @@
                 @close="() => { editing = false; editTarget = null; reload(); }"
                 @post-fail="() => { editing = false; editTarget = null; showDialog?.('Thông báo', 'Cập nhật thất bại'); }"
             />
-        </DxPopup>
+        </AppModal>
     </div>
 </template>
 
 <script setup>
 import { onMounted, ref, inject } from 'vue';
-import { DxButton } from 'devextreme-vue/button';
-import { DxPopup } from 'devextreme-vue/popup';
+import AppModal from '@/components/ui/AppModal.vue';
 import { getDrafts, publishPost, deletePost, publishAllDrafts, deleteAllDrafts } from '@/apis/post';
 import { timeAgo } from '@/js/helper';
 import EditPost from '@/components/Post/EditPost.vue';

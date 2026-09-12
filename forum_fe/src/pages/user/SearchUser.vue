@@ -3,13 +3,13 @@
         <div class="card">
             <div class="flex items-center gap-3 mb-4">
                 <span class="section-title mb-0 flex-1">Tìm người dùng</span>
-                <DxTextBox
-                    :value="searchText"
-                    @value-changed="onInput"
-                    @enter-key="doSearch"
+                <input
+                    type="search"
+                    style="width: 240px"
+                    class="field"
+                    v-model="searchText"
+                    @keyup.enter="doSearch"
                     placeholder="Tên hoặc email…"
-                    :show-clear-button="true"
-                    width="240"
                 />
                 <button class="sign-btn flex-none" @click="doSearch">
                     <AppIcon name="search" :size="16" /> Tìm
@@ -50,8 +50,6 @@
 
 <script setup>
 import AppIcon from '@/components/AppIcon.vue';
-import { DxTextBox } from 'devextreme-vue/text-box';
-import { DxButton } from 'devextreme-vue/button';
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { searchUserApi } from '@/apis/user';
@@ -66,10 +64,6 @@ const loading = ref(false);
 const PAGE = 10;
 const shown = ref(PAGE);
 const visibleUsers = computed(() => users.value.slice(0, shown.value));
-
-const onInput = (e) => {
-    searchText.value = e?.value ?? "";
-}
 
 const doSearch = async () => {
     loading.value = true;

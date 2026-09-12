@@ -15,15 +15,14 @@
 				<span style="white-space: pre-line">{{ content }}</span>
 			</div>
 			<div class="m-dialog__footer">
-				<DxButton
+				<button
 					v-for="btn of buttons"
+					:key="btn.text"
 					ref="buttonRefs"
-					:text="btn.text"
-					:element-attr="{
-						tabindex: '1',
-					}"
-					:type="btn.type"
-					@click="btn.onClick" />
+					type="button"
+					class="sign-btn"
+					:class="btnClass(btn.type)"
+					@click="btn.onClick">{{ btn.text }}</button>
 			</div>
 		</div>
 	</div>
@@ -31,7 +30,6 @@
 
 <script setup>
 import AppIcon from '@/components/AppIcon.vue';
-import DxButton from 'devextreme-vue/button';
 import { ref, onMounted } from 'vue';
 const props = defineProps({
 	title: {
@@ -55,6 +53,10 @@ const props = defineProps({
 });
 const emit = defineEmits(['close']);
 const buttonRefs = ref();
+
+/** type của nút (default/normal/danger) -> biến thể .sign-btn */
+const btnClass = (t) =>
+	t === 'danger' ? 'sign-btn--danger' : t === 'normal' ? 'sign-btn--outline' : '';
 /**
  * Handle keydown
  * @author NTVu 3/11/2023
@@ -71,7 +73,8 @@ const handleKeyDown = (e) => {
  * @author NTVu 3/11/2023
  */
 const focusBtnEnd = () => {
-	buttonRefs.value[buttonRefs.value.length - 1]?.instance.focus();
+	// <button> thuần -> ref chính là phần tử DOM (DxButton trước đây phải qua .instance)
+	buttonRefs.value?.[buttonRefs.value.length - 1]?.focus();
 };
 onMounted(() => {
 	focusBtnEnd();

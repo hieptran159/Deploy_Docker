@@ -2,21 +2,19 @@
     <div class="flex flex-col gap-3 py-3">
         <div>
             <label class="text-sm muted">Nội dung bình luận</label>
-            <DxTextArea v-model="data.content" :height="100" />
+            <textarea style="height: 100px" class="field" v-model="data.content"></textarea>
         </div>
         <div>
             <label class="text-sm muted">Thay ảnh đính kèm (để trống nếu giữ nguyên)</label>
             <input type="file" accept="image/*" @change="onFile" />
         </div>
         <div class="flex justify-end">
-            <DxButton type="default" text="Cập nhật" @click="submitEdit" />
+            <button type="button" class="sign-btn" @click="submitEdit">Cập nhật</button>
         </div>
     </div>
 </template>
 
 <script setup>
-import { DxTextArea } from 'devextreme-vue/text-area';
-import { DxButton } from 'devextreme-vue/button';
 import { updateComment } from '@/apis/comment';
 import { ref } from 'vue';
 

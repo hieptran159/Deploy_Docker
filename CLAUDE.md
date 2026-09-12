@@ -10,7 +10,7 @@ projects (each has its own GitHub repo per `README.md`):
 
 | Path        | Role     | Stack                                               |
 |-------------|----------|-----------------------------------------------------|
-| `forum_fe/` | Frontend | Vue 3 + Vite 5, Pinia, vue-router, Tailwind, DevExtreme |
+| `forum_fe/` | Frontend | Vue 3 + Vite 5, Pinia, vue-router, Tailwind (no UI-component library) |
 | `social/`   | Backend  | Spring Boot 3.1.7, Java 17, JPA/Hibernate, MySQL 8, netty-socketio, SendGrid |
 
 `socialdata.sql` (root), `social/db.sql`, `social/db1.sql` are database dumps/seeds.
@@ -448,7 +448,10 @@ reading width (`.measure`, `.post-body`); `.post-title--hero` caps at 30ch.
 Key primitives: `.board` (+`--framed`/`--turmeric`/`--paper`) the signboard; `.card`
 (border, **no** shadow — that's the hierarchy); `.seg` segmented control; `.act-pill`;
 `.tag-chip` (+`--sm`); `.chip` (+`--ink`/`--turmeric`/`--cinnabar`/`--quiet`) for
-classification; `.post-badge`; `.status-on`; `.sign-btn`; `.rule`.
+classification; `.post-badge`; `.status-on`; `.rule`; `.field` every input/textarea/select;
+`.sign-btn` every button (+`--ink` = confirm, `--danger`, `--outline` (+`--outline-danger`) =
+secondary, `--quiet` (+`--quiet-danger`) = borderless, `--block` = full width) — icon-only
+buttons stay `.icon-btn`.
 
 **`.post-row` left tick colour encodes post kind** — turmeric = normal, cinnabar
 (`--repost`) = shared, muted (`--draft`) = draft, hatched (`--hidden`).
@@ -475,16 +478,38 @@ The header nav is a **plain `<nav>` (`.hdr-tab`), not `DxTabs`** — DxTabs norm
 (`/post/:id`, `/tag/:tag`, `/saved`, `/drafts`, `/notifications`, `/profile/edit`) lit up
 "Tìm người dùng"; `selected-item: null` does not deselect either. Don't reintroduce DxTabs here.
 
-**Import DevExtreme components by deep path, never the barrel** —
-`import { DxButton } from 'devextreme-vue/button'`, not `from 'devextreme-vue'`. The barrel
-is not tree-shakeable: every file that used it pulled the whole library in, including
-`VectorMap` with its world geodata — a **6.7 MB** `vector-map-*.js` chunk that the entry
-chunk imported, so every visitor downloaded it. Rewriting 17 barrel imports to deep paths
-(`button` / `text-box` / `text-area` / `popup` / `date-box`, each has `sideEffects: false`)
-took `dist` from **7.9 MB to 2.1 MB**. One barrel import anywhere brings it all back.
+**DevExtreme is gone (Sep 2026) — do not reintroduce it, or any UI-component library.**
+It was down to five widgets (52 `DxButton`, 30 `DxTextBox`, 6 `DxPopup`, 4 `DxTextArea`,
+1 `DxDateBox`), every one of which has a native equivalent the design system already styles.
+What it cost while it stayed: a **6.7 MB** `vector-map-*.js` chunk (its VectorMap plus world
+geodata) that the entry chunk imported, so every visitor downloaded it; 662 KB of
+`dx.light.css`; 72 KB of `dxicons` fonts still shipped after `AppIcon` replaced the icon
+font; and 28 `dx-*` override selectors plus 8 `!important` to drag its widgets back onto the
+palette. Removing it took `dist` **7.9 MB → 473 KB** and the build 10.6s → 2.1s.
 
-DevExtreme still needs `!important` where its own CSS wins: text-mode button colours for
-`type="default"/"success"/"danger"`, which otherwise keep DevExtreme blue/green.
+The replacements, all native: `DxButton` → `<button class="sign-btn …">`, `DxTextBox` /
+`DxTextArea` / `DxDateBox` → `<input class="field">` / `<textarea>` / `<input type="date">`,
+`DxPopup` → **`components/ui/AppModal.vue`**, a ~40-line wrapper over native `<dialog>`
+(`v-model:open`, `title`, `width`). `<dialog>` brings Esc-to-close, focus trapping,
+`::backdrop` and top-layer stacking for free.
+
+Two traps that cost real debugging when this was done — both verified in a browser, not
+reasoned about:
+- **Never put `display` directly on `.modal`.** An author-level `display: flex` overrides the
+  UA rule `dialog:not([open]) { display: none }`, so every *closed* dialog renders inline,
+  in flow, with no backdrop. The layout rules live on `.modal[open]`.
+- **`.sign-btn--danger` inverts per theme**, like `.act-pill.is-on` and `.chip--cinnabar`:
+  white-on-cinnabar measures **3.66:1** in dark (fails AA for 14px bold). Light is
+  white on `--cinnabar-ink` (6.2:1), dark is `--ink` on `--cinnabar` (4.9:1).
+
+Two DevExtreme workarounds deleted themselves with it: `PostDetail`/`Chat` had `@input`
+handlers digging `e.event.target.value` / `e.component.option('text')` because DxTextBox's
+`v-model` lagged a keystroke — native `v-model` is current, so `PostDetail`'s handler went
+away entirely (the existing `watch(contentPost, detectMention)` already did the work).
+`SignUp`'s `formatDate` went too: `<input type="date">` already yields `YYYY-MM-DD`.
+`AppModal` also has **no fixed height** (DxPopup's was fixed, which is why the 420px
+"Tạo bài viết" popup was cramped) — it sizes to content, caps at 90vh, then `.modal__body`
+scrolls.
 
 Mobile (≤720px): the header's `div.flex-1` spacer is hidden and replaced with an auto-margin
 — flex-grow eats the first line's free space and pushes the avatar group onto a second row,

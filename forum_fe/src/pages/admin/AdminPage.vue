@@ -37,16 +37,16 @@
             <div class="card">
                 <div class="section-title">Cấp quyền admin</div>
                 <div class="flex gap-2">
-                    <DxTextBox v-model="grantId" placeholder="userId cần cấp quyền" class="flex-1"/>
-                    <DxButton text="Cấp quyền" type="default" @click="doGrant"/>
+                    <input type="text" class="field flex-1" v-model="grantId" placeholder="userId cần cấp quyền" />
+                    <button type="button" class="sign-btn" @click="doGrant">Cấp quyền</button>
                 </div>
             </div>
 
             <div class="card">
                 <div class="section-title">Chặn người dùng</div>
                 <div class="flex gap-2">
-                    <DxTextBox v-model="banId" placeholder="userId cần chặn" class="flex-1"/>
-                    <DxButton text="Chặn" type="danger" @click="() => doBan(banId)"/>
+                    <input type="text" class="field flex-1" v-model="banId" placeholder="userId cần chặn" />
+                    <button type="button" class="sign-btn sign-btn--danger" @click="() => doBan(banId)">Chặn</button>
                 </div>
             </div>
 
@@ -83,12 +83,10 @@
                         </div>
                     </div>
                     <div v-if="r.status === 'OPEN'" class="flex gap-1 flex-none">
-                        <DxButton v-if="r.targetStatus === 'hidden'" text="Khôi phục" type="success" stylingMode="outlined"
-                            @click="() => doRestore(r)" />
-                        <DxButton v-if="r.targetType !== 'USER'" text="Xoá nội dung" type="danger" stylingMode="outlined"
-                            @click="() => doRemove(r)" />
-                        <DxButton text="Đã xử lý" stylingMode="outlined" @click="() => doHandle(r, 'RESOLVED')" />
-                        <DxButton text="Bỏ qua" stylingMode="text" @click="() => doHandle(r, 'DISMISSED')" />
+                        <button type="button" class="sign-btn sign-btn--outline" v-if="r.targetStatus === 'hidden'" @click="() => doRestore(r)">Khôi phục</button>
+                        <button type="button" class="sign-btn sign-btn--outline sign-btn--outline-danger" v-if="r.targetType !== 'USER'" @click="() => doRemove(r)">Xoá nội dung</button>
+                        <button type="button" class="sign-btn sign-btn--outline" @click="() => doHandle(r, 'RESOLVED')">Đã xử lý</button>
+                        <button type="button" class="sign-btn sign-btn--quiet" @click="() => doHandle(r, 'DISMISSED')">Bỏ qua</button>
                     </div>
                 </div>
             </div>
@@ -121,10 +119,8 @@
                                 <td class="pr-3">{{ u.reportedQuantity }}</td>
                                 <td class="pr-3">{{ u.blockedAt || '-' }}</td>
                                 <td>
-                                    <DxButton v-if="u.reportStatus === 'blocked'"
-                                        text="Bỏ chặn" stylingMode="outlined" @click="() => doUnban(u.userId)"/>
-                                    <DxButton v-else
-                                        text="Chặn" type="danger" stylingMode="outlined" @click="() => doBan(u.userId)"/>
+                                    <button type="button" class="sign-btn sign-btn--outline" v-if="u.reportStatus === 'blocked'" @click="() => doUnban(u.userId)">Bỏ chặn</button>
+                                    <button type="button" class="sign-btn sign-btn--outline sign-btn--outline-danger" v-else @click="() => doBan(u.userId)">Chặn</button>
                                 </td>
                             </tr>
                         </tbody>
@@ -154,8 +150,6 @@
 </template>
 
 <script setup>
-import { DxTextBox } from 'devextreme-vue/text-box';
-import { DxButton } from 'devextreme-vue/button';
 import { onMounted, ref, inject } from 'vue';
 import { useRouter } from 'vue-router';
 import { getBlacklist, grantAdmin, banUser, unbanUser, getAdminStats, getAdminLogs } from '@/apis/admin';

@@ -371,9 +371,59 @@ h1, h2, h3, h4 {
 }
 .sign-btn:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--stroke); }
 .sign-btn:active { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--stroke); }
+.sign-btn:hover { background: #FFC03F; }
 .sign-btn--ink { background: var(--ink); color: #FFF; }
-.sign-btn--quiet { background: transparent; box-shadow: none; }
+.sign-btn--ink:hover { background: #14524F; }
+/* Đỏ son phải đảo theo theme, giống .act-pill.is-on và .chip--cinnabar: nền sáng
+   dùng chữ trắng trên son đậm; nền tối dùng chữ mực trên son, vì trắng-trên-son ở
+   theme tối chỉ được 3.7:1 (trượt AA cho chữ 14px đậm). */
+.sign-btn--danger { background: var(--cinnabar-ink); color: #FFF; }
+.sign-btn--danger:hover { background: var(--cinnabar); }
+:root[data-theme="dark"] .sign-btn--danger { background: var(--cinnabar); color: var(--ink); }
+:root[data-theme="dark"] .sign-btn--danger:hover { background: #F07A62; color: var(--ink); }
+/* Viền: nền trong suốt, không bóng đổ — dùng cho hành động phụ. */
+.sign-btn--outline {
+    background: transparent;
+    color: var(--text);
+    box-shadow: none;
+}
+.sign-btn--outline:hover { background: var(--turmeric-wash); transform: none; box-shadow: none; }
+.sign-btn--outline-danger { border-color: var(--cinnabar); color: var(--cinnabar-ink); }
+/* Chữ trơn: không viền, không bóng. */
+.sign-btn--quiet {
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+}
 .sign-btn--quiet:hover { background: var(--turmeric-wash); transform: none; box-shadow: none; }
+.sign-btn--quiet-danger { color: var(--cinnabar-ink); }
+.sign-btn:disabled,
+.sign-btn:disabled:hover {
+    opacity: .5;
+    cursor: default;
+    transform: none;
+    box-shadow: var(--lift-sm);
+}
+.sign-btn--quiet:disabled, .sign-btn--outline:disabled,
+.sign-btn--quiet:disabled:hover, .sign-btn--outline:disabled:hover { box-shadow: none; background: transparent; }
+.sign-btn--block { width: 100%; }
+
+/* ============================ Ô NHẬP ============================
+   Một class cho input/textarea/select, thay DxTextBox/DxTextArea/DxDateBox. */
+.field {
+    width: 100%;
+    font-family: inherit;
+    font-size: var(--fs-ui);
+    color: var(--text);
+    background: var(--surface);
+    border: 1.5px solid var(--line-soft);
+    border-radius: var(--radius-control);
+    padding: 8px 11px;
+}
+.field:focus { outline: none; border-color: var(--stroke); }
+.field::placeholder { color: var(--text-muted); opacity: 1; }
+.field:disabled { opacity: .6; cursor: default; }
+textarea.field { resize: vertical; min-height: 60px; }
 
 /* ============================ THẺ HASHTAG ============================ */
 
@@ -680,8 +730,6 @@ h1, h2, h3, h4 {
     .app-header__inner > .flex-1 + * { margin-left: auto; }
     .app-header .row-actions { flex-wrap: nowrap; gap: 2px; }
     .hdr-icon { width: 32px; height: 32px; }
-    .app-header .dx-button { min-width: 32px; padding: 0; }
-    .app-header .dx-button .dx-button-content { padding: 6px; }
     .notif-tray { width: calc(100vw - 24px); right: -8px; }
 }
 
@@ -725,44 +773,6 @@ h1, h2, h3, h4 {
     text-align: left;
     font-size: var(--fs-xl);
 }
-
-/* ============================ DEVEXTREME ============================ */
-
-.dx-widget, .dx-button-text { font-family: inherit !important; }
-
-.dx-button {
-    border-radius: var(--radius-control);
-    border-width: var(--line-w);
-    font-weight: 700;
-}
-.dx-button.dx-button-mode-contained.dx-button-default {
-    background: var(--turmeric);
-    border-color: var(--stroke);
-    color: var(--ink);
-    box-shadow: var(--lift-sm);
-}
-.dx-button.dx-button-mode-contained.dx-button-default .dx-icon,
-.dx-button.dx-button-mode-contained.dx-button-default .dx-button-text { color: var(--ink); }
-.dx-button.dx-button-mode-contained.dx-button-default.dx-state-hover { background: #FFC03F; }
-.dx-button.dx-button-mode-contained.dx-button-success {
-    background: var(--ink);
-    border-color: var(--stroke);
-    color: #FFF;
-    box-shadow: var(--lift-sm);
-}
-.dx-button.dx-button-mode-contained.dx-button-success.dx-state-hover { background: #14524F; }
-.dx-button.dx-button-mode-contained.dx-button-danger {
-    background: var(--cinnabar);
-    border-color: var(--stroke);
-    box-shadow: var(--lift-sm);
-}
-.dx-button.dx-button-mode-text { border-color: transparent; box-shadow: none; }
-.dx-button.dx-button-mode-text.dx-state-hover { background: var(--turmeric-wash); }
-/* type="default"/"success" ở chế độ text vẫn giữ xanh dương/xanh lá của DevExtreme
-   -> kéo về bảng màu. (Chế độ contained đã được tô ở trên.) */
-.dx-button.dx-button-mode-text.dx-button-default .dx-button-text,
-.dx-button.dx-button-mode-text.dx-button-success .dx-button-text { color: var(--text) !important; }
-.dx-button.dx-button-mode-text.dx-button-danger .dx-button-text { color: var(--cinnabar-ink) !important; }
 
 /* Menu thả xuống (⋮ trên bài viết): đủ rộng cho nhãn dài, căn trái như menu thật */
 .menu-pop {
@@ -844,27 +854,7 @@ h1, h2, h3, h4 {
     cursor: pointer;
 }
 .img-clear:hover { background: var(--cinnabar); }
-.dx-button.dx-button-mode-outlined {
-    border-color: var(--stroke);
-    background: transparent;
-    color: var(--text);
-}
-.dx-button.dx-button-mode-outlined.dx-state-hover { background: var(--turmeric-wash); }
-.dx-button.dx-button-mode-outlined.dx-button-danger { border-color: var(--cinnabar); color: var(--cinnabar-ink); }
-.app-header .dx-button.dx-button-mode-text.dx-state-hover { background: rgba(255, 255, 255, .12); }
-
-.dx-texteditor.dx-editor-outlined {
-    border-radius: var(--radius-control);
-    border-width: 1.5px;
-    border-color: var(--line-soft);
-    background: var(--surface);
-}
-.dx-texteditor.dx-editor-outlined.dx-state-focused {
-    border-color: var(--stroke);
-    box-shadow: none;
-}
-.dx-texteditor-input { font-family: inherit !important; color: var(--text); }
-.dx-placeholder { color: var(--text-muted); }
+.app-header .sign-btn--quiet:hover { background: rgba(255, 255, 255, .12); }
 
 /* Điều hướng chính: nav thường, KHÔNG dùng DxTabs (xem ghi chú trong
    TheHeader.vue — DxTabs quy chuẩn selectedIndex -1 thành phần tử cuối nên
@@ -902,20 +892,52 @@ h1, h2, h3, h4 {
     .hdr-tab { padding: 7px 10px; }
 }
 
-/* Popup */
-.dx-overlay-content, .dx-popup-normal {
-    border-radius: var(--radius) !important;
-    border: var(--line-w) solid var(--stroke) !important;
-    box-shadow: var(--lift) !important;
+/* ============================ HỘP THOẠI ============================
+   <dialog> thuần (components/ui/AppModal.vue). Native lo sẵn: Esc để đóng, bẫy
+   focus, ::backdrop, xếp lớp top-layer — DxPopup phải tự làm hết những thứ đó. */
+.modal {
+    padding: 0;
+    border: var(--line-w) solid var(--stroke);
+    border-radius: var(--radius);
+    box-shadow: var(--lift);
+    background: var(--surface);
+    color: var(--text);
+    /* Cao theo nội dung, chặn trên 90vh rồi .modal__body tự cuộn. DxPopup cao cố
+       định nên form dài bị cắt — popup "Tạo bài viết" 420px là ví dụ. */
+    max-height: 90vh;
+    max-width: calc(100vw - 24px);
 }
-.dx-popup-title {
+/* Bố cục CHỈ khi đang mở: `display` đặt thẳng trên .modal là style của tác giả nên
+   nó đè quy tắc `dialog:not([open]) { display: none }` của trình duyệt -> hộp thoại
+   đóng vẫn hiện, nằm chình ình trong luồng và không có backdrop. */
+.modal[open] {
+    display: flex;
+    flex-direction: column;
+}
+.modal::backdrop { background: rgba(14, 59, 62, .46); }
+.modal__bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
     background: var(--ink);
     color: #FFF;
-    border-bottom: 0;
-    font-weight: 700;
+    padding: 10px 12px 10px 16px;
 }
-.dx-popup-title .dx-toolbar-label > div { font-weight: 700; font-size: var(--fs-base); }
-.dx-popup-title .dx-closebutton .dx-icon { color: #FFF !important; }
+.modal__title { font-weight: 700; font-size: var(--fs-base); flex: 1; }
+.modal__x {
+    flex: none;
+    width: 28px;
+    height: 28px;
+    display: grid;
+    place-items: center;
+    border: 0;
+    background: transparent;
+    color: #FFF;
+    border-radius: var(--radius-control);
+    cursor: pointer;
+}
+.modal__x:hover { background: rgba(255, 255, 255, .16); }
+.modal__body { padding: 16px; overflow: auto; }
 
 /* ============================ TAILWIND: KÉO VỀ BẢNG MÀU ============================
    17 file còn dùng class Tailwind thô. Thay vì sửa từng chỗ và bỏ sót,

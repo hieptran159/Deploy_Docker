@@ -2,11 +2,11 @@
     <div class="flex flex-col gap-3 py-3">
         <div>
             <label class="text-sm muted">Tiêu đề</label>
-            <DxTextBox v-model="data.title" />
+            <input type="text" class="field" v-model="data.title" />
         </div>
         <div>
             <label class="text-sm muted">Nội dung</label>
-            <DxTextArea v-model="data.body" :height="120" />
+            <textarea style="height: 120px" class="field" v-model="data.body"></textarea>
         </div>
         <div>
             <label class="text-sm muted">Ảnh đính kèm (tuỳ chọn)</label>
@@ -25,16 +25,13 @@
             <span v-for="t in tags" :key="t" class="tag-chip tag-chip--sm">#{{ t }}</span>
         </div>
         <div class="flex justify-end gap-2">
-            <DxButton stylingMode="outlined" text="Lưu nháp" :disabled="busy" @click="() => submit(true)" />
-            <DxButton type="default" text="Đăng bài" :disabled="busy" @click="() => submit(false)" />
+            <button type="button" class="sign-btn sign-btn--outline" :disabled="busy" @click="() => submit(true)">Lưu nháp</button>
+            <button type="button" class="sign-btn" :disabled="busy" @click="() => submit(false)">Đăng bài</button>
         </div>
     </div>
 </template>
 
 <script setup>
-import { DxTextBox } from 'devextreme-vue/text-box';
-import { DxTextArea } from 'devextreme-vue/text-area';
-import { DxButton } from 'devextreme-vue/button';
 import { createdPost } from '@/apis/post';
 import { ref, computed, inject } from 'vue';
 import { extractHashtags } from '@/js/helper';

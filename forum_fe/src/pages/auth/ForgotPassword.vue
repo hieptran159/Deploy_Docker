@@ -7,22 +7,22 @@
                 <p class="muted text-sm -mt-3 mb-1">Nhập email đã đăng ký để nhận mã OTP</p>
                 <div>
                     <label class="text-sm muted">Email</label>
-                    <DxTextBox v-model="email" @enter-key="requestOtp"/>
+                    <input type="text" class="field" v-model="email" @keyup.enter="requestOtp" />
                 </div>
-                <DxButton width="100%" type="default" text="Gửi mã OTP" @click="requestOtp"/>
+                <button type="button" class="sign-btn sign-btn--block" @click="requestOtp">Gửi mã OTP</button>
             </div>
 
             <div v-else class="flex flex-col gap-2">
                 <p class="muted text-sm -mt-3 mb-1">Đã gửi OTP tới email. Nhập OTP và mật khẩu mới.</p>
                 <div>
                     <label class="text-sm muted">Mã OTP</label>
-                    <DxTextBox v-model="token"/>
+                    <input type="text" class="field" v-model="token" />
                 </div>
                 <div>
                     <label class="text-sm muted">Mật khẩu mới (tối thiểu 8 ký tự)</label>
-                    <DxTextBox v-model="newPassword" mode="password" @enter-key="submitReset"/>
+                    <input type="password" class="field" v-model="newPassword" @keyup.enter="submitReset" />
                 </div>
-                <DxButton width="100%" type="default" text="Đặt lại mật khẩu" @click="submitReset"/>
+                <button type="button" class="sign-btn sign-btn--block" @click="submitReset">Đặt lại mật khẩu</button>
             </div>
 
             <div class="text-sm">
@@ -33,8 +33,6 @@
 </template>
 
 <script setup>
-import { DxButton } from 'devextreme-vue/button';
-import { DxTextBox } from 'devextreme-vue/text-box';
 import { useRouter } from 'vue-router';
 import { inject, ref } from 'vue';
 import { requestResetToken, resetPassword } from '@/apis/auth';

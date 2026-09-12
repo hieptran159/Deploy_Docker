@@ -6,22 +6,18 @@
             <div class="form-login-fields">
                 <div>
                     <label class="text-sm muted">Email</label>
-                    <DxTextBox v-model="formData.email" @enter-key="loginHandler"/>
+                    <input type="text" class="field" v-model="formData.email" @keyup.enter="loginHandler" />
                 </div>
                 <div>
                     <label class="text-sm muted">Mật khẩu</label>
-                    <DxTextBox
-                        v-model="formData.password"
-                        mode="password"
-                        @enter-key="loginHandler"
-                    />
+                    <input type="password" class="field" v-model="formData.password" @keyup.enter="loginHandler" />
                 </div>
             </div>
             <label class="flex items-center gap-2 text-sm muted cursor-pointer select-none">
                 <input type="checkbox" v-model="remember" class="cursor-pointer" />
                 Ghi nhớ đăng nhập
             </label>
-            <DxButton width="100%" text="Đăng nhập" type="default" :disabled="busy" @click="loginHandler" />
+            <button type="button" class="sign-btn sign-btn--block" :disabled="busy" @click="loginHandler">Đăng nhập</button>
             <div class="text-sm muted flex flex-wrap items-center justify-between gap-2 mt-1">
                 <span>
                     Chưa có tài khoản?
@@ -39,10 +35,10 @@
             <div class="form-login-fields">
                 <div>
                     <label class="text-sm muted">Mã xác thực</label>
-                    <DxTextBox v-model="code" @enter-key="verifyHandler" />
+                    <input type="text" class="field" v-model="code" @keyup.enter="verifyHandler" />
                 </div>
             </div>
-            <DxButton width="100%" text="Xác nhận" type="default" :disabled="busy" @click="verifyHandler" />
+            <button type="button" class="sign-btn sign-btn--block" :disabled="busy" @click="verifyHandler">Xác nhận</button>
             <div class="text-sm mt-1">
                 <span class="link" @click="backToCreds">← Đăng nhập lại</span>
             </div>
@@ -51,8 +47,6 @@
 </template>
 
 <script setup>
-import { DxTextBox } from 'devextreme-vue/text-box';
-import DxButton from 'devextreme-vue/button';
 import { login, verifyTwoFactor } from '../../apis/auth';
 import { getUserInfo } from '@/apis/user';
 import { inject, ref } from 'vue';
