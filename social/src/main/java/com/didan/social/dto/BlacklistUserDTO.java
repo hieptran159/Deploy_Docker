@@ -7,6 +7,10 @@ public class BlacklistUserDTO {
     private String reportStatus;
     private int reportedQuantity;
     private String blockedAt = null;
+    /** Hết hạn cấm; null = vĩnh viễn. */
+    private String bannedUntil = null;
+    /** Lệnh cấm còn hiệu lực không — FE khỏi phải tự so ngày. */
+    private boolean activeBan = false;
 
     public BlacklistUserDTO() {
     }
@@ -66,4 +70,12 @@ public class BlacklistUserDTO {
     public void setBlockedAt(String blockedAt) {
         this.blockedAt = blockedAt;
     }
+
+    public String getBannedUntil() { return bannedUntil; }
+
+    public void setBannedUntil(String bannedUntil) { this.bannedUntil = bannedUntil; }
+
+    public boolean isActiveBan() { return activeBan; }
+
+    public void setActiveBan(boolean activeBan) { this.activeBan = activeBan; }
 }

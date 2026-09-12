@@ -75,7 +75,7 @@ npm run build     # → dist/, served by nginx in the Docker image
 
 ## Tests
 
-JUnit 5 unit-test suite (122 tests) under `social/src/test/java` — **no DB / Docker / Spring
+JUnit 5 unit-test suite (133 tests) under `social/src/test/java` — **no DB / Docker / Spring
 context**, runs on plain `./mvnw test` (deps already in `spring-boot-starter-test` +
 `spring-security-test`). Service tests use `@ExtendWith(MockitoExtension.class)` +
 `@MockitoSettings(strictness = LENIENT)`, mock every constructor dep, and instantiate the
@@ -89,6 +89,8 @@ impl directly in `@BeforeEach`:
 | `service/impl/FollowServiceImplTest` | block/unblock guards (self, already-blocked no-op, not-blocked reject), `friendStatus` block direction (`blocked_out`/`blocked_in`/`self`/`none`), `isBlockedEither`, `sendRequest` guards (blocked, deactivated target, self) — Mockito, no context |
 | `service/impl/PostServiceImplTest` | `createPost` visibility (`friends`/`private`/default `public`) + draft rules (title-only ok, empty rejected, published missing body); `publishPost` guards (non-author, already published, missing content, happy path); `repost` guards (friends-only, own post, draft, idempotent, saves + notifies) — `ArgumentCaptor<Posts>` |
 | `service/impl/PostServiceImplTest` (poll part) | `deletePost` clears `poll_votes` → `poll_options` → `polls` **in FK order** before the post (same trap `bookmarks` sprang once), and skips those tables when the post has no poll; `createPost` builds a poll only at ≥2 valid options, sanitises option text and caps at 10; `vote` rejects an option from another poll, a post the caller cannot see, and a post with no poll; `unvote` deletes the caller's own row |
+| `entity/BlacklistUserTest` | `isActiveBan` — permanent ban always active, dated ban active before / inactive after its date, non-`blocked` status never counts |
+| `service/impl/AdminServiceImplTest` | temporary bans: no `days` = permanent, `days` sets the right expiry, banning revokes every session, an already-active ban can't be re-applied, re-banning someone whose ban **expired** reuses the existing row (`user_id` is the PK) and keeps `reportedQuantity`, unban clears `bannedUntil` |
 | `service/impl/ReportServiceImplTest` | `ReportServiceImpl.create` auto-hide threshold: invalid type, below threshold no-hide, at threshold sets `status=hidden` + saves, already-hidden untouched, duplicate open report no-op, threshold `0` disables — `ReflectionTestUtils` for `@Value autoHideThreshold` |
 | `service/PostViewThrottleTest` | dedup window for post views: first hit counts, a refresh inside the window does not, different viewers/posts count separately, expiry re-counts, blank viewer never counts, and the key map is swept instead of growing without bound |
 | `service/impl/NotificationServiceImplTest` | `listMinePaged` page/size clamping (negative page→0, size<1→20, size>50→50) via `ArgumentCaptor<Pageable>` |
@@ -129,6 +131,27 @@ frontend tests.
   (`PostRepository.findFeedExcludingAuthors` / `countFeedExcludingAuthors` /
   `searchByKeywordExcludingAuthors`, used only when the exclude set is non-empty — `NOT IN`
   with an empty collection is avoided). Guests (no `me`) get no filtering.
+- Temporary bans: `blacklist_user.banned_until` (Flyway `V13`, NULL = permanent, so every
+  existing row keeps its old meaning). `POST /admin/ban/{id}?days=N` — `days > 0` expires on
+  its own, `0`/absent stays permanent. **`BlacklistUser.isActiveBan()` is the single source of
+  truth** and every caller goes through it: six places used to compare
+  `"blocked".equals(status)` themselves (login, refresh, 2FA verify, profile edit, admin
+  stats, ban/unban) and spreading a date comparison across all six is how a ban ends up
+  expired on one screen and still in force on another. Stats use `countActiveBans(now)`, not
+  `countByStatus("blocked")`, or expired bans keep inflating the number. Re-banning someone
+  whose ban expired **reuses the existing row** — `user_id` is the primary key, inserting a
+  second one throws. `BlacklistUserDTO` carries `bannedUntil` plus a server-computed
+  `activeBan` so the FE never compares dates itself (timezone skew).
+  **`banned_until` is written as a true instant** (`new Date(now + days)`), *not* through the
+  `Timestamp.valueOf(LocalDateTime.now(Asia/Ho_Chi_Minh))` idiom the other 9 timestamp writes
+  in this codebase use. That idiom takes Vietnam wall-clock time and reinterprets it in the
+  JVM's zone, so on a UTC server every such value lands 7 hours ahead — harmless while those
+  columns are only displayed and are all written the same way, but `isActiveBan()` compares
+  `banned_until` against `new Date()`, a real instant. Mixing the two conventions made a
+  "7 day" ban last 7 days 7 hours on a UTC host. CI (which runs UTC) caught it; the test
+  passes under UTC, Asia/Ho_Chi_Minh and America/New_York. FE: duration picker in
+  `AdminPage.vue` (vĩnh viễn / 1 / 7 / 30 ngày) and an "Đến khi" column; the status chip
+  distinguishes "đang chặn" from "hết hạn".
 - Admin audit log: `entity/AdminLog` (table `admin_logs`, `ddl-auto`). `service/AdminLogService.record(action,targetType,targetId,detail)` is a standalone bean, fire-and-forget (swallows its own errors), called from `AdminServiceImpl` (`GRANT_ADMIN`/`BAN_USER`/`UNBAN_USER`) and `ReportServiceImpl` (`HANDLE_REPORT`/`REMOVE_TARGET`/`RESTORE_TARGET`) after the action succeeds. `GET /admin/logs?page=&size=` (`AdminService.getLogs`, admin-gated, newest first). FE: "Nhật ký quản trị" card in `AdminPage.vue` with "Xem thêm".
 - Auto-hide: `Posts.status = "hidden"` is set by `ReportServiceImpl.create` when a POST
   reaches `app.moderation.post-autohide-threshold` (`MOD_POST_AUTOHIDE`, default 3) OPEN

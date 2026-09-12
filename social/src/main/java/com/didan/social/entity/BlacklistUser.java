@@ -23,6 +23,24 @@ public class BlacklistUser {
     @Temporal(TemporalType.TIMESTAMP)
     private Date blockedAt = null;
 
+    /** Hết hạn cấm. NULL = vĩnh viễn. */
+    @Column(name = "banned_until", nullable = true)
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date bannedUntil = null;
+
+    /**
+     * Lệnh cấm này CÒN hiệu lực không.
+     *
+     * Đặt ở entity vì có tới sáu chỗ trong ứng dụng hỏi câu này (đăng nhập, làm mới
+     * token, xác thực 2 bước, đổi hồ sơ, thống kê admin, ban/unban). Rải phép so
+     * sánh ngày ra sáu nơi thì kiểu gì cũng có chỗ quên, và hậu quả là lệnh cấm hết
+     * hạn ở màn này nhưng vẫn còn ở màn kia.
+     */
+    public boolean isActiveBan() {
+        if (!"blocked".equals(status)) return false;
+        return bannedUntil == null || bannedUntil.after(new Date());
+    }
+
 
     public String getUserId() {
         return userId;
@@ -62,5 +80,13 @@ public class BlacklistUser {
 
     public void setUsers(Users users) {
         this.users = users;
+    }
+
+    public Date getBannedUntil() {
+        return bannedUntil;
+    }
+
+    public void setBannedUntil(Date bannedUntil) {
+        this.bannedUntil = bannedUntil;
     }
 }

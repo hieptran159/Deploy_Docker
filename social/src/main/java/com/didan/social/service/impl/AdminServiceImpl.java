@@ -98,7 +98,7 @@ public class AdminServiceImpl implements AdminService {
         m.put("reportsOpen", reportRepository.countByStatus("OPEN"));
         m.put("reportsResolved", reportRepository.countByStatus("RESOLVED"));
         m.put("reportsDismissed", reportRepository.countByStatus("DISMISSED"));
-        m.put("bannedUsers", blacklistUserRepository.countByStatus("blocked"));
+        m.put("bannedUsers", blacklistUserRepository.countActiveBans(new Date()));
 
         // Bài đăng theo ngày, 14 ngày gần nhất
         java.time.LocalDate today = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"));
@@ -158,6 +158,11 @@ public class AdminServiceImpl implements AdminService {
             if (blacklistUser.getBlockedAt() != null){
                 blacklistUserDTO.setBlockedAt(blacklistUser.getBlockedAt().toString());
             }
+            if (blacklistUser.getBannedUntil() != null){
+                blacklistUserDTO.setBannedUntil(blacklistUser.getBannedUntil().toString());
+            }
+            // Tính ở đây, không để FE tự so ngày — lệch múi giờ là ra kết quả khác
+            blacklistUserDTO.setActiveBan(blacklistUser.isActiveBan());
             blacklists.add(blacklistUserDTO);
         }
         return blacklists;
@@ -165,6 +170,15 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     public boolean blockUser(String userId) throws Exception {
+        return blockUser(userId, 0);
+    }
+
+    /**
+     * @param days > 0 -> cấm tới ngần ấy ngày rồi tự hết; <= 0 -> cấm vĩnh viễn
+     *             (giữ nguyên hành vi cũ khi không truyền gì).
+     */
+    @Override
+    public boolean blockUser(String userId, int days) throws Exception {
         Users user = authAdmin();
         Users user_block = userRepository.findFirstByUserId(userId);
         if (user_block == null) {
@@ -173,32 +187,39 @@ public class AdminServiceImpl implements AdminService {
         }
         // Chặn người dùng phải đá HẾT mọi thiết bị của họ, không chỉ một.
         sessionService.revokeAllSessions(userId);
+        LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
+        Date nowSql = Timestamp.valueOf(now);
+        // MỐC THẬT, không đi qua LocalDateTime.
+        //
+        // Chỗ khác trong dự án đều làm Timestamp.valueOf(LocalDateTime.now(Asia/Ho_Chi_Minh)),
+        // tức lấy giờ treo tường ở VN rồi diễn giải theo múi giờ của JVM. Máy chạy
+        // UTC thì giá trị lệch đi 7 tiếng. Các cột đó chỉ để hiển thị và đều được
+        // ghi cùng một kiểu nên vẫn nhất quán với nhau.
+        //
+        // banned_until thì KHÁC: isActiveBan() so nó với new Date() — một mốc thật.
+        // Trộn hai quy ước là lệnh cấm "7 ngày" thành 7 ngày 7 tiếng trên máy UTC.
+        // CI (chạy UTC) đã bắt đúng chỗ này.
+        Date until = days > 0 ? new Date(System.currentTimeMillis() + days * 86_400_000L) : null;
+
         BlacklistUser blacklistUser = blacklistUserRepository.findByUserId(userId);
-        if (blacklistUser != null){
-            if (blacklistUser.getStatus().equals("blocked")){
-                logger.error("User is already in blacklist");
-                throw new Exception("User is already in blacklist");
-            } else {
-                blacklistUser.setStatus("blocked");
-                LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
-                Date nowSql = Timestamp.valueOf(now);
-                blacklistUser.setBlockedAt(nowSql);
-                blacklistUserRepository.save(blacklistUser);
-                adminLogService.record("BAN_USER", "USER", userId, user_block.getFullName());
-                return true;
-            }
-        } else {
-            BlacklistUser newUser = new BlacklistUser();
-            newUser.setUserId(userId);
-            newUser.setStatus("blocked");
-            newUser.setReportedQuantity(1);
-            LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
-            Date nowSql = Timestamp.valueOf(now);
-            newUser.setBlockedAt(nowSql);
-            blacklistUserRepository.save(newUser);
-            adminLogService.record("BAN_USER", "USER", userId, user_block.getFullName());
-            return true;
+        if (blacklistUser != null && blacklistUser.isActiveBan()){
+            logger.error("User is already in blacklist");
+            throw new Exception("User is already in blacklist");
         }
+        // Hàng cũ đã hết hạn cấm thì dùng lại chính nó, không tạo hàng thứ hai
+        // (user_id là khoá chính).
+        if (blacklistUser == null) {
+            blacklistUser = new BlacklistUser();
+            blacklistUser.setUserId(userId);
+            blacklistUser.setReportedQuantity(1);
+        }
+        blacklistUser.setStatus("blocked");
+        blacklistUser.setBlockedAt(nowSql);
+        blacklistUser.setBannedUntil(until);
+        blacklistUserRepository.save(blacklistUser);
+        adminLogService.record("BAN_USER", "USER", userId,
+                user_block.getFullName() + (until == null ? " (vĩnh viễn)" : " (" + days + " ngày)"));
+        return true;
     }
 
     @Override
@@ -217,6 +238,7 @@ public class AdminServiceImpl implements AdminService {
             if (blacklistUser.getStatus().equals("blocked")){
                 blacklistUser.setStatus("pending");
                 blacklistUser.setBlockedAt(null);
+                blacklistUser.setBannedUntil(null);
                 blacklistUser.setReportedQuantity(0);
                 blacklistUserRepository.save(blacklistUser);
                 adminLogService.record("UNBAN_USER", "USER", userId, user_unblock.getFullName());
