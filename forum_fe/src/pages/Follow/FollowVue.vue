@@ -32,18 +32,18 @@
                     <button class="sign-btn sign-btn--ink" @click="() => messageUser(item)">
                         <AppIcon name="message-square" :size="16" /> Nhắn tin
                     </button>
-                    <DxButton type="normal" stylingMode="outlined" text="Huỷ kết bạn" @click="() => confirmUnfriend(item)" />
+                    <button type="button" class="sign-btn sign-btn--outline" @click="() => confirmUnfriend(item)">Huỷ kết bạn</button>
                 </template>
                 <template v-else-if="tab === 'incoming'">
-                    <DxButton type="default" text="Chấp nhận" @click="() => accept(item)" />
-                    <DxButton type="normal" stylingMode="outlined" text="Từ chối" @click="() => decline(item)" />
+                    <button type="button" class="sign-btn" @click="() => accept(item)">Chấp nhận</button>
+                    <button type="button" class="sign-btn sign-btn--outline" @click="() => decline(item)">Từ chối</button>
                 </template>
                 <template v-else-if="tab === 'blocked'">
-                    <DxButton type="normal" stylingMode="outlined" text="Bỏ chặn" @click="() => doUnblock(item)" />
+                    <button type="button" class="sign-btn sign-btn--outline" @click="() => doUnblock(item)">Bỏ chặn</button>
                 </template>
                 <template v-else>
                     <span class="text-xs muted">Đang chờ…</span>
-                    <DxButton type="normal" stylingMode="outlined" text="Huỷ lời mời" @click="() => cancel(item)" />
+                    <button type="button" class="sign-btn sign-btn--outline" @click="() => cancel(item)">Huỷ lời mời</button>
                 </template>
             </div>
 
@@ -72,7 +72,6 @@ import { getItemLocal, LOCALKEYS } from '@/storages/localStorage';
 import { bumpNotifRefresh } from '@/storages/appState';
 import { IMAGE_BASE } from '@/config';
 import BaseAvatar from '@/components/BaseAvatar.vue';
-import { DxButton } from 'devextreme-vue/button';
 
 const router = useRouter();
 const showDialog = inject('openDialogError');

@@ -47,13 +47,13 @@
             <div class="flex flex-col gap-3">
                 <div class="flex flex-col sm:flex-row sm:items-center gap-2">
                     <label class="text-sm font-semibold w-32 flex-none">Tên hiển thị</label>
-                    <DxTextBox v-model="profile.fullName" class="flex-1" placeholder="Tên của bạn" />
+                    <input type="text" class="field flex-1" v-model="profile.fullName" placeholder="Tên của bạn" />
                     <span class="flex-none w-32 text-xs muted text-center">Luôn công khai</span>
                 </div>
                 <div v-for="f in fields" :key="f.key" class="flex flex-col sm:flex-row sm:items-center gap-2">
                     <label class="text-sm font-semibold w-32 flex-none">{{ f.label }}</label>
-                    <DxTextArea v-if="f.area" v-model="profile[f.key]" class="flex-1" :height="60" />
-                    <DxTextBox v-else v-model="profile[f.key]" class="flex-1" :placeholder="f.ph" />
+                    <textarea style="height: 60px" class="field flex-1" v-if="f.area" v-model="profile[f.key]"></textarea>
+                    <input type="text" class="field flex-1" v-else v-model="profile[f.key]" :placeholder="f.ph" />
                     <button
                         type="button"
                         class="act-pill flex-none w-32 justify-center"
@@ -65,7 +65,7 @@
                     </button>
                 </div>
                 <div class="flex justify-end">
-                    <DxButton type="default" text="Lưu thông tin" @click="saveProfile" />
+                    <button type="button" class="sign-btn" @click="saveProfile">Lưu thông tin</button>
                 </div>
             </div>
         </div>
@@ -73,22 +73,22 @@
         <div class="card">
             <div class="section-title">Xác thực</div>
             <p class="muted text-sm mb-2">Nhập mật khẩu hiện tại — bắt buộc cho các thay đổi bên dưới.</p>
-            <DxTextBox v-model="currentPassword" mode="password" placeholder="Mật khẩu hiện tại" />
+            <input type="password" class="field" v-model="currentPassword" placeholder="Mật khẩu hiện tại" />
         </div>
 
         <div class="card">
             <div class="section-title">Đổi email</div>
             <div class="flex flex-col sm:flex-row gap-2">
-                <DxTextBox v-model="newEmail" class="flex-1" placeholder="Email mới" />
-                <DxButton type="default" text="Cập nhật email" @click="updateEmail" />
+                <input type="text" class="field flex-1" v-model="newEmail" placeholder="Email mới" />
+                <button type="button" class="sign-btn" @click="updateEmail">Cập nhật email</button>
             </div>
         </div>
 
         <div class="card">
             <div class="section-title">Đổi mật khẩu</div>
             <div class="flex flex-col sm:flex-row gap-2">
-                <DxTextBox v-model="newPassword" mode="password" class="flex-1" placeholder="Mật khẩu mới (tối thiểu 8 ký tự)" />
-                <DxButton type="default" text="Đổi mật khẩu" @click="updatePassword" />
+                <input type="password" class="field flex-1" v-model="newPassword" placeholder="Mật khẩu mới (tối thiểu 8 ký tự)" />
+                <button type="button" class="sign-btn" @click="updatePassword">Đổi mật khẩu</button>
             </div>
         </div>
 
@@ -102,12 +102,11 @@
                 <span class="chip" :class="twoFAOn ? 'chip--turmeric' : 'chip--quiet'">
                     {{ twoFAOn ? 'Đang bật' : 'Đang tắt' }}
                 </span>
-                <DxButton
-                    :type="twoFAOn ? 'normal' : 'default'"
-                    :stylingMode="twoFAOn ? 'outlined' : 'contained'"
-                    :text="twoFAOn ? 'Tắt' : 'Bật'"
-                    @click="toggleTwoFA"
-                />
+                <button
+                    type="button"
+                    class="sign-btn"
+                    :class="{ 'sign-btn--outline': twoFAOn }"
+                    @click="toggleTwoFA">{{ twoFAOn ? 'Tắt' : 'Bật' }}</button>
             </div>
         </div>
 
@@ -115,7 +114,7 @@
             <div class="section-title">Đổi ảnh đại diện</div>
             <div class="flex flex-col sm:flex-row sm:items-center gap-2">
                 <input type="file" accept="image/*" class="flex-1" @change="handleFileChange" />
-                <DxButton type="default" text="Cập nhật ảnh" @click="updateAvatar" />
+                <button type="button" class="sign-btn" @click="updateAvatar">Cập nhật ảnh</button>
             </div>
         </div>
 
@@ -123,7 +122,7 @@
             <div class="section-title">Đổi ảnh bìa</div>
             <div class="flex flex-col sm:flex-row sm:items-center gap-2">
                 <input type="file" accept="image/*" class="flex-1" @change="handleCoverChange" />
-                <DxButton type="default" text="Cập nhật ảnh bìa" @click="saveCover" />
+                <button type="button" class="sign-btn" @click="saveCover">Cập nhật ảnh bìa</button>
             </div>
         </div>
 
@@ -134,11 +133,11 @@
             </p>
             <div class="flex flex-col gap-2 items-start">
                 <div>
-                    <DxButton type="normal" stylingMode="outlined" text="Vô hiệu hoá tạm thời" @click="deactivateMe" />
+                    <button type="button" class="sign-btn sign-btn--outline" @click="deactivateMe">Vô hiệu hoá tạm thời</button>
                     <span class="muted text-xs ml-2">Ẩn tài khoản + nội dung khỏi người khác. Đăng nhập lại để kích hoạt.</span>
                 </div>
                 <div>
-                    <DxButton type="danger" text="Xoá tài khoản của tôi" @click="deleteMe" />
+                    <button type="button" class="sign-btn sign-btn--danger" @click="deleteMe">Xoá tài khoản của tôi</button>
                     <span class="muted text-xs ml-2">Xoá <b>vĩnh viễn</b> bài viết, bình luận, tin nhắn, bạn bè.</span>
                 </div>
             </div>
@@ -148,9 +147,6 @@
 
 <script setup>
 import AppIcon from '@/components/AppIcon.vue';
-import { DxButton } from 'devextreme-vue/button';
-import { DxTextBox } from 'devextreme-vue/text-box';
-import { DxTextArea } from 'devextreme-vue/text-area';
 import { useRouter } from 'vue-router';
 import { computed, inject, onMounted, ref } from 'vue';
 import { editUser, updateProfile, getUserInfo, deleteAccount, deactivateAccount, updateCover } from '@/apis/user';

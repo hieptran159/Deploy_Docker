@@ -2,11 +2,11 @@
     <div class="flex flex-col gap-3 py-3">
         <div>
             <label class="text-sm muted">Tiêu đề</label>
-            <DxTextBox v-model="data.title" />
+            <input type="text" class="field" v-model="data.title" />
         </div>
         <div>
             <label class="text-sm muted">Nội dung</label>
-            <DxTextArea v-model="data.body" :height="120" />
+            <textarea style="height: 120px" class="field" v-model="data.body"></textarea>
         </div>
         <div>
             <label class="text-sm muted">Ảnh đính kèm (để trống nếu giữ nguyên)</label>
@@ -25,15 +25,12 @@
             <span v-for="t in tags" :key="t" class="tag-chip tag-chip--sm">#{{ t }}</span>
         </div>
         <div class="flex justify-end">
-            <DxButton type="default" text="Cập nhật" @click="submitEdit" />
+            <button type="button" class="sign-btn" @click="submitEdit">Cập nhật</button>
         </div>
     </div>
 </template>
 
 <script setup>
-import { DxTextBox } from 'devextreme-vue/text-box';
-import { DxTextArea } from 'devextreme-vue/text-area';
-import { DxButton } from 'devextreme-vue/button';
 import { updatePost } from '@/apis/post';
 import { ref, computed, watch } from 'vue';
 import { extractHashtags } from '@/js/helper';

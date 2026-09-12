@@ -47,18 +47,16 @@
             <button class="sign-btn flex-none" @click="ishowCreatePost = true">
                 <AppIcon name="edit" :size="16" /> Viết bài
             </button>
-            <DxPopup
+            <AppModal
                 title="Tạo bài viết mới"
-                v-model:visible="ishowCreatePost"
+                v-model:open="ishowCreatePost"
                 :width="700"
-                :height="420"
-                :hide-on-outside-click="true"
             >
                 <CreatePost
                     @close="() => { ishowCreatePost = false; getListPost(); loadTrending() }"
                     @post-fail="showDialog('Đăng bài thất bại')"
                 />
-            </DxPopup>
+            </AppModal>
         </div>
 
         <div class="card">
@@ -75,13 +73,14 @@
                 <button v-if="isLogin" class="icon-btn" title="Bản nháp" @click="router.push('/drafts')">
                     <AppIcon name="file-text" :size="18" />
                 </button>
-                <DxTextBox
+                <input
+                    type="search"
+                    style="width: 200px"
+                    class="field"
                     v-model="searchText"
-                    @enter-key="handleSearch"
-                    @value-changed="onSearchChanged"
+                    @keyup.enter="handleSearch"
+                    @input="onSearchChanged"
                     placeholder="Tìm bài viết…"
-                    :show-clear-button="true"
-                    width="200"
                 />
             </div>
 
@@ -125,7 +124,7 @@
                 <button class="icon-btn" title="Trang sau" :disabled="currentPage >= totalPages" @click="currentPageChange(1)">
                     <AppIcon name="chevron-right" :size="18" />
                 </button>
-                <DxButton text="Đi tới" stylingMode="text" @click="doGoto" />
+                <button type="button" class="sign-btn sign-btn--quiet" @click="doGoto">Đi tới</button>
             </div>
         </div>
     </div>
@@ -133,9 +132,7 @@
 
 <script setup>
 import Post from '../../components/Post/Post.vue';
-import { DxButton } from 'devextreme-vue/button';
-import { DxPopup } from 'devextreme-vue/popup';
-import { DxTextBox } from 'devextreme-vue/text-box';
+import AppModal from '@/components/ui/AppModal.vue';
 import { getListPostApi, searchPost, getFeedPages, getFriendsFeed, getFriendsFeedPages, getTrendingHashtags } from '@/apis/post';
 import { computed, inject, nextTick, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
@@ -253,8 +250,9 @@ watch(() => router.currentRoute.value.query.page, () => {
     }
 });
 
-const onSearchChanged = (e) => {
-    if (!e?.value) clearSearch();
+// input[type=search]: bấm nút ✕ của trình duyệt cũng bắn @input -> ô rỗng thì bỏ tìm kiếm
+const onSearchChanged = () => {
+    if (!searchText.value) clearSearch();
 }
 
 const clearSearch = () => {

@@ -32,7 +32,7 @@
             <div v-else class="flex flex-col gap-2 flex-none">
                 <template v-if="fStatus === 'blocked_out'">
                     <span class="text-xs muted">Bạn đã chặn người này</span>
-                    <DxButton type="normal" stylingMode="outlined" text="Bỏ chặn" @click="doUnblock" />
+                    <button type="button" class="sign-btn sign-btn--outline" @click="doUnblock">Bỏ chặn</button>
                 </template>
                 <template v-else-if="fStatus === 'blocked_in'">
                     <span class="text-xs muted">Không khả dụng</span>
@@ -45,10 +45,10 @@
                     <button v-if="fStatus === 'none'" class="sign-btn" @click="doSend">
                         <AppIcon name="user-plus" :size="16" /> Kết bạn
                     </button>
-                    <DxButton v-else-if="fStatus === 'pending_out'" type="normal" stylingMode="outlined" text="Huỷ lời mời" @click="doCancel" />
+                    <button type="button" class="sign-btn sign-btn--outline" v-else-if="fStatus === 'pending_out'" @click="doCancel">Huỷ lời mời</button>
                     <template v-else-if="fStatus === 'pending_in'">
-                        <DxButton type="default" text="Chấp nhận kết bạn" @click="doAccept" />
-                        <DxButton type="normal" stylingMode="outlined" text="Từ chối" @click="doDecline" />
+                        <button type="button" class="sign-btn" @click="doAccept">Chấp nhận kết bạn</button>
+                        <button type="button" class="sign-btn sign-btn--outline" @click="doDecline">Từ chối</button>
                     </template>
                     <button v-else-if="fStatus === 'friends'" class="sign-btn sign-btn--quiet" @click="doUnfriend">
                         <AppIcon name="check" :size="16" /> Bạn bè
@@ -106,7 +106,6 @@
 
 <script setup>
 import AppIcon from '@/components/AppIcon.vue';
-import { DxButton } from 'devextreme-vue/button';
 import { onMounted, ref, computed, watch, inject } from 'vue';
 import { useRouter } from 'vue-router';
 import { getUserInfo } from '@/apis/user';

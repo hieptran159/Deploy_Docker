@@ -55,9 +55,9 @@
 
             <!-- ô trả lời -->
             <div v-if="showReply" class="flex items-center gap-2 mt-2">
-                <DxTextBox v-model="replyText" class="flex-1" placeholder="Viết trả lời…" @enter-key="sendReply" />
-                <DxButton type="default" text="Gửi" @click="sendReply" />
-                <DxButton stylingMode="text" text="Huỷ" @click="() => { showReply = false; replyText = '' }" />
+                <input type="text" class="field flex-1" v-model="replyText" placeholder="Viết trả lời…" @keyup.enter="sendReply" />
+                <button type="button" class="sign-btn" @click="sendReply">Gửi</button>
+                <button type="button" class="sign-btn sign-btn--quiet" @click="() => { showReply = false; replyText = '' }">Huỷ</button>
             </div>
 
             <!-- danh sách trả lời (đệ quy, không giới hạn cấp) -->
@@ -79,12 +79,10 @@
             </div>
         </div>
 
-        <DxPopup
+        <AppModal
             title="Chỉnh sửa bình luận"
-            v-model:visible="isShowEditComment"
+            v-model:open="isShowEditComment"
             :width="600"
-            :height="300"
-            :hide-on-outside-click="true"
         >
             <EditComments
                 :commentId="comment?.commentId"
@@ -92,7 +90,7 @@
                 @close="() => { isShowEditComment = false; emits('refresh') }"
                 @update-fail="() => { isShowEditComment = false }"
             />
-        </DxPopup>
+        </AppModal>
     </div>
 </template>
 
@@ -100,9 +98,7 @@
 import { ref, computed, inject } from 'vue';
 import { useRouter } from 'vue-router';
 import { timeAgo, formatDateTime } from '@/js/helper';
-import { DxPopup } from 'devextreme-vue/popup';
-import { DxTextBox } from 'devextreme-vue/text-box';
-import { DxButton } from 'devextreme-vue/button';
+import AppModal from '@/components/ui/AppModal.vue';
 import { likeCommentApi, unLikeCommentApi, deleteComment, createComment } from '@/apis/comment';
 import { LOCALKEYS, getItemLocal } from '@/storages/localStorage';
 import { IMAGE_BASE } from '@/config';

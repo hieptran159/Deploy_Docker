@@ -13,9 +13,8 @@
                             </button>
                         </div>
                         <div v-if="showCreate" class="mt-2 flex flex-col gap-2">
-                            <DxTextBox v-model="createName" placeholder="Tên nhóm" />
-                            <DxTextBox v-model="memberQuery" placeholder="Lọc bạn bè để thêm…"
-                                @input="searchMembers" @enter-key="searchMembers" />
+                            <input type="text" class="field" v-model="createName" placeholder="Tên nhóm" />
+                            <input type="text" class="field" v-model="memberQuery" placeholder="Lọc bạn bè để thêm…" @input="searchMembers" @keyup.enter="searchMembers" />
                             <div class="border rounded-lg divide-y max-h-40 overflow-y-auto">
                                 <button v-for="u in memberResults" :key="u.userId"
                                     class="w-full text-left px-2 py-1.5 text-sm hover:bg-gray-50 flex justify-between"
@@ -34,7 +33,7 @@
                                     <button @click="unpickMember(u.userId)">×</button>
                                 </span>
                             </div>
-                            <DxButton text="Tạo nhóm" type="default" @click="doCreateGroup" />
+                            <button type="button" class="sign-btn" @click="doCreateGroup">Tạo nhóm</button>
                         </div>
                     </div>
 
@@ -42,7 +41,7 @@
                     <div>
                         <span class="text-sm font-bold">Tìm nhóm để tham gia</span>
                         <div class="flex gap-2 mt-1">
-                            <DxTextBox v-model="searchName" placeholder="Tên nhóm…" class="flex-1" @enter-key="handleSearch" />
+                            <input type="text" class="field flex-1" v-model="searchName" placeholder="Tên nhóm…" @keyup.enter="handleSearch" />
                             <button class="sign-btn flex-none" title="Tìm nhóm" @click="handleSearch">
                                 <AppIcon name="search" :size="16" />
                             </button>
@@ -51,7 +50,7 @@
                             <div v-for="c in searchResults" :key="c.conversationId"
                                 class="flex items-center justify-between px-2 py-1.5 text-sm">
                                 <span class="truncate">{{ displayName(c) }}</span>
-                                <DxButton text="Tham gia" stylingMode="text" @click="() => handleJoin(c)" />
+                                <button type="button" class="sign-btn sign-btn--quiet" @click="() => handleJoin(c)">Tham gia</button>
                             </div>
                         </div>
                     </div>
@@ -112,7 +111,7 @@
                         </span>
                         <div class="min-w-0 flex-1">
                             <div v-if="renaming" class="flex items-center gap-1">
-                                <DxTextBox v-model="renameText" class="flex-1" @enter-key="saveRename" />
+                                <input type="text" class="field flex-1" v-model="renameText" @keyup.enter="saveRename" />
                                 <button class="icon-btn icon-btn--sm" title="Lưu tên" @click="saveRename"><AppIcon name="check" :size="17" /></button>
                                 <button class="icon-btn icon-btn--sm" title="Huỷ" @click="renaming = false"><AppIcon name="x" :size="17" /></button>
                             </div>
@@ -136,7 +135,7 @@
                             :title="active.muted ? 'Bật lại thông báo' : 'Tắt thông báo'" @click="toggleMute">
                             <AppIcon :name="active.muted ? 'bell-off' : 'bell'" :size="18" />
                         </button>
-                        <DxButton text="Rời" type="danger" stylingMode="text" @click="handleLeave" />
+                        <button type="button" class="sign-btn sign-btn--quiet sign-btn--quiet-danger" @click="handleLeave">Rời</button>
                     </div>
 
                     <div v-if="showMembers && !isDm(active.conversationName)" class="px-3 py-2 border-b bg-gray-50 flex flex-wrap gap-1.5">
@@ -163,7 +162,7 @@
 
                             <!-- chế độ sửa -->
                             <div v-if="editingId === m.messageId" class="flex items-center gap-1 w-[280px]">
-                                <DxTextBox v-model="editText" class="flex-1" @enter-key="saveEdit(m)" />
+                                <input type="text" class="field flex-1" v-model="editText" @keyup.enter="saveEdit(m)" />
                                 <button class="icon-btn icon-btn--sm" title="Lưu" @click="saveEdit(m)"><AppIcon name="check" :size="17" /></button>
                                 <button class="icon-btn icon-btn--sm" title="Huỷ" @click="cancelEdit"><AppIcon name="x" :size="17" /></button>
                             </div>
@@ -248,8 +247,7 @@
                         <input ref="fileEl" type="file" accept="image/*" class="hidden" @change="onPickImg" />
                         <EmojiPicker direction="up" @pick="addDraftEmoji" />
                         <div class="flex-1 relative">
-                            <DxTextBox v-model="draft" placeholder="Nhập tin nhắn… (@ để nhắc tên)" class="w-full"
-                                @enter-key="sendMessage" @input="onDraftInput" @focus-in="onInputFocus" @focus-out="onDraftBlur" />
+                            <input type="text" class="field w-full" v-model="draft" placeholder="Nhập tin nhắn… (@ để nhắc tên)" @keyup.enter="sendMessage" @input="onDraftInput" @focus="onInputFocus" @blur="onDraftBlur" />
                             <div v-if="mentionOpen && mentionResults.length"
                                 class="absolute z-40 left-0 right-0 bottom-full mb-1 bg-[var(--surface)] border rounded-lg shadow-lg overflow-hidden">
                                 <button v-for="u in mentionResults" :key="u.userId" type="button"
@@ -260,7 +258,7 @@
                                 </button>
                             </div>
                         </div>
-                        <DxButton text="Gửi" type="default" @click="sendMessage" />
+                        <button type="button" class="sign-btn" @click="sendMessage">Gửi</button>
                       </div>
                     </div>
                 </template>
@@ -268,28 +266,26 @@
         </div>
 
         <!-- Thêm thành viên vào nhóm đang mở (chỉ bạn bè) -->
-        <DxPopup title="Thêm bạn bè vào nhóm" v-model:visible="showAddMember" :width="460" :height="440" :hide-on-outside-click="true">
+        <AppModal title="Thêm bạn bè vào nhóm" v-model:open="showAddMember" :width="460">
             <div class="flex flex-col gap-2">
-                <DxTextBox v-model="addQuery" placeholder="Lọc bạn bè…" @input="searchAdd" @enter-key="searchAdd" />
+                <input type="text" class="field" v-model="addQuery" placeholder="Lọc bạn bè…" @input="searchAdd" @keyup.enter="searchAdd" />
                 <div v-if="addResults.length" class="border rounded-lg divide-y max-h-72 overflow-y-auto">
                     <div v-for="u in addResults" :key="u.userId" class="flex items-center justify-between px-2 py-2 text-sm">
                         <span class="truncate">{{ u.fullName }}</span>
-                        <DxButton text="Thêm" stylingMode="text" @click="() => doAddMember(u)" />
+                        <button type="button" class="sign-btn sign-btn--quiet" @click="() => doAddMember(u)">Thêm</button>
                     </div>
                 </div>
                 <div v-else class="muted text-sm">
                     {{ friends.length ? 'Không có bạn bè phù hợp' : 'Bạn chưa có bạn bè nào để thêm' }}
                 </div>
             </div>
-        </DxPopup>
+        </AppModal>
     </div>
 </template>
 
 <script setup>
 import AppIcon from '@/components/AppIcon.vue';
-import { DxTextBox } from 'devextreme-vue/text-box';
-import { DxButton } from 'devextreme-vue/button';
-import { DxPopup } from 'devextreme-vue/popup';
+import AppModal from '@/components/ui/AppModal.vue';
 import { onMounted, onBeforeUnmount, nextTick, ref, computed, inject, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { io } from 'socket.io-client';
@@ -912,12 +908,9 @@ const mentionCandidates = () => {
     return out;
 };
 
-const onDraftInput = (e) => {
+const onDraftInput = () => {
     onTyping();
-    let v = e?.event?.target?.value;
-    if (v == null && e?.component?.option) v = e.component.option('text');
-    if (v == null) return;
-    draft.value = v;
+    const v = draft.value || '';
     const mm = v.match(MENTION_TAIL);
     if (!mm || (active.value && isDm(active.value.conversationName))) { mentionOpen.value = false; return; }
     const q = mm[1].toLowerCase();

@@ -111,8 +111,7 @@
                         :is-show="false"
                     />
                     <div class="flex-1 relative">
-                        <DxTextBox class="w-full" placeholder="Viết bình luận… (gõ @ để nhắc tên)" v-model="contentPost"
-                            @input="onCommentType" @enter-key="commentPost" @focus-out="onCommentBlur" />
+                        <input type="text" class="field w-full" placeholder="Viết bình luận… (gõ @ để nhắc tên)" v-model="contentPost" @keyup.enter="commentPost" @blur="onCommentBlur" />
                         <div v-if="mentionOpen && mentionResults.length"
                             class="absolute z-30 left-0 right-0 top-full mt-1 bg-[var(--surface)] border rounded-lg shadow-lg overflow-hidden">
                             <button v-for="u in mentionResults" :key="u.userId" type="button"
@@ -128,7 +127,7 @@
                         <AppIcon name="image" :size="19" />
                     </button>
                     <input ref="commentFileEl" type="file" accept="image/*" class="hidden" @change="onCommentImg" />
-                    <DxButton type="default" text="Gửi" @click="commentPost" />
+                    <button type="button" class="sign-btn" @click="commentPost">Gửi</button>
                 </div>
                 <div v-if="commentImgPreview" class="mt-2 ml-14 relative inline-block">
                     <img :src="commentImgPreview" class="max-h-32 rounded-lg border" />
@@ -155,13 +154,11 @@
             </div>
         </div>
 
-        <DxPopup
+        <AppModal
             v-if="ishowEditPost"
             title="Chỉnh sửa bài viết"
-            v-model:visible="ishowEditPost"
+            v-model:open="ishowEditPost"
             :width="700"
-            :height="420"
-            :hide-on-outside-click="true"
         >
             <EditPost
                 :postId="id"
@@ -171,7 +168,7 @@
                 @close="() => { ishowEditPost = false; getDataPostById() }"
                 @post-fail="showDialog('Cập nhật bài viết thất bại')"
             />
-        </DxPopup>
+        </AppModal>
     </div>
 </template>
 
@@ -186,9 +183,7 @@ import { markReadByTarget } from '@/apis/notification';
 import { useRouter } from 'vue-router';
 import { calculateTimeDifference } from '@/js/helper';
 import Comment from '../comment/Comment.vue';
-import { DxTextBox } from 'devextreme-vue/text-box';
-import { DxButton } from 'devextreme-vue/button';
-import { DxPopup } from 'devextreme-vue/popup';
+import AppModal from '@/components/ui/AppModal.vue';
 import AppIcon from '@/components/AppIcon.vue';
 import BaseAvatar from '../BaseAvatar.vue';
 import EmojiPicker from '@/components/EmojiPicker.vue';
@@ -259,11 +254,6 @@ const detectMention = async (val) => {
 };
 
 // DxTextBox v-model chỉ đồng bộ khi blur -> đọc trực tiếp từ sự kiện input
-const onCommentType = (e) => {
-    let v = e?.event?.target?.value;
-    if (v == null && e?.component?.option) v = e.component.option('text');
-    if (v != null) contentPost.value = v;
-};
 const onCommentBlur = () => { setTimeout(() => { mentionOpen.value = false; }, 120); };
 
 watch(contentPost, detectMention);

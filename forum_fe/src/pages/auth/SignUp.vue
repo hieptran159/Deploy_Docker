@@ -7,25 +7,25 @@
             <div class="form-sign-up flex flex-col">
                 <div>
                     <label class="text-sm muted">Họ và tên</label>
-                    <DxTextBox v-model="dataForm.fullName"/>
+                    <input type="text" class="field" v-model="dataForm.fullName" />
                 </div>
                 <div>
                     <label class="text-sm muted">Email</label>
-                    <DxTextBox v-model="dataForm.email"/>
+                    <input type="text" class="field" v-model="dataForm.email" />
                 </div>
                 <div>
                     <label class="text-sm muted">Mật khẩu (tối thiểu 8 ký tự)</label>
-                    <DxTextBox v-model="dataForm.password" mode="password"/>
+                    <input type="password" class="field" v-model="dataForm.password" />
                 </div>
                 <div>
                     <label class="text-sm muted">Ngày sinh</label>
-                    <DxDateBox v-model="dataForm.birthday" type="date" display-format="yyyy-MM-dd" width="100%"/>
+                    <input type="date" class="field" v-model="dataForm.birthday" />
                 </div>
                 <div>
                     <label class="text-sm muted">Ảnh đại diện (tuỳ chọn)</label>
                     <input type="file" accept="image/*" @change="handleFileChange">
                 </div>
-                <DxButton width="100%" text="Đăng ký" type="default" @click="handleSignUp"/>
+                <button type="button" class="sign-btn sign-btn--block" @click="handleSignUp">Đăng ký</button>
                 <div class="text-sm muted mt-1">
                     Đã có tài khoản?
                     <span class="link" @click="() => route.push('/login')">Đăng nhập</span>
@@ -41,9 +41,9 @@
             </p>
             <div>
                 <label class="text-sm muted">Mã xác thực</label>
-                <DxTextBox v-model="code" @enter-key="handleVerify" />
+                <input type="text" class="field" v-model="code" @keyup.enter="handleVerify" />
             </div>
-            <DxButton width="100%" text="Xác thực & đăng nhập" type="default" @click="handleVerify" />
+            <button type="button" class="sign-btn sign-btn--block" @click="handleVerify">Xác thực & đăng nhập</button>
             <div class="text-sm">
                 <span class="link" @click="handleResend">Gửi lại mã</span>
                 <span class="muted"> · </span>
@@ -54,9 +54,6 @@
 </template>
 
 <script setup>
-import { DxButton } from 'devextreme-vue/button';
-import { DxTextBox } from 'devextreme-vue/text-box';
-import { DxDateBox } from 'devextreme-vue/date-box';
 import { useRouter } from 'vue-router';
 import { inject, onMounted, ref } from 'vue';
 import { signup, verifyEmail, resendVerify } from "@/apis/auth";
@@ -76,17 +73,9 @@ const dataForm = ref({
     fullName: "",
     email: "",
     password: "",
-    birthday: null,
+    birthday: '',
     avatar: null,
 });
-
-const formatDate = (value) => {
-    if (!value) return "";
-    const d = new Date(value);
-    if (Number.isNaN(d.getTime())) return "";
-    const pad = (n) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-};
 
 function handleFileChange(event) {
     dataForm.value.avatar = event.target.files[0] || null;
@@ -103,7 +92,8 @@ const handleSignUp = async () => {
         return;
     }
     try {
-        const payload = { fullName, email, password, birthday: formatDate(birthday) };
+        // input[type=date] cho sẵn chuỗi "YYYY-MM-DD" — đúng định dạng backend cần
+        const payload = { fullName, email, password, birthday };
         if (avatar) payload.avatar = avatar;
         await signup(payload);
         pendingEmail.value = email;

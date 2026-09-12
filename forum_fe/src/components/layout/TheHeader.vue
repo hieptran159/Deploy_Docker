@@ -90,15 +90,14 @@
             </div>
 
             <div v-else class="row-actions">
-                <DxButton type="success" stylingMode="contained" @click="signUp">Đăng ký</DxButton>
-                <DxButton type="default" stylingMode="contained" @click="() => route.push('/login')">Đăng nhập</DxButton>
+                <button type="button" class="sign-btn sign-btn--ink" @click="signUp">Đăng ký</button>
+                <button type="button" class="sign-btn" @click="() => route.push('/login')">Đăng nhập</button>
             </div>
         </div>
     </header>
 </template>
 
 <script setup>
-import DxButton from 'devextreme-vue/button';
 import { ref, computed, watch, onMounted, onBeforeUnmount, inject } from 'vue';
 import { LOCALKEYS, getItemLocal, setItemLocal, clearAuth } from '@/storages/localStorage';
 import { useRouter } from 'vue-router';

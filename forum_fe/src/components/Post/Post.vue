@@ -85,13 +85,11 @@
         </div>
     </div>
 
-    <DxPopup
+    <AppModal
         v-if="editing"
         title="Sửa bài viết"
-        v-model:visible="editing"
+        v-model:open="editing"
         :width="700"
-        :height="420"
-        :hide-on-outside-click="true"
     >
         <EditPost
             :postId="post.postId"
@@ -101,13 +99,13 @@
             @close="() => { editing = false; emit('refresh') }"
             @post-fail="showDialog?.('Thông báo', 'Cập nhật bài viết thất bại')"
         />
-    </DxPopup>
+    </AppModal>
   </div>
 </template>
 
 <script setup>
 import { computed, ref, inject } from "vue";
-import { DxPopup } from 'devextreme-vue/popup';
+import AppModal from '@/components/ui/AppModal.vue';
 import { calculateTimeDifference } from '../../js/helper';
 import { IMAGE_BASE } from '@/config';
 import { useRouter } from 'vue-router';
