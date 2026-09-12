@@ -53,6 +53,13 @@ gzipped `mysqldump` + `tar` of the `uploads` volume into `backup/` (gitignored),
 `BACKUP_RCLONE_DEST` (`rclone sync` to e.g. Cloudflare R2 / Backblaze B2 free tier), or
 `BACKUP_GIT_DIR` (mirror into a private repo clone, force-pushed as one parentless commit
 so history never grows). Not wired to cron in the repo — install per `DEPLOY.md`.
+`scripts/deploy.sh` is the update path (`git pull` + `up -d --build` + wait for
+`/actuator/health` + prune) — it prunes **only after** the new build reports healthy, because the
+dangling image it deletes is the previous release. Compose has no post-build hook, so a build
+leaves a new cache layer and an untagged image behind every time and nothing removes them: a
+single day of deploys measured **13.1 GB of build cache + 4.1 GB of stale images** against
+272 MB of real volume data. It prunes to a **cap** (5 GB, `DEPLOY_KEEP_CACHE`) rather than
+wiping, since the cache is what keeps the next build short.
 `scripts/backfill-hashtags.sh` is a one-off to index `#tags` in pre-existing posts (see
 the Hashtags note under backend architecture). `scripts/shrink-uploads.sh` is a one-off to
 shrink avatars/covers already stored in the `uploads` volume (dry-run unless `--apply`; see the

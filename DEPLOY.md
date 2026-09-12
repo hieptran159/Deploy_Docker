@@ -73,6 +73,57 @@ docker compose down                 # dừng (giữ dữ liệu)
 docker compose down -v              # dừng + XOÁ dữ liệu (db + ảnh upload)
 ```
 
+## Cập nhật code đang chạy
+
+Dùng script thay vì gõ tay:
+
+```bash
+./scripts/deploy.sh              # kéo code + build + chờ healthy + dọn rác build
+./scripts/deploy.sh --no-pull    # chỉ build lại code đang có
+```
+
+Nó làm ba việc mà `docker compose up -d --build` không làm:
+
+1. **Chờ `/actuator/health` trả UP** (tối đa 180 giây) rồi mới báo thành công. Deploy hỏng
+   thì thoát với mã 1 và chỉ chỗ xem log — thay vì im lặng để lại một backend crash-loop.
+2. **Chỉ dọn sau khi bản mới đã sống.** Image "dangling" chính là bản build trước đó; xoá nó
+   trước khi biết bản mới có chạy không là tự tay đốt đường lui.
+3. **Dọn rác build theo trần** (mặc định giữ 5 GB, đổi bằng `DEPLOY_KEEP_CACHE`).
+
+### Vì sao phải dọn
+
+Mỗi lần `--build` để lại một lớp cache mới và một image bị bỏ nhãn, không có gì tự xoá.
+Đo trên máy thật sau vài lần deploy trong **một ngày**:
+
+```
+Build Cache   350 mục   13.12 GB   (100% dọn được)
+Images         70 cái    5.21 GB   (4.07 GB dọn được)
+```
+
+17 GB, gần nửa chỗ đĩa đang dùng — trong khi volume dữ liệu thật (MySQL + ảnh + Redis) chỉ
+272 MB. Dọn xong: 36G → 18G.
+
+Dọn theo **trần** chứ không xoá sạch, vì cache là thứ làm lần build sau nhanh. Cần dọn tay:
+
+```bash
+docker system prune -f     # image dangling + build cache + container đã dừng
+```
+
+Đừng thêm `-a` (xoá cả image không có container chạy) hay `--volumes` (xoá dữ liệu).
+
+### Chặn từ gốc, cho cả những lần build ngoài script
+
+`docker compose` **không có hook sau khi build**, nên không đặt được việc dọn trong
+`docker-compose.yml`. Chỗ khai báo được là daemon — thêm vào `/etc/docker/daemon.json`:
+
+```json
+{ "builder": { "gc": { "enabled": true, "defaultKeepStorage": "5GB" } } }
+```
+
+rồi `sudo systemctl restart docker` (các container `restart: unless-stopped` tự lên lại).
+Từ đó Docker tự giữ build cache dưới 5 GB kể cả khi bạn gọi `docker compose build` trực tiếp.
+Đây là cấu hình **ngoài repo** — máy mới clone về sẽ không có, nên script ở trên vẫn cần.
+
 ## Deploy lên máy/server khác
 
 1. Copy cả thư mục repo sang máy đích (hoặc `git clone`).
