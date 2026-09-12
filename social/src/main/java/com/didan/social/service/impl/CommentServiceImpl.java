@@ -309,7 +309,12 @@ public class CommentServiceImpl extends ConvertDTO implements CommentService {
             if(StringUtils.hasText(comment.getCommentImg())){
                 fileUploadsService.deleteFile(comment.getCommentImg());
             }
-            String fileName = fileUploadsService.storeFile(editCommentRequest.getCommentImg(), "comment", commentId);
+            // Tên file PHẢI đổi mỗi lần sửa ảnh. Trước đây dùng đúng commentId, nên ảnh mới
+            // ghi vào đúng URL cũ: ai đã tải ảnh cũ thì còn thấy ảnh cũ cho tới khi hết hạn
+            // cache (4 tiếng qua Cloudflare), và URL đó được khai là immutable nên sẽ đóng
+            // băng cả năm. Cùng lý do mà avatar/ảnh bìa/ảnh nhóm đã mang timestamp từ trước.
+            String fileName = fileUploadsService.storeFile(editCommentRequest.getCommentImg(), "comment",
+                    commentId + "-" + System.currentTimeMillis());
             comment.setCommentImg("comment/"+fileName);
         }
         comment.setEditedAt(Timestamp.valueOf(LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"))));
