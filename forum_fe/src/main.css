@@ -425,6 +425,32 @@ h1, h2, h3, h4 {
 .field:disabled { opacity: .6; cursor: default; }
 textarea.field { resize: vertical; min-height: 60px; }
 
+/* ============================ LƯỚI ẢNH BÀI VIẾT ============================
+   Nhiều ảnh xếp lưới ô vuông, viền mực cứng như mọi khối khác. Một ảnh thì để
+   nguyên tỉ lệ thật, không cắt — cắt một tấm ảnh đơn là làm hỏng nó. */
+.post-gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 6px;
+    max-width: 560px;
+}
+.post-gallery img {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border: var(--line-w) solid var(--stroke);
+    display: block;
+}
+.post-gallery.is-single {
+    display: block;
+}
+.post-gallery.is-single img {
+    width: auto;
+    max-width: 100%;
+    aspect-ratio: auto;
+    object-fit: contain;
+}
+
 /* ============================ BÌNH CHỌN ============================
    Thanh tỉ lệ là khối màu phẳng nằm SAU chữ, không phải progress bar bo tròn —
    cùng ngôn ngữ với .board và .post-row. Vàng nghệ = tiếng nói của trang (kết quả

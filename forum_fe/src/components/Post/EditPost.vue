@@ -10,7 +10,10 @@
         </div>
         <div>
             <label class="text-sm muted">Ảnh đính kèm (để trống nếu giữ nguyên)</label>
-            <input type="file" accept="image/*" @change="onFile" />
+            <input type="file" accept="image/*" multiple @change="onFile" />
+            <p v-if="data.postImgs.length" class="muted text-xs mt-1">
+                Đã chọn {{ data.postImgs.length }} ảnh — sẽ THAY toàn bộ ảnh cũ
+            </p>
         </div>
         <div class="flex items-center gap-2">
             <label class="text-sm muted">Ai xem được</label>
@@ -46,7 +49,7 @@ const props = defineProps({
 const data = ref({
     title: props.title ?? '',
     body: props.body ?? '',
-    postImg: null,
+    postImgs: [],
     visibility: props.visibility || 'public',
 });
 
@@ -57,21 +60,23 @@ watch(
         data.value.title = props.title ?? '';
         data.value.body = props.body ?? '';
         data.value.visibility = props.visibility || 'public';
-        data.value.postImg = null;
+        data.value.postImgs = [];
     },
     { immediate: true }
 );
 
 const tags = computed(() => extractHashtags(data.value.title, data.value.body));
 
+const MAX_IMAGES = 8;
 const onFile = (e) => {
-    data.value.postImg = e.target.files[0] || null;
+    data.value.postImgs = Array.from(e.target.files || []).slice(0, MAX_IMAGES);
 }
 
 const submitEdit = async () => {
     try {
         const payload = { title: data.value.title, body: data.value.body, visibility: data.value.visibility };
-        if (data.value.postImg) payload.postImg = data.value.postImg;
+        // Có chọn ảnh mới = THAY toàn bộ bộ ảnh cũ; không chọn thì giữ nguyên.
+        if (data.value.postImgs.length) payload.postImgs = data.value.postImgs;
         await updatePost(props.postId, payload);
         emits("close");
     } catch {

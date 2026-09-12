@@ -10,6 +10,18 @@ public class CreatePostRequest {
     private String title;
     @JsonProperty(required = false)
     private MultipartFile postImg = null;
+    // Nhiều ảnh. postImg (một ảnh) vẫn nhận để auto-poster và client cũ không gãy;
+    // nếu có postImgs thì postImgs thắng.
+    @JsonProperty(required = false)
+    private java.util.List<MultipartFile> postImgs;
+
+    public java.util.List<MultipartFile> getPostImgs() {
+        return postImgs;
+    }
+
+    public void setPostImgs(java.util.List<MultipartFile> postImgs) {
+        this.postImgs = postImgs;
+    }
     @JsonProperty(required = true)
     private String body;
     // "true" -> lưu bản nháp (không lên feed)

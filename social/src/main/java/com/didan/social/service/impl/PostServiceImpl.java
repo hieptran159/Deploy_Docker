@@ -63,8 +63,10 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
                        com.didan.social.service.PostViewThrottle postViewThrottle,
                        com.didan.social.repository.PollRepository pollRepository,
                        com.didan.social.repository.PollOptionRepository pollOptionRepository,
-                       com.didan.social.repository.PollVoteRepository pollVoteRepository
+                       com.didan.social.repository.PollVoteRepository pollVoteRepository,
+                       com.didan.social.repository.PostImageRepository postImageRepository
     ){
+        this.postImageRepository = postImageRepository;
         this.postViewThrottle = postViewThrottle;
         this.pollRepository = pollRepository;
         this.pollOptionRepository = pollOptionRepository;
@@ -88,6 +90,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
     private final com.didan.social.repository.PollRepository pollRepository;
     private final com.didan.social.repository.PollOptionRepository pollOptionRepository;
     private final com.didan.social.repository.PollVoteRepository pollVoteRepository;
+    private final com.didan.social.repository.PostImageRepository postImageRepository;
 
     /** Cùng cờ với RateLimitFilter / màn hình phiên: chỉ tin header proxy khi đứng sau proxy. */
     @org.springframework.beans.factory.annotation.Value("${app.ratelimit.trust-forwarded:false}")
@@ -159,6 +162,69 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         for (PostDTO d : dtos) d.setPoll(byPost.get(d.getPostId()));
     }
 
+    /** Gắn danh sách ảnh cho cả trang bằng MỘT truy vấn, không phải mỗi bài một lần. */
+    private void applyImages(List<PostDTO> dtos) {
+        if (dtos == null || dtos.isEmpty()) return;
+        List<String> postIds = dtos.stream().map(PostDTO::getPostId).collect(Collectors.toList());
+        java.util.Map<String, List<String>> byPost = new java.util.HashMap<>();
+        for (com.didan.social.entity.PostImages img :
+                postImageRepository.findByPostIdInOrderByPositionAsc(postIds)) {
+            byPost.computeIfAbsent(img.getPostId(), k -> new java.util.ArrayList<>()).add(img.getUrl());
+        }
+        for (PostDTO d : dtos) {
+            List<String> urls = byPost.get(d.getPostId());
+            if (urls == null || urls.isEmpty()) continue;
+            d.setImages(urls);
+            // postImg = ảnh đầu tiên, giữ cho client cũ chỉ biết một ảnh
+            d.setPostImg(urls.get(0));
+        }
+    }
+
+    /**
+     * Lưu ảnh của bài: xoá sạch ảnh cũ rồi ghi lại theo đúng thứ tự gửi lên.
+     *
+     * Tên file phải kèm chỉ số — storeFile đặt tên theo id truyền vào, nên nhiều ảnh
+     * cùng dùng postId sẽ đè lên nhau.
+     *
+     * posts.post_img được ghi song song như cầu nối tương thích (ảnh đầu tiên);
+     * bảng post_images mới là nguồn sự thật.
+     */
+    private void saveImages(Posts post, List<org.springframework.web.multipart.MultipartFile> files)
+            throws Exception {
+        String postId = post.getPostId();
+        for (com.didan.social.entity.PostImages old : postImageRepository.findByPostIdOrderByPositionAsc(postId)) {
+            try { fileUploadsService.deleteFile(old.getUrl()); } catch (Exception ignore) { }
+        }
+        postImageRepository.deleteByPostId(postId);
+
+        int i = 0;
+        String first = null;
+        long stamp = System.currentTimeMillis();
+        for (org.springframework.web.multipart.MultipartFile f : files) {
+            if (f == null || f.isEmpty()) continue;
+            if (i >= MAX_POST_IMAGES) break;
+            String name = fileUploadsService.storeFile(f, "post", postId + "-" + stamp + "-" + i);
+            String url = "post/" + name;
+            postImageRepository.save(new com.didan.social.entity.PostImages(
+                    UUID.randomUUID().toString(), postId, url, i));
+            if (first == null) first = url;
+            i++;
+        }
+        post.setPostImg(first);
+    }
+
+    /** Trần số ảnh mỗi bài. Không chặn thì một request nhét được bao nhiêu tuỳ thích. */
+    private static final int MAX_POST_IMAGES = 8;
+
+    /** postImgs thắng nếu có; không thì rơi về postImg đơn lẻ (auto-poster, client cũ). */
+    private static List<org.springframework.web.multipart.MultipartFile> pickFiles(
+            List<org.springframework.web.multipart.MultipartFile> many,
+            org.springframework.web.multipart.MultipartFile one) {
+        if (many != null && many.stream().anyMatch(f -> f != null && !f.isEmpty())) return many;
+        if (one != null && !one.isEmpty()) return java.util.List.of(one);
+        return java.util.List.of();
+    }
+
     private void applyHashtags(List<PostDTO> dtos) {
         if (dtos == null || dtos.isEmpty()) return;
         java.util.List<String> pids = dtos.stream().map(PostDTO::getPostId).distinct().collect(Collectors.toList());
@@ -225,16 +291,19 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         post.setStatus(draft ? "draft" : "published");
         post.setVisibility(normVisibility(createPostRequest.getVisibility()));
         post.setTitle(createPostRequest.getTitle() == null ? "" : createPostRequest.getTitle());
-        if (createPostRequest.getPostImg() != null && !createPostRequest.getPostImg().isEmpty()){
-            String fileName = fileUploadsService.storeFile(createPostRequest.getPostImg(), "post", postId.toString());
-            post.setPostImg("post/"+fileName);
-        }
         post.setBody(createPostRequest.getBody() == null ? "" : createPostRequest.getBody());
         LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
         Date nowSql = Timestamp.valueOf(now);
         post.setPostedAt(nowSql);
         userPost.setUserPostId(new UserPostId(postId.toString(), user.getUserId()));
+        // Lưu bài TRƯỚC rồi mới lưu ảnh: post_images có khoá ngoại trỏ vào posts.
         postRepository.save(post);
+        List<org.springframework.web.multipart.MultipartFile> files =
+                pickFiles(createPostRequest.getPostImgs(), createPostRequest.getPostImg());
+        if (!files.isEmpty()) {
+            saveImages(post, files);
+            postRepository.save(post);
+        }
         userPostRepository.save(userPost);
         syncHashtags(postId.toString(), post.getTitle(), post.getBody());
         createPoll(postId.toString(), createPostRequest.getPollOptions());
@@ -412,6 +481,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         applyRepostInfo(out, meId);
         applyHashtags(out);
         applyPolls(out, meId);
+        applyImages(out);
         return out;
     }
 
@@ -504,6 +574,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         applyRepostInfo(java.util.Collections.singletonList(dto), currentUserOrNull());
         applyHashtags(java.util.Collections.singletonList(dto));
         applyPolls(java.util.Collections.singletonList(dto), meId);
+        applyImages(java.util.Collections.singletonList(dto));
         return dto;
     }
 
@@ -540,6 +611,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         List<PostDTO> items = drafts.stream().map(p -> toListDTO(p, meId)).collect(Collectors.toList());
         applyHashtags(items);
         applyPolls(items, meId);
+        applyImages(items);
         long total = postRepository.countDraftsOfAuthor(meId);
         java.util.Map<String, Object> m = new java.util.HashMap<>();
         m.put("items", items);
@@ -595,6 +667,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         applyRepostInfo(items, meId);
         applyHashtags(items);
         applyPolls(items, meId);
+        applyImages(items);
         long total = postRepository.countPublishedByAuthor(userId, vids, meParam(meId));
         java.util.Map<String, Object> m = new java.util.HashMap<>();
         m.put("items", items);
@@ -626,6 +699,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         applyRepostInfo(items, meId);
         applyHashtags(items);
         applyPolls(items, meId);
+        applyImages(items);
         long total = postHashtagRepository.countPostsByTag(norm, vids, meParam(meId));
         m.put("items", items);
         m.put("total", total);
@@ -677,6 +751,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
             applyRepostInfo(out, meId);
             applyHashtags(out);
             applyPolls(out, meId);
+            applyImages(out);
         }
         long total = repostRepository.countByRepostId_UserId(userId);
         java.util.Map<String, Object> m = new java.util.HashMap<>();
@@ -767,6 +842,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         applyRepostInfo(out, meId);
         applyHashtags(out);
         applyPolls(out, meId);
+        applyImages(out);
         return out;
     }
 
@@ -852,13 +928,19 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
             if(StringUtils.hasText(post.getPostImg())){
                 fileUploadsService.deleteFile(post.getPostImg());
             }
-            String fileName = fileUploadsService.storeFile(editPostRequest.getPostImg(), "post", postId);
-            post.setPostImg("post/"+fileName);
+        }
+        // Gửi ảnh mới = THAY toàn bộ bộ ảnh cũ. Không gửi gì thì giữ nguyên.
+        List<org.springframework.web.multipart.MultipartFile> newFiles =
+                pickFiles(editPostRequest.getPostImgs(), editPostRequest.getPostImg());
+        if (!newFiles.isEmpty()) {
+            saveImages(post, newFiles);
         }
         post.setEditedAt(Timestamp.valueOf(LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"))));
         postRepository.save(post);
         syncHashtags(post.getPostId(), post.getTitle(), post.getBody());
-        return (PostDTO) convertToDTO(post);
+        PostDTO updated = (PostDTO) convertToDTO(post);
+        applyImages(java.util.Collections.singletonList(updated));
+        return updated;
     }
 
     /*
@@ -898,6 +980,12 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
             // Bình chọn: phiếu -> phương án -> cuộc bình chọn, đúng thứ tự khoá ngoại.
             // polls.post_id có FK trỏ vào posts nên bỏ sót là xoá bài thất bại 503 —
             // đúng cái bẫy mà bookmarks đã gây ra một lần rồi.
+            // post_images cũng có khoá ngoại trỏ vào posts -> phải dọn trước, và xoá
+            // luôn file trên đĩa kẻo để lại rác không ai tham chiếu.
+            for (com.didan.social.entity.PostImages img : postImageRepository.findByPostIdOrderByPositionAsc(postId)) {
+                try { fileUploadsService.deleteFile(img.getUrl()); } catch (Exception ignore) { }
+            }
+            postImageRepository.deleteByPostId(postId);
             com.didan.social.entity.Polls poll = pollRepository.findFirstByPostId(postId);
             if (poll != null) {
                 java.util.List<String> pollIds = java.util.List.of(poll.getPollId());

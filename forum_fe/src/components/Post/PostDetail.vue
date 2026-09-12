@@ -61,7 +61,16 @@
                 >#{{ t }}</button>
             </div>
 
-            <img :src="linkPostImg" v-if="post?.postImg" class="max-w-md border-2 border-[var(--ink)] cursor-zoom-in" @click="openLightbox(linkPostImg)" />
+            <div v-if="images.length" class="post-gallery" :class="{ 'is-single': images.length === 1 }">
+                <img
+                    v-for="(src, i) in images"
+                    :key="i"
+                    :src="src"
+                    :alt="`Ảnh ${i + 1} của bài viết`"
+                    class="cursor-zoom-in"
+                    @click="openLightbox(src)"
+                />
+            </div>
 
             <div class="row-actions mt-3 items-center">
                 <ReactionBar
@@ -220,6 +229,11 @@ const openConfirm = inject("openConfirm");
 const openReport = inject("openReport");
 const toast = inject("toast");
 const openLightbox = inject("openLightbox", () => {});
+// Ưu tiên danh sách ảnh mới; bài cũ (hoặc backend chưa cập nhật) chỉ có postImg
+const images = computed(() => {
+    const list = post.value?.images?.length ? post.value.images : (post.value?.postImg ? [post.value.postImg] : []);
+    return list.map((u) => IMAGE_BASE + u);
+});
 const isShowSetting = ref(false);
 const ishowEditPost = ref(false);
 const commentImg = ref(null);

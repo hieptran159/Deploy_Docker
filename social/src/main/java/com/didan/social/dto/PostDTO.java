@@ -33,6 +33,11 @@ public class PostDTO {
     private int views;
     /** Bình chọn gắn kèm, null nếu bài không có. Nạp theo lô ở applyPolls. */
     private PollDTO poll;
+    /**
+     * Tất cả ảnh của bài, theo đúng thứ tự. `postImg` phía trên chỉ còn là ảnh ĐẦU
+     * TIÊN, giữ lại cho client cũ — đọc `images` nếu có.
+     */
+    private List<String> images;
 
     public PostDTO() {
     }
@@ -203,4 +208,8 @@ public class PostDTO {
     public PollDTO getPoll() { return poll; }
 
     public void setPoll(PollDTO poll) { this.poll = poll; }
+
+    public List<String> getImages() { return images; }
+
+    public void setImages(List<String> images) { this.images = images; }
 }
