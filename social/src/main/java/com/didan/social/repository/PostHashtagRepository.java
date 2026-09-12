@@ -54,4 +54,22 @@ public interface PostHashtagRepository extends JpaRepository<PostHashtags, PostH
          + "WHERE p.postId = ph.postHashtagId.postId AND ph.postHashtagId.tag = :tag "
          + "AND (p.status IS NULL OR p.status = 'published') AND " + VIS)
     long countPostsByTag(@Param("tag") String tag, @Param("vids") Collection<String> vids, @Param("me") String me);
+
+    // Bài mang BẤT KỲ tag nào trong danh sách (feed "hashtag đang theo dõi").
+    // DISTINCT là bắt buộc: một bài gắn nhiều tag đang theo dõi sẽ khớp nhiều lần.
+    @Query("SELECT DISTINCT p FROM posts p, post_hashtags ph "
+         + "WHERE p.postId = ph.postHashtagId.postId AND ph.postHashtagId.tag IN :tags "
+         + "AND (p.status IS NULL OR p.status = 'published') AND " + VIS + " "
+         + "ORDER BY p.postedAt DESC, p.postId ASC")
+    List<com.didan.social.entity.Posts> findPostsByTags(@Param("tags") Collection<String> tags,
+                                                        @Param("vids") Collection<String> vids,
+                                                        @Param("me") String me,
+                                                        Pageable pageable);
+
+    @Query("SELECT COUNT(DISTINCT p) FROM posts p, post_hashtags ph "
+         + "WHERE p.postId = ph.postHashtagId.postId AND ph.postHashtagId.tag IN :tags "
+         + "AND (p.status IS NULL OR p.status = 'published') AND " + VIS)
+    long countPostsByTags(@Param("tags") Collection<String> tags,
+                          @Param("vids") Collection<String> vids,
+                          @Param("me") String me);
 }

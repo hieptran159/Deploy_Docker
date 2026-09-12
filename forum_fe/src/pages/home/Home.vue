@@ -64,6 +64,7 @@
                 <div v-if="isLogin" class="seg">
                     <button class="seg__btn" :class="{ 'is-on': feedMode === 'all' }" @click="setFeedMode('all')">Tất cả</button>
                     <button class="seg__btn" :class="{ 'is-on': feedMode === 'friends' }" @click="setFeedMode('friends')">Bạn bè</button>
+                    <button class="seg__btn" :class="{ 'is-on': feedMode === 'tags' }" @click="setFeedMode('tags')">Hashtag</button>
                 </div>
                 <span v-else class="section-title mb-0 flex-1">Bài đăng mới nhất</span>
                 <span class="flex-1"></span>
@@ -91,9 +92,15 @@
 
             <div v-if="loading && !posts.length" class="state">Đang tải…</div>
             <div v-else-if="!posts.length" class="state">
-                {{ searchMode ? 'Không có bài nào khớp với từ khoá này. Thử từ ngắn hơn hoặc một hashtag.'
-                    : (feedMode === 'friends' ? 'Bạn bè của bạn chưa đăng hay chia sẻ gì. Chuyển sang Tất cả để xem toàn diễn đàn.'
-                        : 'Chưa có bài viết nào. Viết bài đầu tiên đi.') }}
+                <template v-if="searchMode">Không có bài nào khớp với từ khoá này. Thử từ ngắn hơn hoặc một hashtag.</template>
+                <template v-else-if="feedMode === 'friends'">Bạn bè của bạn chưa đăng hay chia sẻ gì. Chuyển sang Tất cả để xem toàn diễn đàn.</template>
+                <template v-else-if="feedMode === 'tags' && !followedTags.length">
+                    Bạn chưa theo dõi hashtag nào. Mở một hashtag rồi bấm “Theo dõi”.
+                </template>
+                <template v-else-if="feedMode === 'tags'">
+                    Chưa có bài mới nào dưới {{ followedTags.length }} hashtag bạn theo dõi.
+                </template>
+                <template v-else>Chưa có bài viết nào. Viết bài đầu tiên đi.</template>
             </div>
 
             <div v-for="post in posts" :key="post.postId" class="border-b last:border-b-0">
@@ -133,7 +140,7 @@
 <script setup>
 import Post from '../../components/Post/Post.vue';
 import AppModal from '@/components/ui/AppModal.vue';
-import { getListPostApi, searchPost, getFeedPages, getFriendsFeed, getFriendsFeedPages, getTrendingHashtags } from '@/apis/post';
+import { getFollowedTagsFeed, getListPostApi, searchPost, getFeedPages, getFriendsFeed, getFriendsFeedPages, getTrendingHashtags } from '@/apis/post';
 import { computed, inject, nextTick, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import BaseAvatar from '@/components/BaseAvatar.vue';
@@ -149,7 +156,8 @@ const totalPages = ref(1);
 const gotoPage = ref(currentPage.value);
 const ishowCreatePost = ref(false);
 const loading = ref(false);
-const feedMode = ref(isLogin.value ? 'all' : 'all'); // 'all' | 'friends'
+const feedMode = ref('all'); // 'all' | 'friends' | 'tags'
+const followedTags = ref([]);   // để câu thông báo rỗng nói đúng chuyện gì đang xảy ra
 const trendingTags = ref([]);
 
 const loadTrending = async () => {
@@ -170,6 +178,8 @@ const setFeedMode = (m) => {
 }
 
 const loadPageInfo = async () => {
+    // Feed hashtag trả totalPages ngay trong chính phản hồi -> không có endpoint /pages riêng
+    if (feedMode.value === 'tags') return;
     try {
         const fn = feedMode.value === 'friends' ? getFriendsFeedPages : getFeedPages;
         const info = (await fn())?.data?.data || {};
@@ -220,6 +230,14 @@ function pageFromQuery() {
 const getListPost = async () => {
     loading.value = true;
     try {
+        if (feedMode.value === 'tags' && isLogin.value) {
+            // page của endpoint này bắt đầu từ 0, còn currentPage của trang bắt đầu từ 1
+            const d = (await getFollowedTagsFeed(currentPage.value - 1))?.data?.data || {};
+            posts.value = d.items || [];
+            followedTags.value = d.tags || [];
+            totalPages.value = d.totalPages || 1;
+            return;
+        }
         const fn = (feedMode.value === 'friends' && isLogin.value) ? getFriendsFeed : getListPostApi;
         const data = await fn(currentPage.value);
         posts.value = data?.data?.data || [];

@@ -104,3 +104,22 @@ export const votePoll = (postId, optionId) => {
 export const unvotePoll = (postId) => {
     return authApi.delete(`/post/${postId}/vote`);
 }
+
+/* ---------- theo dõi hashtag ---------- */
+
+export const getFollowedTags = () => {
+    return authApi.get('/post/hashtags/following');
+}
+
+export const followTag = (tag) => {
+    return authApi.post(`/post/hashtags/${encodeURIComponent(tag)}/follow`);
+}
+
+export const unfollowTag = (tag) => {
+    return authApi.delete(`/post/hashtags/${encodeURIComponent(tag)}/follow`);
+}
+
+// page bắt đầu từ 0 (khác /post/get bắt đầu từ 1)
+export const getFollowedTagsFeed = (page = 0, size = 10) => {
+    return authApi.get(`/post/feed/hashtags?page=${page}&size=${size}`);
+}

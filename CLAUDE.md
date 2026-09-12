@@ -259,6 +259,20 @@ frontend tests.
   author. `GET /post/drafts` (mine), `PATCH /post/publish/{id}` (author-only; requires
   title+body, bumps `postedAt` to now). FE: `CreatePost.vue` "Lưu nháp" button, `/drafts`
   page (edit via `EditPost` popup / publish / delete), header tab id 6.
+- Hashtag follows: `hashtag_follows` (PK `(user_id, tag)`, Flyway `V11`).
+  `POST` / `DELETE /post/hashtags/{tag}/follow`, `GET /post/hashtags/following`, and
+  `GET /post/feed/hashtags?page=&size=` (0-based page, unlike `/post/get`) which returns
+  `{items,total,page,totalPages,tags}` in **one** response — there is no separate `/pages`
+  endpoint, so `Home.vue` reads `totalPages` off the feed itself for this mode.
+  Tags are normalised through `HashtagUtils.normalize` on the way in (so `#TIN` and `tin` are
+  the same row, and `tin-tuc` is rejected — only `[\p{L}\p{N}_]`). `findPostsByTags` uses
+  **`SELECT DISTINCT`**: a post carrying two followed tags would otherwise appear twice.
+  Following nothing short-circuits before the query — `IN ()` on an empty collection is
+  invalid SQL, the same trap the block-exclude set already works around.
+  **Deliberately no notifications**: the auto-poster publishes constantly under `#tin`
+  (4,100+ posts), so tag-triggered notifications would carpet-bomb anyone who followed it.
+  Adding them needs batching/rate-limiting first. FE: follow button on `TagPage.vue`, third
+  "Hashtag" tab in the `Home.vue` feed selector.
 - Hashtags: `entity/PostHashtags` (table `post_hashtags`, composite key `post_id`+`tag`,
   `ddl-auto`, indexed on `tag` and `post_id`). `utils/HashtagUtils.extract(title, body)`
   parses `#tag` (`[\p{L}\p{N}_]{1,50}`, Unicode + `_`, lowercased, all-digit tags dropped,

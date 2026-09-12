@@ -64,9 +64,11 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
                        com.didan.social.repository.PollRepository pollRepository,
                        com.didan.social.repository.PollOptionRepository pollOptionRepository,
                        com.didan.social.repository.PollVoteRepository pollVoteRepository,
-                       com.didan.social.repository.PostImageRepository postImageRepository
+                       com.didan.social.repository.PostImageRepository postImageRepository,
+                       com.didan.social.repository.HashtagFollowRepository hashtagFollowRepository
     ){
         this.postImageRepository = postImageRepository;
+        this.hashtagFollowRepository = hashtagFollowRepository;
         this.postViewThrottle = postViewThrottle;
         this.pollRepository = pollRepository;
         this.pollOptionRepository = pollOptionRepository;
@@ -91,6 +93,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
     private final com.didan.social.repository.PollOptionRepository pollOptionRepository;
     private final com.didan.social.repository.PollVoteRepository pollVoteRepository;
     private final com.didan.social.repository.PostImageRepository postImageRepository;
+    private final com.didan.social.repository.HashtagFollowRepository hashtagFollowRepository;
 
     /** Cùng cờ với RateLimitFilter / màn hình phiên: chỉ tin header proxy khi đứng sau proxy. */
     @org.springframework.beans.factory.annotation.Value("${app.ratelimit.trust-forwarded:false}")
@@ -673,6 +676,62 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         m.put("items", items);
         m.put("total", total);
         m.put("page", page);
+        m.put("totalPages", (int) Math.max(1, Math.ceil(total / (double) size)));
+        return m;
+    }
+
+    @Override
+    public List<String> followTag(String tag) throws Exception {
+        String meId = authorizePathService.getUserIdAuthoried();
+        String norm = com.didan.social.utils.HashtagUtils.normalize(tag);
+        if (norm == null) throw new Exception("Hashtag không hợp lệ");
+        // Khoá chính (user_id, tag) lo phần trùng lặp; save() gọi lại cũng vô hại.
+        hashtagFollowRepository.save(new com.didan.social.entity.HashtagFollows(
+                new com.didan.social.entity.keys.HashtagFollowId(meId, norm), new Date()));
+        return hashtagFollowRepository.findTagsOfUser(meId);
+    }
+
+    @Override
+    public List<String> unfollowTag(String tag) throws Exception {
+        String meId = authorizePathService.getUserIdAuthoried();
+        String norm = com.didan.social.utils.HashtagUtils.normalize(tag);
+        if (norm == null) throw new Exception("Hashtag không hợp lệ");
+        hashtagFollowRepository.deleteById(
+                new com.didan.social.entity.keys.HashtagFollowId(meId, norm));
+        return hashtagFollowRepository.findTagsOfUser(meId);
+    }
+
+    @Override
+    public List<String> myFollowedTags() throws Exception {
+        return hashtagFollowRepository.findTagsOfUser(authorizePathService.getUserIdAuthoried());
+    }
+
+    @Override
+    public java.util.Map<String, Object> getFollowedTagsFeed(int page, int size) throws Exception {
+        String meId = authorizePathService.getUserIdAuthoried();
+        if (page < 0) page = 0;
+        if (size < 1) size = 10;
+        if (size > 50) size = 50;
+        java.util.Map<String, Object> m = new java.util.HashMap<>();
+        m.put("page", page);
+        List<String> tags = hashtagFollowRepository.findTagsOfUser(meId);
+        m.put("tags", tags);
+        // IN với tập rỗng là SQL không hợp lệ -> chặn sớm, cũng là câu trả lời đúng
+        if (tags.isEmpty()) {
+            m.put("items", java.util.Collections.emptyList());
+            m.put("total", 0L);
+            m.put("totalPages", 1);
+            return m;
+        }
+        java.util.Collection<String> vids = visibleAuthorIds(meId);
+        List<Posts> posts = postHashtagRepository.findPostsByTags(tags, vids, meParam(meId), PageRequest.of(page, size));
+        List<PostDTO> items = posts.stream().map(p -> toListDTO(p, meId)).collect(Collectors.toList());
+        applyRepostInfo(items, meId);
+        applyHashtags(items);
+        applyPolls(items, meId);
+        long total = postHashtagRepository.countPostsByTags(tags, vids, meParam(meId));
+        m.put("items", items);
+        m.put("total", total);
         m.put("totalPages", (int) Math.max(1, Math.ceil(total / (double) size)));
         return m;
     }

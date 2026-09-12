@@ -130,6 +130,57 @@ public class PostController {
         }
     }
     // Create one Post
+    @Operation(summary = "Hashtag tôi đang theo dõi", security = @SecurityRequirement(name = "bearerAuth"))
+    @GetMapping("/hashtags/following")
+    public ResponseEntity<?> myFollowedTags(){
+        return tagsResponse(() -> postService.myFollowedTags(), "Hashtag đang theo dõi");
+    }
+
+    @Operation(summary = "Theo dõi hashtag", security = @SecurityRequirement(name = "bearerAuth"))
+    @PostMapping("/hashtags/{tag}/follow")
+    public ResponseEntity<?> followTag(@PathVariable String tag){
+        return tagsResponse(() -> postService.followTag(tag), "Đã theo dõi hashtag");
+    }
+
+    @Operation(summary = "Bỏ theo dõi hashtag", security = @SecurityRequirement(name = "bearerAuth"))
+    @DeleteMapping("/hashtags/{tag}/follow")
+    public ResponseEntity<?> unfollowTag(@PathVariable String tag){
+        return tagsResponse(() -> postService.unfollowTag(tag), "Đã bỏ theo dõi hashtag");
+    }
+
+    @Operation(summary = "Feed theo hashtag đang theo dõi", security = @SecurityRequirement(name = "bearerAuth"))
+    @GetMapping("/feed/hashtags")
+    public ResponseEntity<?> followedTagsFeed(@RequestParam(defaultValue = "0") int page,
+                                              @RequestParam(defaultValue = "10") int size){
+        ResponseData payload = new ResponseData();
+        try {
+            payload.setData(postService.getFollowedTagsFeed(page, size));
+            payload.setDescription("Feed theo hashtag đang theo dõi");
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e){
+            payload.setSuccess(false);
+            payload.setStatusCode(500);
+            payload.setDescription(e.getMessage());
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
+    private interface TagsCall { java.util.List<String> run() throws Exception; }
+
+    private ResponseEntity<?> tagsResponse(TagsCall call, String ok){
+        ResponseData payload = new ResponseData();
+        try {
+            payload.setData(call.run());
+            payload.setDescription(ok);
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e){
+            payload.setSuccess(false);
+            payload.setStatusCode(500);
+            payload.setDescription(e.getMessage());
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
     @Operation(summary = "Bỏ phiếu bình chọn", description = "Bỏ hoặc đổi phiếu; trả về kết quả mới nhất",
             security = @SecurityRequirement(name = "bearerAuth"))
     @PostMapping("/{postId}/vote")

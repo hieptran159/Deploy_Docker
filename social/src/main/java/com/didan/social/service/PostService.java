@@ -70,4 +70,14 @@ public interface PostService {
 
     /** Rút phiếu của mình khỏi cuộc bình chọn của bài. */
     com.didan.social.dto.PollDTO unvote(String postId) throws Exception;
+
+    /** Theo dõi một hashtag. Trả về danh sách tag đang theo dõi sau thao tác. */
+    java.util.List<String> followTag(String tag) throws Exception;
+
+    java.util.List<String> unfollowTag(String tag) throws Exception;
+
+    java.util.List<String> myFollowedTags() throws Exception;
+
+    /** Feed các bài mang bất kỳ hashtag nào tôi đang theo dõi. */
+    java.util.Map<String, Object> getFollowedTagsFeed(int page, int size) throws Exception;
 }
