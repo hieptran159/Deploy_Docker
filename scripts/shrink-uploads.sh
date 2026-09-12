@@ -43,11 +43,16 @@ echo "Giới hạn: avatar/conversation ${AVATAR_MAX}px, cover ${COVER_MAX}px"
 [ "$APPLY" = "1" ] && echo "CHẾ ĐỘ: ghi đè thật" || echo "CHẾ ĐỘ: chỉ xem (thêm --apply để ghi)"
 echo
 
-docker run --rm -v "$VOL":/data -e APPLY="$APPLY" \
+# `-i` là BẮT BUỘC: phần việc bên dưới được nạp qua stdin. Thiếu nó thì docker không nối
+# stdin, `sh -s` đọc EOF rồi thoát với mã 0 — script "thành công" mà không sửa gì và cũng
+# không in gì. Đã bị đúng lỗi này một lần; dấu hiệu __SHRINK_DONE__ ở dưới là để lần sau
+# không thể im lặng mà vẫn báo xong.
+out="$(docker run --rm -i -v "$VOL":/data -e APPLY="$APPLY" \
     -e AVATAR_MAX="$AVATAR_MAX" -e COVER_MAX="$COVER_MAX" \
     alpine:3.20 sh -s <<'INNER'
 set -eu
-apk add --no-cache imagemagick >/dev/null 2>&1
+ROOT="${ROOT:-/data}"   # đổi được để chạy thử ngoài container
+apk add --no-cache imagemagick >/dev/null 2>&1 || { echo "Không cài được imagemagick" >&2; exit 1; }
 
 shrink_dir() {
     dir="$1"; max="$2"
@@ -61,6 +66,8 @@ shrink_dir() {
         [ "$w" = 0 ] && continue
         long=$w; [ "$h" -gt "$w" ] && long=$h
         size=$(wc -c < "$f")
+        # Đủ nhỏ VÀ đủ nhẹ thì bỏ qua. Phải xét cả dung lượng: avatar 503 KB kia chỉ
+        # 516px, chỉ nhìn kích thước thì nó lọt.
         if [ "$long" -le "$max" ] && [ "$size" -lt 120000 ]; then continue; fi
         if [ "$APPLY" = "1" ]; then
             # '>' = chỉ thu nhỏ, không bao giờ phóng to. -strip bỏ EXIF/ICC.
@@ -73,10 +80,24 @@ shrink_dir() {
     echo "   sau:   $(du -sh "$dir" | cut -f1)"
 }
 
-shrink_dir /data/images/avatar "$AVATAR_MAX"
-shrink_dir /data/images/conversation "$AVATAR_MAX"
-shrink_dir /data/images/cover "$COVER_MAX"
+shrink_dir "$ROOT/images/avatar" "$AVATAR_MAX"
+shrink_dir "$ROOT/images/conversation" "$AVATAR_MAX"
+shrink_dir "$ROOT/images/cover" "$COVER_MAX"
+echo __SHRINK_DONE__
 INNER
+)"
+
+printf '%s\n' "$out" | sed '/__SHRINK_DONE__/d'
+
+case "$out" in
+    *__SHRINK_DONE__*) ;;
+    *)
+        echo >&2
+        echo "LỖI: phần chạy trong container không tới cuối -> KHÔNG có file nào được sửa." >&2
+        echo "Đừng tin dòng 'Xong' nào cả. Xem lại output ở trên." >&2
+        exit 1
+        ;;
+esac
 
 echo
 if [ "$APPLY" = "1" ]; then

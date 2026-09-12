@@ -190,7 +190,13 @@ frontend tests.
   **`scripts/shrink-uploads.sh`** (dry-run by default, `--apply` to write) to shrink the ones
   already in the `uploads` volume; it resizes in place with ImageMagick in a throwaway
   container and deliberately **keeps each file's name and format**, because `users.avt_url` /
-  `users.cover_url` / `conversations.avatar_url` point at those names. Re-uploading a picture
+  `users.cover_url` / `conversations.avatar_url` point at those names. Its `docker run` **must
+  keep `-i`**: the work is fed to `sh -s` over stdin, and without `-i` Docker attaches no stdin,
+  so the shell reads EOF and exits **0 with no output** — the script then prints "Xong" having
+  changed nothing, which is exactly what the first real run did. The inner part now ends by
+  echoing `__SHRINK_DONE__` and the outer part exits 1 when that marker is missing, so a silent
+  no-op can never be reported as success again. `ROOT` (default `/data`) exists so the inner
+  part can be run outside Docker against stub `identify`/`mogrify`. Re-uploading a picture
   through the UI is what gets the full 24×.
 - Avatar / cover endpoints: **`PATCH /user/avatar`** and `PATCH /user/cover`, both multipart, both
   **password-free** — changing a picture is not the same class of action as changing an email
