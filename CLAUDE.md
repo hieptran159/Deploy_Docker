@@ -405,7 +405,11 @@ frontend tests.
   screen, it must not be the leak) and **`DELETE /user/sessions/{id}`** revokes one;
   `closeSessionById` requires the row to belong to the caller and returns the *same* message
   for "not found" and "someone else's" so ids can't be probed. FE: "Thiết bị đang đăng nhập"
-  card in `EditProfile.vue`; the current device is chipped and has no logout button.
+  page at **`/profile/sessions`** (`pages/profile/Sessions.vue`), reached from a
+  "Quản lý thiết bị (n)" button in `EditProfile.vue` — the list lives on its own route
+  because a long-lived account accumulates a dozen-plus rows and inlining them pushed every
+  other settings card off the screen; the settings page only fetches the *count*. The current
+  device is chipped and has no logout button.
   **`lastUsedAt` is the last token ROTATION, not the last request** — updating it per request
   would put a DB write on the hot auth path, and access tokens live a day, so it can lag that
   far. The card shows "Đăng nhập <createdAt>" for that reason.
@@ -670,7 +674,7 @@ but `VITE_API_URL` in `.env.local` is **not** — Vite loads `.env.local` in bui
   `beforeEnter` guard **except** `/`, `/post/:id`, and the auth pages — those two are
   public for guests, see the security note): `/`, `/login`, `/signup`, `/forgot-password`,
   `/post/:id`, `/follow` (Friends page: friends / incoming / outgoing / **blocked** tabs),
-  `/users` (user search), `/user/:id` (profile), `/profile/edit`, `/chat`, `/admin`,
+  `/users` (user search), `/user/:id` (profile), `/profile/edit`, `/profile/sessions`, `/chat`, `/admin`,
   `/saved`, `/notifications`, `/drafts`. Guard gates on `Token` + `UserId` in
   `localStorage`. No admin flag is exposed at login, so admin status is probed by
   calling `/admin/blacklist` (a GET only admins can run) after login and on header

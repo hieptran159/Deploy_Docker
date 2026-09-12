@@ -122,23 +122,16 @@
 
         <div class="card">
             <div class="section-title">Thiết bị đang đăng nhập</div>
-            <p class="muted text-sm mb-2">
-                Mỗi dòng là một lần đăng nhập còn hiệu lực. Thấy dòng nào lạ thì đăng xuất nó ngay,
-                rồi đổi mật khẩu.
-            </p>
-            <div v-if="sessionsLoading" class="muted text-sm">Đang tải…</div>
-            <div v-else-if="!sessions.length" class="muted text-sm">Không có phiên nào</div>
-            <div v-else class="flex flex-col">
-                <div v-for="s in sessions" :key="s.sessionId"
-                     class="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 border-t first:border-t-0">
-                    <span class="font-semibold">{{ s.device }}</span>
-                    <span v-if="s.current" class="chip chip--turmeric">Thiết bị này</span>
-                    <span v-if="s.remember" class="chip chip--quiet">Ghi nhớ</span>
-                    <span class="muted text-sm">{{ s.ip || 'không rõ IP' }}</span>
-                    <span class="muted text-sm">Đăng nhập {{ timeAgo(s.createdAt) }}</span>
-                    <button v-if="!s.current" type="button" class="sign-btn sign-btn--quiet sign-btn--quiet-danger ml-auto"
-                            @click="askRevoke(s)">Đăng xuất</button>
-                </div>
+            <div class="flex flex-wrap items-center gap-3">
+                <p class="muted text-sm flex-1 measure mb-0">
+                    Xem những lần đăng nhập còn hiệu lực; thấy thiết bị lạ thì đăng xuất nó rồi
+                    đổi mật khẩu.
+                </p>
+                <button type="button" class="sign-btn sign-btn--outline flex-none"
+                        @click="route.push('/profile/sessions')">
+                    <AppIcon name="shield" :size="16" />
+                    Quản lý thiết bị<span v-if="sessionCount"> ({{ sessionCount }})</span>
+                </button>
             </div>
         </div>
 
@@ -166,12 +159,11 @@ import AppIcon from '@/components/AppIcon.vue';
 import { useRouter } from 'vue-router';
 import { computed, inject, onMounted, ref } from 'vue';
 import { editUser, updateProfile, getUserInfo, deleteAccount, deactivateAccount, updateCover,
-         updateAvatar, getMySessions, revokeSession } from '@/apis/user';
+         updateAvatar, getMySessions } from '@/apis/user';
 import { enableTwoFactor, disableTwoFactor } from '@/apis/auth';
 import { LOCALKEYS, getItemLocal, setItemLocal, clearAuth } from '@/storages/localStorage';
 import { IMAGE_BASE } from '@/config';
 import { applyAvatarUpdate } from '@/storages/appState';
-import { timeAgo } from '@/js/helper';
 
 const route = useRouter();
 const showDialog = inject("openDialogError");
@@ -376,37 +368,16 @@ const deleteMe = () => {
 }
 
 /* ---------- Thiết bị đang đăng nhập ---------- */
-const sessions = ref([]);
-const sessionsLoading = ref(true);
+// Danh sách nằm ở /profile/sessions; ở đây chỉ cần con số cho cái nút.
+const sessionCount = ref(0);
 
 const loadSessions = async () => {
-    sessionsLoading.value = true;
     try {
-        // ?.data?.data: axios response -> ResponseData -> mảng thật (quy ước chung của repo)
-        sessions.value = (await getMySessions())?.data?.data || [];
+        sessionCount.value = ((await getMySessions())?.data?.data || []).length;
     } catch (e) {
-        // Không chặn cả trang hồ sơ chỉ vì một card phụ hỏng
-        sessions.value = [];
-    } finally {
-        sessionsLoading.value = false;
+        // Không chặn cả trang hồ sơ chỉ vì một con số phụ
+        sessionCount.value = 0;
     }
-};
-
-const askRevoke = (s) => {
-    openConfirm(
-        'Đăng xuất thiết bị',
-        `Đăng xuất "${s.device}"? Thiết bị đó sẽ phải đăng nhập lại.`,
-        async () => {
-            try {
-                await revokeSession(s.sessionId);
-                toast?.('Đã đăng xuất thiết bị');
-                loadSessions();
-            } catch (e) {
-                showDialog('Thông báo', e?.description || 'Không đăng xuất được thiết bị');
-            }
-        },
-        { confirmText: 'Đăng xuất', danger: true },
-    );
 };
 
 onMounted(() => {
