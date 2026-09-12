@@ -75,7 +75,7 @@ npm run build     # → dist/, served by nginx in the Docker image
 
 ## Tests
 
-JUnit 5 unit-test suite (84 tests) under `social/src/test/java` — **no DB / Docker / Spring
+JUnit 5 unit-test suite (97 tests) under `social/src/test/java` — **no DB / Docker / Spring
 context**, runs on plain `./mvnw test` (deps already in `spring-boot-starter-test` +
 `spring-security-test`). Service tests use `@ExtendWith(MockitoExtension.class)` +
 `@MockitoSettings(strictness = LENIENT)`, mock every constructor dep, and instantiate the
@@ -92,6 +92,7 @@ impl directly in `@BeforeEach`:
 | `service/impl/NotificationServiceImplTest` | `listMinePaged` page/size clamping (negative page→0, size<1→20, size>50→50) via `ArgumentCaptor<Pageable>` |
 | `utils/EmailTemplateTest` | `EmailTemplate.otp` HTML + HTML-escaping |
 | `utils/HashtagUtilsTest` | `HashtagUtils.extract` (lowercase/dedup, Unicode + `_`, skip all-digit, 20-tag cap) + `normalize` (strip `#`, reject spaces/empty/all-digit/null) |
+| `utils/UserAgentUtilsTest` | `UserAgentUtils.label` — the ordering traps: Edge/Opera/Cốc Cốc all claim to be Chrome, Chrome claims to be Safari, and an Android UA also contains "Linux" |
 | `utils/JwtUtilsTest` | refresh-token round-trip; `validateRefreshToken` rejects an access token; `validateAccessToken` rejects a refresh token; blacklisted refresh token rejected — `ReflectionTestUtils` for `@Value` secret/expiry |
 | `service/impl/AuthServiceImplTest` | `login` withholds tokens + saves a code + sets `twofaRequired` when 2FA on (issues tokens when off); `verifyTwoFactor` guards (wrong code, expired, 2FA disabled) + happy path (case-insensitive code, clears code, issues access+refresh) — 8 mocked ctor deps |
 
@@ -285,7 +286,18 @@ frontend tests.
   `openSession` (login/2FA/verify), `closeSession` (logout: revokes **only** the calling
   device, identified by the raw token that `JwtAuthenticationFilter` now puts in the
   Authentication *credentials*), `revokeAllSessions` (ban / deactivate / delete account).
-  `openSession` also prunes that user's rows older than the refresh TTL.
+  `openSession` also prunes that user's rows older than the refresh TTL, and records
+  `user_agent` + `ip` (Flyway `V7`) so the owner can tell the devices apart — it reads them
+  off the live request via `RequestContextHolder` rather than threading them through the three
+  `AuthServiceImpl` call sites. **`GET /user/sessions`** lists them (`SessionDTO`, which
+  deliberately carries neither the access token nor the refresh hash — this is the security
+  screen, it must not be the leak) and **`DELETE /user/sessions/{id}`** revokes one;
+  `closeSessionById` requires the row to belong to the caller and returns the *same* message
+  for "not found" and "someone else's" so ids can't be probed. FE: "Thiết bị đang đăng nhập"
+  card in `EditProfile.vue`; the current device is chipped and has no logout button.
+  **`lastUsedAt` is the last token ROTATION, not the last request** — updating it per request
+  would put a DB write on the hot auth path, and access tokens live a day, so it can lag that
+  far. The card shows "Đăng nhập <createdAt>" for that reason.
   **Before this, `users.access_token` + `users.refresh_token` were single slots**, so
   logging in on a second device blacklisted the first device's token and overwrote the
   refresh hash — the second login kicked the first out, and it could not even recover via
@@ -338,6 +350,10 @@ frontend tests.
   `ResourceWebConfig.extendMessageConverters` also pins the Jackson converter to
   `application/json;charset=UTF-8` (Spring 6 drops the charset by default). The feed `PostDTO`
   carries `authorName`/`authorAvatar` so `Post.vue` cards don't call `/user/{id}` per row.
+- **Client IP resolution lives in `utils/ClientIpUtils.resolve(request, trustForwarded)`** —
+  one place, because it is a security decision used twice: `RateLimitFilter` keys its counters
+  on it, and the session list shows it to the account owner. Two copies drifting apart would
+  be a quiet bug.
 - `security/RateLimitFilter` (plain servlet filter, order `HIGHEST_PRECEDENCE+5`, runs
   before the JWT filter) throttles POST/PATCH on `/auth/**` and **POST `/report`** per
   client IP with in-memory fixed-window counters (single-instance deploy). Buckets:

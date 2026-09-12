@@ -1,5 +1,6 @@
 package com.didan.social.service.impl;
 
+import com.didan.social.dto.SessionDTO;
 import com.didan.social.entity.BlacklistToken;
 import com.didan.social.entity.UserSessions;
 import com.didan.social.repository.BlacklistRepository;
@@ -16,6 +17,8 @@ import org.mockito.quality.Strictness;
 
 import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -120,5 +123,75 @@ class SessionServiceImplTest {
                 .when(userSessionRepository).deleteByUserIdAndLastUsedAtBefore(anyString(), any(Date.class));
 
         assertDoesNotThrow(() -> svc.openSession(ME, true));
+    }
+
+    /* ---------- Màn hình "Thiết bị đang đăng nhập" ---------- */
+
+    @Test
+    void danhSachThietBiDanhDauDungMayDangGoi() {
+        UserSessions here = session("s-1", "AT-here", "h1");
+        here.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                + "(KHTML, like Gecko) Chrome/128.0 Safari/537.36");
+        here.setIp("1.2.3.4");
+        UserSessions other = session("s-2", "AT-other", "h2");
+        when(userSessionRepository.findByUserIdOrderByLastUsedAtDesc(ME))
+                .thenReturn(Arrays.asList(here, other));
+
+        List<SessionDTO> list = svc.listSessions(ME, "AT-here");
+
+        assertEquals(2, list.size());
+        assertTrue(list.get(0).isCurrent(), "phiên của chính thiết bị đang gọi phải được đánh dấu");
+        assertFalse(list.get(1).isCurrent());
+        assertEquals("Chrome trên Windows", list.get(0).getDevice());
+        assertEquals("1.2.3.4", list.get(0).getIp());
+        // Phiên cũ (trước khi có cột user_agent) vẫn hiển thị được, không nổ NPE
+        assertEquals("Thiết bị không rõ", list.get(1).getDevice());
+    }
+
+    @Test
+    void danhSachThietBiKhongLoToken() throws Exception {
+        UserSessions s1 = session("s-1", "AT-secret", "hash-secret");
+        when(userSessionRepository.findByUserIdOrderByLastUsedAtDesc(ME)).thenReturn(List.of(s1));
+
+        String json = new com.fasterxml.jackson.databind.ObjectMapper()
+                .writeValueAsString(svc.listSessions(ME, "AT-secret"));
+
+        assertFalse(json.contains("AT-secret"), "DTO không được mang access token ra ngoài");
+        assertFalse(json.contains("hash-secret"), "DTO không được mang refresh hash ra ngoài");
+    }
+
+    @Test
+    void dangXuatMotThietBiChiXoaDungPhienDo() throws Exception {
+        UserSessions target = session("s-2", "AT-other", "h2");
+        when(userSessionRepository.findById("s-2")).thenReturn(Optional.of(target));
+
+        svc.closeSessionById(ME, "s-2");
+
+        verify(userSessionRepository).delete(target);
+        ArgumentCaptor<BlacklistToken> cap = ArgumentCaptor.forClass(BlacklistToken.class);
+        verify(blacklistRepository).save(cap.capture());
+        assertEquals("AT-other", cap.getValue().getToken(), "phải chặn token của đúng phiên bị xoá");
+    }
+
+    @Test
+    void khongDaDuocPhienCuaNguoiKhac() {
+        UserSessions cuaNguoiKhac = new UserSessions("s-9", "u-999", "h9", "AT-9", true, new Date());
+        when(userSessionRepository.findById("s-9")).thenReturn(Optional.of(cuaNguoiKhac));
+
+        assertThrows(Exception.class, () -> svc.closeSessionById(ME, "s-9"));
+        verify(userSessionRepository, never()).delete(any());
+        verify(blacklistRepository, never()).save(any());
+    }
+
+    @Test
+    void phienKhongTonTaiBaoLoiGiongPhienCuaNguoiKhac() {
+        when(userSessionRepository.findById("s-x")).thenReturn(Optional.empty());
+        UserSessions cuaNguoiKhac = new UserSessions("s-9", "u-999", "h9", "AT-9", true, new Date());
+        when(userSessionRepository.findById("s-9")).thenReturn(Optional.of(cuaNguoiKhac));
+
+        // Hai thông báo khác nhau sẽ để lộ sessionId nào có thật
+        String a = assertThrows(Exception.class, () -> svc.closeSessionById(ME, "s-x")).getMessage();
+        String b = assertThrows(Exception.class, () -> svc.closeSessionById(ME, "s-9")).getMessage();
+        assertEquals(a, b);
     }
 }

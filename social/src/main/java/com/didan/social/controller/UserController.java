@@ -1,9 +1,12 @@
 package com.didan.social.controller;
 
+import com.didan.social.dto.SessionDTO;
 import com.didan.social.dto.UserDTO;
 import com.didan.social.payload.ResponseData;
 import com.didan.social.payload.request.EditUserRequest;
 import com.didan.social.payload.request.UpdateProfileRequest;
+import com.didan.social.service.AuthorizePathService;
+import com.didan.social.service.SessionService;
 import com.didan.social.service.impl.UserServiceImpl;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -22,6 +25,48 @@ import java.util.List;
 public class UserController {
     @Autowired
     UserServiceImpl userService;
+    @Autowired
+    SessionService sessionService;
+    @Autowired
+    AuthorizePathService authorizePathService;
+
+    @Operation(summary = "Thiết bị đang đăng nhập của tôi",
+            description = "Mỗi hàng là một phiên; current = thiết bị đang gọi API này",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @GetMapping("/sessions")
+    public ResponseEntity<?> mySessions() {
+        ResponseData payload = new ResponseData();
+        try {
+            String userId = authorizePathService.getUserIdAuthoried();
+            List<SessionDTO> data = sessionService.listSessions(
+                    userId, authorizePathService.getAccessTokenAuthoried());
+            payload.setData(data);
+            payload.setDescription("Danh sách thiết bị đang đăng nhập");
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e) {
+            payload.setSuccess(false);
+            payload.setStatusCode(500);
+            payload.setDescription(e.getMessage());
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
+    @Operation(summary = "Đăng xuất một thiết bị", description = "Thu hồi đúng phiên đó, các máy khác không ảnh hưởng",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @DeleteMapping("/sessions/{sessionId}")
+    public ResponseEntity<?> revokeSession(@PathVariable String sessionId) {
+        ResponseData payload = new ResponseData();
+        try {
+            sessionService.closeSessionById(authorizePathService.getUserIdAuthoried(), sessionId);
+            payload.setDescription("Đã đăng xuất thiết bị");
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e) {
+            payload.setSuccess(false);
+            payload.setStatusCode(500);
+            payload.setDescription(e.getMessage());
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
 
     @Operation(summary = "Xoá tài khoản của tôi", description = "Cần mật khẩu hiện tại; xoá vĩnh viễn",
             security = @SecurityRequirement(name = "bearerAuth"))

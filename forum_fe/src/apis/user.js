@@ -50,3 +50,12 @@ export const deleteAccount = (password) => {
 export const deactivateAccount = (password) => {
     return authApi.post(`/user/deactivate?password=${encodeURIComponent(password)}`);
 }
+
+// Thiết bị đang đăng nhập (bảng user_sessions, mỗi hàng một máy)
+export const getMySessions = () => {
+    return authApi.get('/user/sessions');
+}
+
+export const revokeSession = (sessionId) => {
+    return authApi.delete(`/user/sessions/${encodeURIComponent(sessionId)}`);
+}

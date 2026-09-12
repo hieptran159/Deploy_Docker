@@ -111,6 +111,28 @@
         </div>
 
         <div class="card">
+            <div class="section-title">Thiết bị đang đăng nhập</div>
+            <p class="muted text-sm mb-2">
+                Mỗi dòng là một lần đăng nhập còn hiệu lực. Thấy dòng nào lạ thì đăng xuất nó ngay,
+                rồi đổi mật khẩu.
+            </p>
+            <div v-if="sessionsLoading" class="muted text-sm">Đang tải…</div>
+            <div v-else-if="!sessions.length" class="muted text-sm">Không có phiên nào</div>
+            <div v-else class="flex flex-col">
+                <div v-for="s in sessions" :key="s.sessionId"
+                     class="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 border-t first:border-t-0">
+                    <span class="font-semibold">{{ s.device }}</span>
+                    <span v-if="s.current" class="chip chip--turmeric">Thiết bị này</span>
+                    <span v-if="s.remember" class="chip chip--quiet">Ghi nhớ</span>
+                    <span class="muted text-sm">{{ s.ip || 'không rõ IP' }}</span>
+                    <span class="muted text-sm">Đăng nhập {{ timeAgo(s.createdAt) }}</span>
+                    <button v-if="!s.current" type="button" class="sign-btn sign-btn--quiet sign-btn--quiet-danger ml-auto"
+                            @click="askRevoke(s)">Đăng xuất</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
             <div class="section-title">Đổi ảnh đại diện</div>
             <div class="flex flex-col sm:flex-row sm:items-center gap-2">
                 <input type="file" accept="image/*" class="flex-1" @change="handleFileChange" />
@@ -149,11 +171,13 @@
 import AppIcon from '@/components/AppIcon.vue';
 import { useRouter } from 'vue-router';
 import { computed, inject, onMounted, ref } from 'vue';
-import { editUser, updateProfile, getUserInfo, deleteAccount, deactivateAccount, updateCover } from '@/apis/user';
+import { editUser, updateProfile, getUserInfo, deleteAccount, deactivateAccount, updateCover,
+         getMySessions, revokeSession } from '@/apis/user';
 import { enableTwoFactor, disableTwoFactor } from '@/apis/auth';
 import { LOCALKEYS, getItemLocal, setItemLocal, clearAuth } from '@/storages/localStorage';
 import { IMAGE_BASE } from '@/config';
 import { applyAvatarUpdate } from '@/storages/appState';
+import { timeAgo } from '@/js/helper';
 
 const route = useRouter();
 const showDialog = inject("openDialogError");
@@ -358,5 +382,42 @@ const deleteMe = () => {
     );
 }
 
-onMounted(loadProfile);
+/* ---------- Thiết bị đang đăng nhập ---------- */
+const sessions = ref([]);
+const sessionsLoading = ref(true);
+
+const loadSessions = async () => {
+    sessionsLoading.value = true;
+    try {
+        // ?.data?.data: axios response -> ResponseData -> mảng thật (quy ước chung của repo)
+        sessions.value = (await getMySessions())?.data?.data || [];
+    } catch (e) {
+        // Không chặn cả trang hồ sơ chỉ vì một card phụ hỏng
+        sessions.value = [];
+    } finally {
+        sessionsLoading.value = false;
+    }
+};
+
+const askRevoke = (s) => {
+    openConfirm(
+        'Đăng xuất thiết bị',
+        `Đăng xuất "${s.device}"? Thiết bị đó sẽ phải đăng nhập lại.`,
+        async () => {
+            try {
+                await revokeSession(s.sessionId);
+                toast?.('Đã đăng xuất thiết bị');
+                loadSessions();
+            } catch (e) {
+                showDialog('Thông báo', e?.description || 'Không đăng xuất được thiết bị');
+            }
+        },
+        { confirmText: 'Đăng xuất', danger: true },
+    );
+};
+
+onMounted(() => {
+    loadProfile();
+    loadSessions();
+});
 </script>
