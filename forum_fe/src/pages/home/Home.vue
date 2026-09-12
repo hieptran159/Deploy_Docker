@@ -133,7 +133,9 @@
 
 <script setup>
 import Post from '../../components/Post/Post.vue';
-import { DxButton, DxPopup, DxTextBox } from 'devextreme-vue';
+import { DxButton } from 'devextreme-vue/button';
+import { DxPopup } from 'devextreme-vue/popup';
+import { DxTextBox } from 'devextreme-vue/text-box';
 import { getListPostApi, searchPost, getFeedPages, getFriendsFeed, getFriendsFeedPages, getTrendingHashtags } from '@/apis/post';
 import { computed, inject, nextTick, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';

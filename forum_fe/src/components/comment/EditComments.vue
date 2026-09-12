@@ -15,7 +15,8 @@
 </template>
 
 <script setup>
-import { DxTextArea, DxButton } from 'devextreme-vue';
+import { DxTextArea } from 'devextreme-vue/text-area';
+import { DxButton } from 'devextreme-vue/button';
 import { updateComment } from '@/apis/comment';
 import { ref } from 'vue';
 

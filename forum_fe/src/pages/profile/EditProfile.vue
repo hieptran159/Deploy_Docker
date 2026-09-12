@@ -148,7 +148,9 @@
 
 <script setup>
 import AppIcon from '@/components/AppIcon.vue';
-import { DxButton, DxTextBox, DxTextArea } from 'devextreme-vue';
+import { DxButton } from 'devextreme-vue/button';
+import { DxTextBox } from 'devextreme-vue/text-box';
+import { DxTextArea } from 'devextreme-vue/text-area';
 import { useRouter } from 'vue-router';
 import { computed, inject, onMounted, ref } from 'vue';
 import { editUser, updateProfile, getUserInfo, deleteAccount, deactivateAccount, updateCover } from '@/apis/user';

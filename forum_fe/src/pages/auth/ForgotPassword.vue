@@ -33,7 +33,8 @@
 </template>
 
 <script setup>
-import { DxButton, DxTextBox } from 'devextreme-vue';
+import { DxButton } from 'devextreme-vue/button';
+import { DxTextBox } from 'devextreme-vue/text-box';
 import { useRouter } from 'vue-router';
 import { inject, ref } from 'vue';
 import { requestResetToken, resetPassword } from '@/apis/auth';

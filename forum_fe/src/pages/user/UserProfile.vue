@@ -106,7 +106,7 @@
 
 <script setup>
 import AppIcon from '@/components/AppIcon.vue';
-import { DxButton } from 'devextreme-vue';
+import { DxButton } from 'devextreme-vue/button';
 import { onMounted, ref, computed, watch, inject } from 'vue';
 import { useRouter } from 'vue-router';
 import { getUserInfo } from '@/apis/user';

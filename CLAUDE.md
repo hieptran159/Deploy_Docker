@@ -34,7 +34,9 @@ docker compose up -d --build
 
 The compose file: `db` has a TCP healthcheck and `backend` waits on
 `condition: service_healthy`; `backend` itself has a `curl`-based healthcheck against
-`/actuator/health` (curl is `apt-get`-installed in the runtime stage of `social/Dockerfile`)
+`/actuator/health` (curl is `apt-get`-installed in the runtime stage of `social/Dockerfile`, which is
+`eclipse-temurin:17-jre-jammy` — **JRE, so no `jcmd`/`jmap`/`jstack`** for live diagnostics;
+the build stage is `17-jdk-jammy`, and the frontend builder is `node:22-slim` + `npm ci`)
 — informational only, nothing gates on it. On a fresh (empty) `mysql-data` volume the backend's
 **Flyway** run at startup builds the whole schema from
 `social/src/main/resources/db/migration/V1__baseline.sql` (the old `social/db.sql`
@@ -73,7 +75,7 @@ npm run build     # → dist/, served by nginx in the Docker image
 
 ## Tests
 
-JUnit 5 unit-test suite (72 tests) under `social/src/test/java` — **no DB / Docker / Spring
+JUnit 5 unit-test suite (84 tests) under `social/src/test/java` — **no DB / Docker / Spring
 context**, runs on plain `./mvnw test` (deps already in `spring-boot-starter-test` +
 `spring-security-test`). Service tests use `@ExtendWith(MockitoExtension.class)` +
 `@MockitoSettings(strictness = LENIENT)`, mock every constructor dep, and instantiate the
@@ -394,6 +396,17 @@ frontend tests.
   names, nullability. (Watch out: Spring Boot's `CamelCaseToUnderscoresNamingStrategy` is
   applied to explicit `@Column(name=…)` values too — so `Messages`' `@Column(name="messageImg")`
   actually maps to the physical column `message_img`, not `messageImg`.)
+- **Dead dependencies removed (Sep 2026)** — don't re-add them. `log4j-api`/`log4j-core`/
+  `log4j-slf4j-impl` **2.7** were declared *twice* each (Maven warned on every build), used by
+  zero lines of code, and carried Log4Shell (CVE-2021-44228; message lookups are on by default
+  in 2.7). They also put a second SLF4J provider next to Boot's `logback-classic` alongside
+  `log4j-to-slf4j`, so which logger won was undefined. Logging is plain Boot/logback now
+  (`log4j-api` still appears in the tree as the `log4j-to-slf4j` bridge — no `log4j-core`, so no
+  lookup engine). `spring-boot-starter-data-redis` + `lettuce-core` + `jedis` had no Redis
+  anywhere, and `gson` appeared only in a comment. Deleting them also let the
+  `spring.autoconfigure.exclude=` line go from `application.properties` — it existed purely to
+  suppress `RedisAutoConfiguration` and `Log4J2MetricsAutoConfiguration` (the latter needs
+  log4j-core ≥ 2.13, so 2.7 crashed it with `NoClassDefFoundError`).
 - Hibernate dialect is **not** configured — Hibernate 6 auto-detects `MySQLDialect` from the
   JDBC connection at startup (per HHH90000025). The old conflicting `database-platform=MySQL5Dialect`
   (ignored) + `properties.hibernate.dialect=MySQL8Dialect` (deprecated) lines were removed.
@@ -462,6 +475,14 @@ The header nav is a **plain `<nav>` (`.hdr-tab`), not `DxTabs`** — DxTabs norm
 (`/post/:id`, `/tag/:tag`, `/saved`, `/drafts`, `/notifications`, `/profile/edit`) lit up
 "Tìm người dùng"; `selected-item: null` does not deselect either. Don't reintroduce DxTabs here.
 
+**Import DevExtreme components by deep path, never the barrel** —
+`import { DxButton } from 'devextreme-vue/button'`, not `from 'devextreme-vue'`. The barrel
+is not tree-shakeable: every file that used it pulled the whole library in, including
+`VectorMap` with its world geodata — a **6.7 MB** `vector-map-*.js` chunk that the entry
+chunk imported, so every visitor downloaded it. Rewriting 17 barrel imports to deep paths
+(`button` / `text-box` / `text-area` / `popup` / `date-box`, each has `sideEffects: false`)
+took `dist` from **7.9 MB to 2.1 MB**. One barrel import anywhere brings it all back.
+
 DevExtreme still needs `!important` where its own CSS wins: text-mode button colours for
 `type="default"/"success"/"danger"`, which otherwise keep DevExtreme blue/green.
 
@@ -473,7 +494,11 @@ full-width scrollable row; tab labels hide below 1180px (icons stay).
 Local dev against the deployed backend: put `DEV_API_TARGET=https://api.hipe.id.vn` +
 `VITE_API_URL=/api-proxy` in `forum_fe/.env.local`. `vite.config.js` then proxies
 `/api-proxy` same-origin and **strips `Origin`/`Referer`** (the backend's CORS allow-list
-rejects `localhost`, which returns 403 on `/auth/signin`). Dev-server only; builds ignore it.
+rejects `localhost`, which returns 403 on `/auth/signin`). The **proxy** is dev-server only,
+but `VITE_API_URL` in `.env.local` is **not** — Vite loads `.env.local` in build mode too, at a
+*higher* priority than the `.env.production` that `forum_fe/Dockerfile` writes. A local
+`docker compose build frontend` would therefore bake `/api-proxy` into the production bundle.
+`forum_fe/.dockerignore` now excludes `.env.local` / `.env.*.local` to prevent that.
 
 ## Frontend architecture notes
 

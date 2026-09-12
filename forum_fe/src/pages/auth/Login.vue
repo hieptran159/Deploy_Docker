@@ -51,7 +51,7 @@
 </template>
 
 <script setup>
-import { DxTextBox } from 'devextreme-vue';
+import { DxTextBox } from 'devextreme-vue/text-box';
 import DxButton from 'devextreme-vue/button';
 import { login, verifyTwoFactor } from '../../apis/auth';
 import { getUserInfo } from '@/apis/user';

@@ -287,7 +287,9 @@
 
 <script setup>
 import AppIcon from '@/components/AppIcon.vue';
-import { DxTextBox, DxButton, DxPopup } from 'devextreme-vue';
+import { DxTextBox } from 'devextreme-vue/text-box';
+import { DxButton } from 'devextreme-vue/button';
+import { DxPopup } from 'devextreme-vue/popup';
 import { onMounted, onBeforeUnmount, nextTick, ref, computed, inject, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { io } from 'socket.io-client';

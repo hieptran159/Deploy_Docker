@@ -1,4 +1,4 @@
-FROM eclipse-temurin:17-jdk-focal as build
+FROM eclipse-temurin:17-jdk-jammy as build
 WORKDIR /workspace/app
 
 COPY mvnw .
@@ -9,7 +9,7 @@ COPY src src
 RUN chmod +x mvnw
 RUN ./mvnw -q -DskipTests install
 
-FROM eclipse-temurin:17-jdk-focal
+FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
 # curl: cho HEALTHCHECK trong docker-compose.yml gọi /actuator/health
 RUN apt-get update && apt-get install -y --no-install-recommends curl \
