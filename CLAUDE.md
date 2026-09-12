@@ -75,7 +75,7 @@ npm run build     # → dist/, served by nginx in the Docker image
 
 ## Tests
 
-JUnit 5 unit-test suite (149 tests) under `social/src/test/java` — **no DB / Docker / Spring
+JUnit 5 unit-test suite (153 tests) under `social/src/test/java` — **no DB / Docker / Spring
 context**, runs on plain `./mvnw test` (deps already in `spring-boot-starter-test` +
 `spring-security-test`). Service tests use `@ExtendWith(MockitoExtension.class)` +
 `@MockitoSettings(strictness = LENIENT)`, mock every constructor dep, and instantiate the
@@ -405,6 +405,12 @@ frontend tests.
   screen, it must not be the leak) and **`DELETE /user/sessions/{id}`** revokes one;
   `closeSessionById` requires the row to belong to the caller and returns the *same* message
   for "not found" and "someone else's" so ids can't be probed. FE: "Thiết bị đang đăng nhập"
+  **`DELETE /user/sessions`** (no id) closes every *other* device —
+  `closeOtherSessions(userId, currentAccessToken)` skips the row whose `access_token` matches
+  the caller and returns how many it revoked. It is **not** `revokeAllSessions`, which kills
+  the caller's device too and exists for bans / account deletion. If the current token can't
+  be determined it **throws instead of guessing** — guessing wrong logs the user out of the
+  device they just clicked on.
   page at **`/profile/sessions`** (`pages/profile/Sessions.vue`), reached from a
   "Quản lý thiết bị (n)" button in `EditProfile.vue` — the list lives on its own route
   because a long-lived account accumulates a dozen-plus rows and inlining them pushed every

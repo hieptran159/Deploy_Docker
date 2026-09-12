@@ -34,4 +34,15 @@ public interface SessionService {
      * thì bất kỳ ai cũng đá được người khác ra chỉ bằng một id đoán trúng.
      */
     void closeSessionById(String userId, String sessionId) throws Exception;
+
+    /**
+     * Đăng xuất mọi thiết bị KHÁC, giữ lại đúng thiết bị đang gọi.
+     *
+     * Khác revokeAllSessions ở chỗ đó: cái kia đá sạch kể cả người đang bấm nút,
+     * dùng khi bị ban hoặc xoá tài khoản.
+     *
+     * @param currentAccessToken token gốc của thiết bị đang gọi
+     * @return số thiết bị đã bị đăng xuất
+     */
+    int closeOtherSessions(String userId, String currentAccessToken) throws Exception;
 }

@@ -51,6 +51,27 @@ public class UserController {
         }
     }
 
+    @Operation(summary = "Đăng xuất mọi thiết bị khác",
+            description = "Giữ lại đúng thiết bị đang gọi",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @DeleteMapping("/sessions")
+    public ResponseEntity<?> revokeOtherSessions() {
+        ResponseData payload = new ResponseData();
+        try {
+            int n = sessionService.closeOtherSessions(
+                    authorizePathService.getUserIdAuthoried(),
+                    authorizePathService.getAccessTokenAuthoried());
+            payload.setData(n);
+            payload.setDescription("Đã đăng xuất " + n + " thiết bị khác");
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e) {
+            payload.setSuccess(false);
+            payload.setStatusCode(500);
+            payload.setDescription(e.getMessage());
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
     @Operation(summary = "Đăng xuất một thiết bị", description = "Thu hồi đúng phiên đó, các máy khác không ảnh hưởng",
             security = @SecurityRequirement(name = "bearerAuth"))
     @DeleteMapping("/sessions/{sessionId}")

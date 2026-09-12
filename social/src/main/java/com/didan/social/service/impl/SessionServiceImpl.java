@@ -121,6 +121,22 @@ public class SessionServiceImpl implements SessionService {
         userSessionRepository.delete(session);
     }
 
+    @Override
+    public int closeOtherSessions(String userId, String currentAccessToken) throws Exception {
+        // Không biết đâu là thiết bị hiện tại thì KHÔNG đoán: đá nhầm cả người đang
+        // bấm nút là hỏng hẳn trải nghiệm, thà báo lỗi.
+        if (!StringUtils.hasText(currentAccessToken))
+            throw new Exception("Không xác định được thiết bị hiện tại");
+        int n = 0;
+        for (UserSessions s : userSessionRepository.findByUserIdOrderByLastUsedAtDesc(userId)) {
+            if (currentAccessToken.equals(s.getAccessToken())) continue;
+            blacklist(s.getAccessToken());
+            userSessionRepository.delete(s);
+            n++;
+        }
+        return n;
+    }
+
     private HttpServletRequest currentRequest() {
         RequestAttributes attrs = RequestContextHolder.getRequestAttributes();
         return attrs instanceof ServletRequestAttributes sra ? sra.getRequest() : null;
