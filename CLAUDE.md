@@ -54,7 +54,9 @@ gzipped `mysqldump` + `tar` of the `uploads` volume into `backup/` (gitignored),
 `BACKUP_GIT_DIR` (mirror into a private repo clone, force-pushed as one parentless commit
 so history never grows). Not wired to cron in the repo — install per `DEPLOY.md`.
 `scripts/backfill-hashtags.sh` is a one-off to index `#tags` in pre-existing posts (see
-the Hashtags note under backend architecture).
+the Hashtags note under backend architecture). `scripts/shrink-uploads.sh` is a one-off to
+shrink avatars/covers already stored in the `uploads` volume (dry-run unless `--apply`; see the
+avatar/cover note under backend architecture).
 
 **Backend alone:**
 ```
@@ -76,7 +78,7 @@ npm run build     # → dist/, served by nginx in the Docker image
 
 ## Tests
 
-JUnit 5 unit-test suite (162 tests) under `social/src/test/java` — **no DB / Docker / Spring
+JUnit 5 unit-test suite (167 tests) under `social/src/test/java` — **no DB / Docker / Spring
 context**, runs on plain `./mvnw test` (deps already in `spring-boot-starter-test` +
 `spring-security-test`). Service tests use `@ExtendWith(MockitoExtension.class)` +
 `@MockitoSettings(strictness = LENIENT)`, mock every constructor dep, and instantiate the
@@ -85,7 +87,7 @@ impl directly in `@BeforeEach`:
 | Test | Covers |
 |------|--------|
 | `security/RateLimitFilterTest` | `RateLimitFilter` window counter (per-IP, per-bucket, GET/non-auth bypass, disabled flag); XFF **ignored** by default (spoof-proof) and honored only when `trustForwarded` — via `MockHttpServletRequest`/`MockFilterChain` |
-| `service/impl/FileUploadsServiceImplTest` | upload validation + downscale/recompress + small-image passthrough + non-image reject, `MockEnvironment` + `@TempDir` |
+| `service/impl/FileUploadsServiceImplTest` | upload validation + downscale/recompress + small-image passthrough + non-image reject, `MockEnvironment` + `@TempDir`; plus the per-type picture rules — avatar is capped at 256px **and** re-encoded to JPEG (the real 503 KB production avatar shrinks ~24×), an avatar with a genuinely transparent pixel stays PNG, a post image is never forced to JPEG (screenshots), cover caps at 1280px, and the size limits are asserted **against the defaults** (the test deliberately leaves those properties unset) |
 | `service/impl/NormReactionTest` | `PostServiceImpl.normReaction` (static pkg-private) |
 | `service/impl/FollowServiceImplTest` | block/unblock guards (self, already-blocked no-op, not-blocked reject), `friendStatus` block direction (`blocked_out`/`blocked_in`/`self`/`none`), `isBlockedEither`, `sendRequest` guards (blocked, deactivated target, self) — Mockito, no context |
 | `service/impl/PostServiceImplTest` | `createPost` visibility (`friends`/`private`/default `public`) + draft rules (title-only ok, empty rejected, published missing body); `publishPost` guards (non-author, already published, missing content, happy path); `repost` guards (friends-only, own post, draft, idempotent, saves + notifies) — `ArgumentCaptor<Posts>` |
@@ -169,7 +171,28 @@ frontend tests.
   post status into the admin queue; `POST /report/admin/{id}/restore-target`
   (`restoreReportedTarget`) sets it back to `published` and resolves that post's OPEN
   reports (shared `resolveOpenFor` helper with `removeReportedTarget`).
-- Avatar / cover: **`PATCH /user/avatar`** and `PATCH /user/cover`, both multipart, both
+- **Avatar / cover have their own size limits** (`app.file.avatar-max-dimension` = **256**,
+  `app.file.cover-max-dimension` = **1280**, vs `app.file.max-dimension` = 1600 for content
+  images) and are **re-encoded to JPEG**. Before this they shared the 1600px content limit, and
+  `compress` returned the original bytes untouched for any PNG already inside the limit — so a
+  photo saved as PNG was stored verbatim. Measured on production: a **516×507 avatar weighing
+  503 KB**, drawn at 40px everywhere. Through the new path that exact file becomes
+  **20,840 bytes (24×)**; note most of the win is the PNG→JPEG re-encode, not the resize.
+  Two deliberate exceptions: a PNG with a genuinely transparent pixel **stays PNG** (a JPEG
+  avatar with a transparent background renders as a white box inside the round frame), and
+  **post/comment/message images are never forced to JPEG** — screenshots with text are common
+  and JPEG smears text irreversibly. `hasTransparency` scans pixels instead of trusting
+  `ColorModel.hasAlpha()`, because phone/screenshot PNGs are usually RGBA with alpha = 255
+  throughout, which would exempt everything.
+  `compress` returns `Encoded{data, ext}` and `storeFile` builds the filename from **that**
+  ext: the stored name is what goes in the DB, so changing the extension is safe there and
+  only there. Existing files are not touched by any of this — run
+  **`scripts/shrink-uploads.sh`** (dry-run by default, `--apply` to write) to shrink the ones
+  already in the `uploads` volume; it resizes in place with ImageMagick in a throwaway
+  container and deliberately **keeps each file's name and format**, because `users.avt_url` /
+  `users.cover_url` / `conversations.avatar_url` point at those names. Re-uploading a picture
+  through the UI is what gets the full 24×.
+- Avatar / cover endpoints: **`PATCH /user/avatar`** and `PATCH /user/cover`, both multipart, both
   **password-free** — changing a picture is not the same class of action as changing an email
   or a password, and `/user/edit` (which does both of those) still demands the current
   password. Each stores as `<userId>-<timestamp>` so the URL changes and clients don't reuse a
@@ -758,6 +781,17 @@ but `VITE_API_URL` in `.env.local` is **not** — Vite loads `.env.local` in bui
   params. One socket is bound to one conversation; switching conversations reconnects.
   The server does **not** echo `get_message` to the sender, so the sender appends its
   own message locally.
+- **Background polling is visibility-gated.** `TheHeader.pollNotifs` runs on a **60 s**
+  interval (was 20 s) and returns immediately when `document.hidden`; `Chat.vue` keeps its 20 s
+  conversation-list refresh (a message in *another* conversation only arrives that way) but also
+  skips it while hidden and reloads once on `visibilitychange`. The notification socket already
+  pushes `notification` → `bumpPoll`, so the interval is only a fallback for a dropped socket.
+  A tab left open all day used to cost 3 requests/minute forever with nobody looking at the
+  result. Verified in a browser against a mock API with the interval temporarily shortened to
+  3 s: visible → a call every 3 s, hidden → **zero** calls across 97 s (~32 skipped ticks),
+  visible again → a call immediately. Don't drop the `document.hidden` check on the assumption
+  that browsers already throttle background timers — Chrome still fires them about once a
+  minute, which is exactly the interval here.
 - `localStorage` keys (`src/storages/localStorage.js`): `Token`, `RefreshToken`, `UserId`,
   `UserName`, `linkAvt`, `isAdmin`.
 - Backend business errors return HTTP **503** with `statusCode: 500` in the body (not

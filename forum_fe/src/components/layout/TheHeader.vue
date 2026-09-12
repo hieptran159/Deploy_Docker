@@ -237,6 +237,10 @@ const toastNotif = (n) => {
 // gộp: lấy danh sách, tính số chưa đọc, và bắn toast cho thông báo mới
 const pollNotifs = async () => {
     if (!getItemLocal(LOCALKEYS.ACCESS_TOKEN)) return;
+    // Tab đang ẩn thì không gọi: một tab để quên cả ngày vẫn nã request mỗi phút mà
+    // không ai nhìn kết quả. onVisible gọi lại ngay khi người dùng quay lại tab, và
+    // vì seenIds không đổi lúc ẩn nên lúc đó vẫn toast đủ phần tích lại.
+    if (document.hidden) return;
     try {
         const res = await getNotifications();
         const list = res?.data?.data || [];
@@ -348,7 +352,9 @@ const startNotifPoll = () => {
     stopNotifPoll();
     firstPoll = true;
     pollNotifs();
-    pollTimer = setInterval(pollNotifs, 20000);
+    // 60 giây, không phải 20: socket đã đẩy sự kiện 'notification' tới (bumpPoll), nên
+    // vòng lặp này chỉ là lưới dự phòng cho lúc socket rớt.
+    pollTimer = setInterval(pollNotifs, 60000);
     startNotifSocket();
 }
 const stopNotifPoll = () => {

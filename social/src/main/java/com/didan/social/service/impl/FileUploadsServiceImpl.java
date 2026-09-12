@@ -33,6 +33,12 @@ public class FileUploadsServiceImpl implements FileUploadsService {
 
     private final long maxSizeBytes;
     private final int maxDimension;
+    // Ảnh đại diện hiển thị ở 40px trong feed, to nhất là 160px ở trang hồ sơ -> 256 đã dư
+    // cho màn retina. Trước đây nó dùng chung giới hạn 1600px với ảnh bài viết, nên một
+    // avatar thật trên production nặng 503 KB mà chỗ nào cũng vẽ nó ở 40px.
+    private final int avatarMaxDimension;
+    // Ảnh bìa trải hết chiều ngang trang -> cần to hơn avatar, nhưng không cần 1600.
+    private final int coverMaxDimension;
     private final float jpegQuality;
 
     @Autowired
@@ -40,6 +46,8 @@ public class FileUploadsServiceImpl implements FileUploadsService {
         this.env = env;
         this.maxSizeBytes = parseLong(env.getProperty("app.file.max-size-bytes"), 8L * 1024 * 1024);
         this.maxDimension = (int) parseLong(env.getProperty("app.file.max-dimension"), 1600);
+        this.avatarMaxDimension = (int) parseLong(env.getProperty("app.file.avatar-max-dimension"), 256);
+        this.coverMaxDimension = (int) parseLong(env.getProperty("app.file.cover-max-dimension"), 1280);
         this.jpegQuality = parseFloat(env.getProperty("app.file.jpeg-quality"), 0.82f);
     }
 
@@ -118,15 +126,18 @@ public class FileUploadsServiceImpl implements FileUploadsService {
                 throw new RuntimeException("Sorry! Filename contains invalid path sequence " + fileName);
             }
 
-            byte[] data;
+            Encoded enc;
             try (InputStream in = file.getInputStream()) {
-                data = compress(in.readAllBytes(), ext);
+                enc = compress(in.readAllBytes(), ext, maxDimensionFor(typeFile), reEncodeAsJpeg(typeFile));
             }
+            // Nén có thể ĐỔI định dạng (png -> jpg) nên tên file phải lấy theo kết quả thật.
+            // Giá trị trả về chính là thứ được lưu vào DB, đổi đuôi ở đây là an toàn.
+            fileName = id + "." + enc.ext;
 
             Path targetLocation = this.rootPath1.resolve(fileName);
             Path targetLocation2 = this.rootPath2.resolve(fileName);
-            Files.write(targetLocation, data);
-            Files.write(targetLocation2, data);
+            Files.write(targetLocation, enc.data);
+            Files.write(targetLocation2, enc.data);
             return fileName;
         }catch (Exception e){
             logger.error("Could not store file " + fileName + ". Please try again!");
@@ -135,25 +146,54 @@ public class FileUploadsServiceImpl implements FileUploadsService {
         }
     }
 
+    /** Kết quả nén: bytes CÙNG với định dạng thật sự ghi ra (có thể khác định dạng gốc). */
+    static final class Encoded {
+        final byte[] data;
+        final String ext;
+        Encoded(byte[] data, String ext) { this.data = data; this.ext = ext; }
+    }
+
+    /** Cạnh dài tối đa theo loại ảnh. Ảnh nội dung (bài, bình luận, tin nhắn) giữ nguyên. */
+    int maxDimensionFor(String typeFile) {
+        if ("avatar".equals(typeFile) || "conversation".equals(typeFile)) return avatarMaxDimension;
+        if ("cover".equals(typeFile)) return coverMaxDimension;
+        return maxDimension;
+    }
+
     /**
-     * Thu nhỏ ảnh về tối đa {@link #maxDimension}px cạnh dài và nén lại (JPEG quality
-     * {@link #jpegQuality}). Giữ nguyên định dạng đầu vào. Nếu không giải mã được thì
-     * trả lại bytes gốc để không chặn upload.
+     * Chỉ ảnh đại diện / ảnh bìa mới bị ép sang JPEG.
+     *
+     * Ảnh bài viết thì KHÔNG: người ta hay đăng ảnh chụp màn hình có chữ, mà JPEG làm nhoè
+     * chữ theo kiểu không sửa lại được. Avatar và ảnh bìa gần như luôn là ảnh chụp, ở đó
+     * JPEG nhỏ hơn PNG vài lần với cùng kích thước.
      */
-    private byte[] compress(byte[] original, String ext) {
+    boolean reEncodeAsJpeg(String typeFile) {
+        return "avatar".equals(typeFile) || "cover".equals(typeFile) || "conversation".equals(typeFile);
+    }
+
+    /**
+     * Thu nhỏ ảnh về tối đa {@code maxDim}px cạnh dài và nén lại (JPEG quality
+     * {@link #jpegQuality}). Không giải mã được thì trả lại bytes gốc, để lỗi nén không
+     * bao giờ chặn được việc upload.
+     *
+     * @param forceJpeg cho phép đổi png -> jpg khi ảnh nguồn KHÔNG có phần trong suốt
+     */
+    Encoded compress(byte[] original, String ext, int maxDim, boolean forceJpeg) {
         try {
             BufferedImage src = ImageIO.read(new ByteArrayInputStream(original));
             if (src == null) {
                 logger.warn("Không giải mã được ảnh để nén, lưu bản gốc");
-                return original;
+                return new Encoded(original, ext);
             }
             int w = src.getWidth(), h = src.getHeight();
-            double scale = Math.min(1.0, (double) maxDimension / Math.max(w, h));
+            double scale = Math.min(1.0, (double) maxDim / Math.max(w, h));
             boolean resize = scale < 1.0;
-            boolean png = ext.equals("png");
+            // Giữ PNG khi ảnh THẬT SỰ có phần trong suốt: avatar nền trong suốt mà xuất ra
+            // JPEG thì thành một ô trắng nằm trong khung tròn.
+            boolean png = ext.equals("png") && (!forceJpeg || hasTransparency(src));
 
             // PNG trong giới hạn kích thước: giữ nguyên (tránh phá alpha, re-encode ít lợi)
-            if (png && !resize) return original;
+            if (png && !resize) return new Encoded(original, ext);
 
             int nw = resize ? Math.max(1, (int) Math.round(w * scale)) : w;
             int nh = resize ? Math.max(1, (int) Math.round(h * scale)) : h;
@@ -171,6 +211,7 @@ public class FileUploadsServiceImpl implements FileUploadsService {
             g.drawImage(src, 0, 0, nw, nh, null);
             g.dispose();
 
+            String outExt = png ? "png" : "jpg";
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             if (png) {
                 ImageIO.write(dst, "png", out);
@@ -179,13 +220,31 @@ public class FileUploadsServiceImpl implements FileUploadsService {
             }
             byte[] result = out.toByteArray();
             // Nếu nén xong lại to hơn bản gốc (ảnh gốc đã tối ưu) thì dùng bản gốc
-            if (!resize && result.length >= original.length) return original;
-            logger.info("Nén ảnh {}x{} ({}KB) -> {}x{} ({}KB)", w, h, original.length / 1024, nw, nh, result.length / 1024);
-            return result;
+            if (!resize && result.length >= original.length) return new Encoded(original, ext);
+            logger.info("Nén ảnh {}x{} {} ({}KB) -> {}x{} {} ({}KB)",
+                    w, h, ext, original.length / 1024, nw, nh, outExt, result.length / 1024);
+            return new Encoded(result, outExt);
         } catch (Exception e) {
             logger.warn("Nén ảnh lỗi ({}), lưu bản gốc", e.getMessage());
-            return original;
+            return new Encoded(original, ext);
         }
+    }
+
+    /**
+     * Có pixel nào KHÔNG đục hoàn toàn hay không.
+     *
+     * Không thể chỉ hỏi getColorModel().hasAlpha(): rất nhiều PNG chụp màn hình hoặc xuất
+     * từ điện thoại là RGBA nhưng alpha toàn 255 — hỏi kiểu đó thì chẳng ảnh nào đổi sang
+     * JPEG được. Quét thật, dừng ngay ở pixel trong suốt đầu tiên.
+     */
+    private static boolean hasTransparency(BufferedImage img) {
+        if (!img.getColorModel().hasAlpha()) return false;
+        for (int y = 0; y < img.getHeight(); y++) {
+            for (int x = 0; x < img.getWidth(); x++) {
+                if ((img.getRGB(x, y) >>> 24) < 255) return true;
+            }
+        }
+        return false;
     }
 
     private void writeJpeg(BufferedImage img, ByteArrayOutputStream out) throws Exception {

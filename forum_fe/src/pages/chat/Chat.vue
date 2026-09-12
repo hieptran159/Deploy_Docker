@@ -1098,11 +1098,17 @@ const openFromQuery = () => {
 
 let sidebarTimer = null;
 
+// Danh sách hội thoại vẫn làm mới 20 giây một lần (tin mới ở hội thoại KHÁC chỉ về theo
+// đường này), nhưng chỉ khi tab đang hiện. Ẩn tab thì dừng, và hiện lại thì nạp ngay —
+// đỡ được toàn bộ số request của những tab mở rồi để đó.
+const onChatVisible = () => { if (!document.hidden) loadConversations(); };
+
 onMounted(async () => {
     loadFriends();
     await loadConversations();
     openFromQuery();
-    sidebarTimer = setInterval(() => { loadConversations(); }, 20000);
+    sidebarTimer = setInterval(() => { if (!document.hidden) loadConversations(); }, 20000);
+    document.addEventListener('visibilitychange', onChatVisible);
 });
 
 watch(() => router.currentRoute.value.query.c, (c) => {
@@ -1114,6 +1120,7 @@ watch(notifRefreshTick, () => { loadUnread(); });
 onBeforeUnmount(() => {
     teardownSocket();
     clearInterval(sidebarTimer);
+    document.removeEventListener('visibilitychange', onChatVisible);
     activeConversationId.value = null;
     if (pendingImgUrl.value) URL.revokeObjectURL(pendingImgUrl.value);
 });

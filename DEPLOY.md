@@ -41,6 +41,21 @@ Redis chết thì site vẫn chạy: mọi lỗi cache bị nuốt và truy vấ
 (log backend ghi một dòng `Cache '<tên>' ... lỗi` mỗi phút). Backend cũng **không** chờ
 redis healthy mới khởi động — chặn như vậy thì cache tuỳ chọn lại thành điểm chết.
 
+### Thu nhỏ avatar / ảnh bìa đã lưu (chạy một lần)
+
+Ảnh upload **từ giờ** bị giới hạn 256px (avatar) / 1280px (ảnh bìa) và chuyển sang JPEG.
+Ảnh cũ trong volume vẫn nguyên — một avatar đo trên production nặng 503 KB mà chỗ nào cũng
+vẽ ở 40px:
+
+```bash
+./scripts/shrink-uploads.sh            # chỉ liệt kê, KHÔNG sửa gì (mặc định)
+./scripts/shrink-uploads.sh --apply    # ghi đè thật
+```
+
+Chạy ImageMagick trong một container tạm, không cài gì lên máy chủ. Script giữ nguyên tên
+file và định dạng (đường dẫn ảnh được lưu trong DB), nên chỉ thu nhỏ kích thước — khoảng
+4 lần. Muốn ăn đủ ~24 lần thì upload lại ảnh đó một lần qua giao diện.
+
 Volume DB trống ở lần chạy đầu → backend chạy **Flyway** lúc khởi động, tạo toàn bộ
 schema từ `social/src/main/resources/db/migration/V1__baseline.sql`. Không còn nạp
 `social/db.sql` tự động và không còn `ddl-auto=update` — Hibernate chỉ `validate`
