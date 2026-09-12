@@ -112,6 +112,17 @@ const routers = [
 	},
 
 	{
+		// Tách khỏi /profile/edit: tài khoản dùng lâu có hàng chục phiên, để chung
+		// thì đẩy mọi thẻ cài đặt khác xuống quá xa.
+		path: '/profile/sessions',
+		component: () =>
+			import(
+				"@/pages/profile/Sessions.vue"
+			),
+		beforeEnter: handleBeforeEnter
+	},
+
+	{
 		path: '/user/:id',
 		component: () =>
 			import(
