@@ -194,4 +194,65 @@ class SessionServiceImplTest {
         String b = assertThrows(Exception.class, () -> svc.closeSessionById(ME, "s-9")).getMessage();
         assertEquals(a, b);
     }
+
+    /* ---------- Đăng xuất mọi thiết bị KHÁC ---------- */
+
+    @Test
+    void dangXuatThietBiKhacGiuLaiDungMayDangGoi() throws Exception {
+        UserSessions here = session("s-1", "AT-here", "h1");
+        UserSessions a = session("s-2", "AT-a", "h2");
+        UserSessions b = session("s-3", "AT-b", "h3");
+        when(userSessionRepository.findByUserIdOrderByLastUsedAtDesc(ME))
+                .thenReturn(Arrays.asList(here, a, b));
+
+        assertEquals(2, svc.closeOtherSessions(ME, "AT-here"), "phải trả về số máy đã đá");
+
+        verify(userSessionRepository).delete(a);
+        verify(userSessionRepository).delete(b);
+        verify(userSessionRepository, never()).delete(here);
+    }
+
+    @Test
+    void dangXuatThietBiKhacKhongChanTokenCuaMayDangGoi() throws Exception {
+        UserSessions here = session("s-1", "AT-here", "h1");
+        UserSessions other = session("s-2", "AT-other", "h2");
+        when(userSessionRepository.findByUserIdOrderByLastUsedAtDesc(ME))
+                .thenReturn(Arrays.asList(here, other));
+
+        svc.closeOtherSessions(ME, "AT-here");
+
+        ArgumentCaptor<BlacklistToken> cap = ArgumentCaptor.forClass(BlacklistToken.class);
+        verify(blacklistRepository, atLeastOnce()).save(cap.capture());
+        java.util.List<String> daChan = cap.getAllValues().stream()
+                .map(BlacklistToken::getToken).toList();
+        assertTrue(daChan.contains("AT-other"));
+        assertFalse(daChan.contains("AT-here"),
+                "chặn token của chính mình là tự đá mình ra ngay sau khi bấm nút");
+    }
+
+    /**
+     * Không xác định được thiết bị hiện tại thì thà báo lỗi, KHÔNG đoán — đoán sai
+     * là đá luôn cả người đang bấm nút.
+     */
+    @Test
+    void khongBietMayHienTaiThiTuChoiChuKhongDaSach() {
+        UserSessions a = session("s-2", "AT-a", "h2");
+        when(userSessionRepository.findByUserIdOrderByLastUsedAtDesc(ME))
+                .thenReturn(java.util.List.of(a));
+
+        assertThrows(Exception.class, () -> svc.closeOtherSessions(ME, null));
+        assertThrows(Exception.class, () -> svc.closeOtherSessions(ME, ""));
+        verify(userSessionRepository, never()).delete(any());
+        verify(blacklistRepository, never()).save(any());
+    }
+
+    @Test
+    void chiCoMotThietBiThiKhongDaGiCa() throws Exception {
+        UserSessions here = session("s-1", "AT-here", "h1");
+        when(userSessionRepository.findByUserIdOrderByLastUsedAtDesc(ME))
+                .thenReturn(java.util.List.of(here));
+
+        assertEquals(0, svc.closeOtherSessions(ME, "AT-here"));
+        verify(userSessionRepository, never()).delete(any());
+    }
 }

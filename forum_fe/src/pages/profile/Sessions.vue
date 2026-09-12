@@ -14,7 +14,16 @@
             <div v-else-if="!sessions.length" class="state">Không có phiên nào</div>
 
             <div v-else class="flex flex-col">
-                <div class="muted text-sm mb-2">{{ sessions.length }} thiết bị</div>
+                <div class="flex flex-wrap items-center gap-3 mb-2">
+                    <span class="muted text-sm flex-1">{{ sessions.length }} thiết bị</span>
+                    <button
+                        v-if="otherCount"
+                        type="button"
+                        class="sign-btn sign-btn--outline sign-btn--outline-danger flex-none"
+                        :disabled="busy"
+                        @click="askRevokeOthers"
+                    >Đăng xuất {{ otherCount }} thiết bị khác</button>
+                </div>
                 <div
                     v-for="s in sessions"
                     :key="s.sessionId"
@@ -43,9 +52,9 @@
  * Danh sách thiết bị tách khỏi trang "Cài đặt tài khoản": tài khoản dùng lâu có
  * hàng chục phiên, nhét vào giữa trang hồ sơ thì đẩy mọi thẻ khác xuống quá xa.
  */
-import { inject, onMounted, ref } from 'vue';
+import { computed, inject, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { getMySessions, revokeSession } from '@/apis/user';
+import { getMySessions, revokeSession, revokeOtherSessions } from '@/apis/user';
 import { timeAgo } from '@/js/helper';
 
 const router = useRouter();
@@ -56,6 +65,8 @@ const toast = inject('toast', null);
 const sessions = ref([]);
 const loading = ref(true);
 const busy = ref(false);
+// Máy đang dùng không nằm trong số bị đá -> đếm riêng, và ẩn nút khi chỉ có một máy
+const otherCount = computed(() => sessions.value.filter((s) => !s.current).length);
 
 const load = async () => {
     loading.value = true;
@@ -87,6 +98,27 @@ const askRevoke = (s) => {
             }
         },
         { confirmText: 'Đăng xuất', danger: true },
+    );
+};
+
+const askRevokeOthers = () => {
+    const n = otherCount.value;
+    openConfirm?.(
+        'Đăng xuất thiết bị khác',
+        `Đăng xuất ${n} thiết bị khác? Thiết bị bạn đang dùng vẫn giữ nguyên.`,
+        async () => {
+            busy.value = true;
+            try {
+                const d = (await revokeOtherSessions())?.data;
+                toast?.(`Đã đăng xuất ${d?.data ?? n} thiết bị`);
+                await load();
+            } catch (e) {
+                showDialog?.('Thông báo', e?.description || 'Không đăng xuất được các thiết bị khác');
+            } finally {
+                busy.value = false;
+            }
+        },
+        { confirmText: 'Đăng xuất hết', danger: true },
     );
 };
 

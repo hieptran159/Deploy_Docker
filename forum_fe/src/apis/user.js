@@ -54,3 +54,8 @@ export const getMySessions = () => {
 export const revokeSession = (sessionId) => {
     return authApi.delete(`/user/sessions/${encodeURIComponent(sessionId)}`);
 }
+
+// Đá mọi thiết bị KHÁC, giữ lại máy đang gọi. Trả về số máy đã đá.
+export const revokeOtherSessions = () => {
+    return authApi.delete('/user/sessions');
+}
