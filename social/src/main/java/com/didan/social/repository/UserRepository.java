@@ -31,6 +31,10 @@ public interface UserRepository extends JpaRepository<Users, String> {
 
     long countByIsAdmin(int isAdmin);
 
+    // Cột deactivated không có index -> quét cả bảng users, mà lần dựng feed nào cũng gọi.
+    // Không xoá cache tường minh: nó đổi ở ba nơi rời rạc (tự vô hiệu hoá, đăng nhập lại,
+    // xác thực 2 bước); TTL 60 giây rẻ hơn và không có chỗ nào để quên.
+    @org.springframework.cache.annotation.Cacheable(com.didan.social.config.CacheConfig.DEACTIVATED_IDS)
     @org.springframework.data.jpa.repository.Query("SELECT u.userId FROM users u WHERE u.deactivated = 1")
     java.util.List<String> findDeactivatedIds();
 

@@ -92,6 +92,11 @@ public interface PostRepository extends JpaRepository<Posts, String> {
     List<Object[]> feedPage(@Param("ex") Collection<String> ex, @Param("vids") Collection<String> vids,
                             @Param("me") String me, @Param("lim") int lim, @Param("off") int off);
 
+    // COUNT(DISTINCT) trên UNION toàn bộ bài + lượt chia sẻ, chạy mỗi lần mở trang chủ
+    // (chỉ để biết có bao nhiêu trang). Khoá cache theo :me là đủ — ex/vids đều suy ra
+    // từ chính :me. Số trang trễ 60 giây thì không ai chết.
+    @org.springframework.cache.annotation.Cacheable(cacheNames = com.didan.social.config.CacheConfig.FEED_COUNT,
+            key = "#me")
     @Query(value = "SELECT COUNT(DISTINCT u.pid) FROM (" + FEED_UNION + ") u", nativeQuery = true)
     long feedCount(@Param("ex") Collection<String> ex, @Param("vids") Collection<String> vids, @Param("me") String me);
 

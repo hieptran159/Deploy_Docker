@@ -1,6 +1,7 @@
 # Triển khai bằng Docker
 
-Toàn bộ hệ thống (frontend + backend + MySQL) đóng gói trong `docker-compose.yml` ở thư mục gốc.
+Toàn bộ hệ thống (frontend + backend + MySQL + Redis) đóng gói trong `docker-compose.yml`
+ở thư mục gốc.
 
 ## Chạy lần đầu
 
@@ -20,6 +21,25 @@ Xong. Truy cập:
 | REST API | http://localhost:8081 (Swagger: `/api-docs.html`) |
 | Socket.IO | http://localhost:8082 |
 | MySQL | `localhost:3307`, db `socialapp`, user `root` |
+| Redis | không mở ra host — chỉ `redis:6379` bên trong mạng của compose |
+
+**Redis là cache đọc, không phải kho dữ liệu.** Không cần chuẩn bị gì thêm: `docker compose
+up -d --build` tự dựng luôn container `redis`. Nó không bật AOF/RDB nên mất sạch khi khởi
+động lại — đúng như thiết kế, backend chỉ việc đọc lại từ MySQL. Vì không mở cổng ra host
+nên cũng không đặt mật khẩu.
+
+```bash
+# xem cache có chạy thật không (phải thấy các khoá friendIds::, trending::, feedCount::)
+docker compose exec redis redis-cli --scan --pattern '*' | head
+docker compose exec redis redis-cli info stats | grep keyspace   # hits vs misses
+
+# tắt cache mà KHÔNG gỡ container (so sánh có/không cache khi chẩn đoán)
+echo "CACHE_TYPE=none" >> .env && docker compose up -d backend
+```
+
+Redis chết thì site vẫn chạy: mọi lỗi cache bị nuốt và truy vấn rơi thẳng xuống MySQL
+(log backend ghi một dòng `Cache '<tên>' ... lỗi` mỗi phút). Backend cũng **không** chờ
+redis healthy mới khởi động — chặn như vậy thì cache tuỳ chọn lại thành điểm chết.
 
 Volume DB trống ở lần chạy đầu → backend chạy **Flyway** lúc khởi động, tạo toàn bộ
 schema từ `social/src/main/resources/db/migration/V1__baseline.sql`. Không còn nạp

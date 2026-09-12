@@ -12,6 +12,9 @@ import com.didan.social.repository.UserRepository;
 import com.didan.social.service.AuthorizePathService;
 import com.didan.social.service.FollowService;
 import com.didan.social.service.NotificationService;
+import com.didan.social.config.CacheConfig;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -87,6 +90,9 @@ public class FollowServiceImpl implements FollowService {
     }
 
     @Override
+    // Nằm trên đường đi của MỌI request feed/tìm kiếm/xem bài (lọc bài "bạn bè"),
+    // và chỉ đổi khi có người kết bạn hoặc huỷ kết bạn -> đáng cache nhất trong app.
+    @Cacheable(cacheNames = CacheConfig.FRIEND_IDS, key = "#userId", unless = "#userId == null")
     public java.util.List<String> friendIdsOf(String userId) {
         java.util.List<String> ids = new ArrayList<>();
         if (userId == null) return ids;
@@ -146,6 +152,10 @@ public class FollowServiceImpl implements FollowService {
     }
 
     @Override
+    // Xoá SẠCH cache thay vì đúng hai người: id người đang gọi nằm bên trong hàm,
+    // SpEL không lấy được, mà xoá thiếu một chiều là quan hệ bạn bè lệch nhau. Kết bạn
+    // xảy ra vài lần một ngày — tính lại toàn bộ cũng không tốn gì.
+    @CacheEvict(cacheNames = CacheConfig.FRIEND_IDS, allEntries = true)
     public boolean acceptRequest(String requesterId) throws Exception {
         String me = authorizePathService.getUserIdAuthoried();
         Followers in = row(requesterId, me);
@@ -177,6 +187,7 @@ public class FollowServiceImpl implements FollowService {
     }
 
     @Override
+    @CacheEvict(cacheNames = CacheConfig.FRIEND_IDS, allEntries = true)
     public boolean unfriend(String userId) throws Exception {
         String me = authorizePathService.getUserIdAuthoried();
         Followers out = row(me, userId);
@@ -224,6 +235,9 @@ public class FollowServiceImpl implements FollowService {
     // ----- Chặn người dùng -----
 
     @Override
+    // Chặn vừa đổi quan hệ chặn, vừa XOÁ quan hệ bạn bè hai chiều -> phải dọn cả ba cache.
+    @CacheEvict(cacheNames = {CacheConfig.FRIEND_IDS, CacheConfig.BLOCKED_IDS, CacheConfig.BLOCKER_IDS},
+            allEntries = true)
     public boolean blockUser(String userId) throws Exception {
         String me = authorizePathService.getUserIdAuthoried();
         if (me.equals(userId)) throw new Exception("Không thể tự chặn chính mình");
@@ -241,6 +255,7 @@ public class FollowServiceImpl implements FollowService {
     }
 
     @Override
+    @CacheEvict(cacheNames = {CacheConfig.BLOCKED_IDS, CacheConfig.BLOCKER_IDS}, allEntries = true)
     public boolean unblockUser(String userId) throws Exception {
         String me = authorizePathService.getUserIdAuthoried();
         if (!blockRepository.existsByBlockId_BlockerIdAndBlockId_BlockedId(me, userId)) {
