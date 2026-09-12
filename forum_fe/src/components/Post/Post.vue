@@ -107,7 +107,7 @@
 
 <script setup>
 import { computed, ref, inject } from "vue";
-import { DxPopup } from 'devextreme-vue';
+import { DxPopup } from 'devextreme-vue/popup';
 import { calculateTimeDifference } from '../../js/helper';
 import { IMAGE_BASE } from '@/config';
 import { useRouter } from 'vue-router';

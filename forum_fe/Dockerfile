@@ -1,4 +1,4 @@
-FROM node:18 AS build-stage
+FROM node:22-slim AS build-stage
 WORKDIR /app
 
 # URL công khai (trình duyệt gọi tới) — có thể override qua build.args trong compose
@@ -6,7 +6,7 @@ ARG VITE_API_URL=http://localhost:8081
 ARG VITE_SOCKET_URL=http://localhost:8082
 
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 COPY . .
 
 # .env.production được nạp ở chế độ build production và đè lên .env

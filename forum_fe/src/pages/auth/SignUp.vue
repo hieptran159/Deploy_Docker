@@ -54,7 +54,9 @@
 </template>
 
 <script setup>
-import { DxButton, DxTextBox, DxDateBox } from 'devextreme-vue';
+import { DxButton } from 'devextreme-vue/button';
+import { DxTextBox } from 'devextreme-vue/text-box';
+import { DxDateBox } from 'devextreme-vue/date-box';
 import { useRouter } from 'vue-router';
 import { inject, onMounted, ref } from 'vue';
 import { signup, verifyEmail, resendVerify } from "@/apis/auth";

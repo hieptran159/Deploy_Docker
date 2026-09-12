@@ -50,7 +50,8 @@
 
 <script setup>
 import AppIcon from '@/components/AppIcon.vue';
-import { DxTextBox, DxButton } from 'devextreme-vue';
+import { DxTextBox } from 'devextreme-vue/text-box';
+import { DxButton } from 'devextreme-vue/button';
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { searchUserApi } from '@/apis/user';

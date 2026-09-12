@@ -32,7 +32,9 @@
 </template>
 
 <script setup>
-import { DxTextBox, DxTextArea, DxButton } from 'devextreme-vue';
+import { DxTextBox } from 'devextreme-vue/text-box';
+import { DxTextArea } from 'devextreme-vue/text-area';
+import { DxButton } from 'devextreme-vue/button';
 import { createdPost } from '@/apis/post';
 import { ref, computed, inject } from 'vue';
 import { extractHashtags } from '@/js/helper';

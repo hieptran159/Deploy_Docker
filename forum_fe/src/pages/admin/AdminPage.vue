@@ -154,7 +154,8 @@
 </template>
 
 <script setup>
-import { DxTextBox, DxButton } from 'devextreme-vue';
+import { DxTextBox } from 'devextreme-vue/text-box';
+import { DxButton } from 'devextreme-vue/button';
 import { onMounted, ref, inject } from 'vue';
 import { useRouter } from 'vue-router';
 import { getBlacklist, grantAdmin, banUser, unbanUser, getAdminStats, getAdminLogs } from '@/apis/admin';

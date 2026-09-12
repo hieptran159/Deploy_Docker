@@ -17,8 +17,8 @@ jobs:
       run:
         working-directory: social
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -36,7 +36,7 @@ jobs:
       # nguyên nhân mà không cần vào giao diện web.
       - name: Báo cáo test (khi hỏng)
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: surefire-reports
           path: social/target/surefire-reports/
@@ -52,11 +52,22 @@ jobs:
       run:
         working-directory: forum_fe
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: '20'
           cache: npm
           cache-dependency-path: forum_fe/package-lock.json
       - run: npm ci
       - run: npm run build
+
+  # Dockerfile chỉ được kiểm chứng khi thật sự build image — máy dev (Windows) thường
+  # không có Docker, nên để CI làm. Chỉ build, không push.
+  images:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build image backend
+        run: docker build -t forum-backend:ci social
+      - name: Build image frontend
+        run: docker build -t forum-frontend:ci forum_fe

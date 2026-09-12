@@ -100,7 +100,9 @@
 import { ref, computed, inject } from 'vue';
 import { useRouter } from 'vue-router';
 import { timeAgo, formatDateTime } from '@/js/helper';
-import { DxPopup, DxTextBox, DxButton } from 'devextreme-vue';
+import { DxPopup } from 'devextreme-vue/popup';
+import { DxTextBox } from 'devextreme-vue/text-box';
+import { DxButton } from 'devextreme-vue/button';
 import { likeCommentApi, unLikeCommentApi, deleteComment, createComment } from '@/apis/comment';
 import { LOCALKEYS, getItemLocal } from '@/storages/localStorage';
 import { IMAGE_BASE } from '@/config';

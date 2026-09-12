@@ -56,7 +56,8 @@
 
 <script setup>
 import { onMounted, ref, inject } from 'vue';
-import { DxButton, DxPopup } from 'devextreme-vue';
+import { DxButton } from 'devextreme-vue/button';
+import { DxPopup } from 'devextreme-vue/popup';
 import { getDrafts, publishPost, deletePost, publishAllDrafts, deleteAllDrafts } from '@/apis/post';
 import { timeAgo } from '@/js/helper';
 import EditPost from '@/components/Post/EditPost.vue';

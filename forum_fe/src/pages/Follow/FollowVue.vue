@@ -72,7 +72,7 @@ import { getItemLocal, LOCALKEYS } from '@/storages/localStorage';
 import { bumpNotifRefresh } from '@/storages/appState';
 import { IMAGE_BASE } from '@/config';
 import BaseAvatar from '@/components/BaseAvatar.vue';
-import { DxButton } from 'devextreme-vue';
+import { DxButton } from 'devextreme-vue/button';
 
 const router = useRouter();
 const showDialog = inject('openDialogError');
