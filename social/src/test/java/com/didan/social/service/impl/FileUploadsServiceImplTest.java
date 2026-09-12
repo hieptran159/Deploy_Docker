@@ -40,6 +40,34 @@ class FileUploadsServiceImplTest {
         return out.toByteArray();
     }
 
+    /**
+     * PNG ĐỤC và có nhiễu: ảnh một màu nén xuống còn vài trăm byte nên không nói lên được
+     * điều gì về việc nén ảnh thật. Nhiễu cố định theo seed để kích thước ổn định giữa các lần chạy.
+     */
+    private static byte[] noisyPng(int w, int h) throws Exception {
+        BufferedImage img = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
+        java.util.Random r = new java.util.Random(42);
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) img.setRGB(x, y, r.nextInt(0xFFFFFF));
+        }
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        ImageIO.write(img, "png", out);
+        return out.toByteArray();
+    }
+
+    /** PNG có đúng một pixel trong suốt — đủ để coi là ảnh cần giữ nền trong. */
+    private static byte[] pngWithHole(int w, int h) throws Exception {
+        BufferedImage img = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+        java.awt.Graphics2D g = img.createGraphics();
+        g.setColor(java.awt.Color.RED);
+        g.fillRect(0, 0, w, h);
+        g.dispose();
+        img.setRGB(0, 0, 0x00000000);
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        ImageIO.write(img, "png", out);
+        return out.toByteArray();
+    }
+
     private static byte[] jpg(int w, int h) throws Exception {
         BufferedImage img = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
         ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -108,5 +136,74 @@ class FileUploadsServiceImplTest {
         FileUploadsServiceImpl tiny = new FileUploadsServiceImpl(env);
         MockMultipartFile f = new MockMultipartFile("cover", "big.png", "image/png", png(400, 400));
         assertFalse(tiny.validateFile(f));
+    }
+
+    // ---- Ảnh đại diện / ảnh bìa: giới hạn riêng, nhỏ hơn hẳn ảnh nội dung ----
+    // Không set app.file.avatar-max-dimension / cover-max-dimension trong MockEnvironment,
+    // để các test này khoá luôn GIÁ TRỊ MẶC ĐỊNH — đó mới là thứ chạy trên production.
+
+    @Test
+    void gioiHanKichThuocKhacNhauTheoLoaiAnh() {
+        assertEquals(256, svc.maxDimensionFor("avatar"));
+        assertEquals(256, svc.maxDimensionFor("conversation"), "avatar nhóm chat cũng hiển thị bé");
+        assertEquals(1280, svc.maxDimensionFor("cover"));
+        assertEquals(1600, svc.maxDimensionFor("post"), "ảnh bài viết giữ nguyên giới hạn cũ");
+        assertEquals(1600, svc.maxDimensionFor("message"));
+    }
+
+    /**
+     * Đây chính là lỗi đo được trên production: một avatar PNG 503 KB, 1600px, được vẽ ở 40px.
+     * Nó lọt vì PNG nằm trong giới hạn 1600px thì code cũ trả về nguyên bytes gốc.
+     */
+    @Test
+    void avatarBiThuNhoVaChuyenSangJpeg() throws Exception {
+        byte[] original = noisyPng(1000, 1000);
+        MockMultipartFile f = new MockMultipartFile("avatar", "me.png", "image/png", original);
+
+        String name = svc.storeFile(f, "avatar", "u1");
+
+        assertEquals("u1.jpg", name, "PNG ảnh chụp -> lưu thành JPEG, tên trả về phải đổi theo");
+        byte[] stored = Files.readAllBytes(dirA.resolve("avatar").resolve("u1.jpg"));
+        BufferedImage back = ImageIO.read(dirA.resolve("avatar").resolve("u1.jpg").toFile());
+        assertEquals(256, Math.max(back.getWidth(), back.getHeight()));
+        assertTrue(stored.length * 10L < original.length,
+                "phải nhỏ hơn ít nhất 10 lần, đang là " + original.length + " -> " + stored.length);
+    }
+
+    @Test
+    void avatarCoNenTrongSuotThiGiuPng() throws Exception {
+        MockMultipartFile f = new MockMultipartFile("avatar", "logo.png", "image/png", pngWithHole(800, 800));
+
+        String name = svc.storeFile(f, "avatar", "u2");
+
+        assertEquals("u2.png", name, "xuất JPEG sẽ biến nền trong suốt thành ô trắng trong khung tròn");
+        BufferedImage back = ImageIO.read(dirA.resolve("avatar").resolve("u2.png").toFile());
+        assertEquals(256, Math.max(back.getWidth(), back.getHeight()), "vẫn phải thu nhỏ");
+    }
+
+    /**
+     * Ảnh bài viết KHÔNG bị ép sang JPEG: ảnh chụp màn hình có chữ bị JPEG làm nhoè, và
+     * người đăng không có cách nào lấy lại bản nét.
+     */
+    @Test
+    void anhBaiVietKhongBiEpSangJpeg() throws Exception {
+        byte[] original = noisyPng(1000, 1000);
+        MockMultipartFile f = new MockMultipartFile("postImg", "screenshot.png", "image/png", original);
+
+        String name = svc.storeFile(f, "post", "p2");
+
+        assertEquals("p2.png", name);
+        assertArrayEquals(original, Files.readAllBytes(dirA.resolve("post").resolve("p2.png")));
+    }
+
+    @Test
+    void anhBiaThuNhoVe1280() throws Exception {
+        MockMultipartFile f = new MockMultipartFile("cover", "wide.jpg", "image/jpeg", jpg(3000, 1000));
+
+        String name = svc.storeFile(f, "cover", "c1");
+
+        assertEquals("c1.jpg", name);
+        BufferedImage back = ImageIO.read(dirA.resolve("cover").resolve("c1.jpg").toFile());
+        assertEquals(1280, back.getWidth());
     }
 }
