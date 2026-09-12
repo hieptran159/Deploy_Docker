@@ -37,6 +37,8 @@
         <div class="post-title">{{ post?.title }}</div>
         <div v-if="excerpt" class="text-sm mt-1.5 line-clamp-3 whitespace-pre-wrap measure">{{ excerpt }}</div>
 
+        <PollBox v-if="post?.poll" :poll="post.poll" :post-id="post.postId" @update:poll="(p) => (post.poll = p)" />
+
         <!-- hashtag -->
         <div v-if="hashtags.length" class="flex flex-wrap gap-1.5 mt-3">
             <button
@@ -115,6 +117,7 @@ import { repostPost, unrepostPost } from '@/apis/post';
 import { avatarUpdates } from '@/storages/appState';
 import EditPost from '@/components/Post/EditPost.vue';
 import AppIcon from '@/components/AppIcon.vue';
+import PollBox from '@/components/Post/PollBox.vue';
 
 const route = useRouter();
 const toast = inject('toast', null);

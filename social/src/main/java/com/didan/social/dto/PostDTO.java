@@ -31,6 +31,8 @@ public class PostDTO {
     private String editedAt;
     /** Lượt xem; đếm ở getPostById, chống trùng bằng PostViewThrottle. */
     private int views;
+    /** Bình chọn gắn kèm, null nếu bài không có. Nạp theo lô ở applyPolls. */
+    private PollDTO poll;
 
     public PostDTO() {
     }
@@ -197,4 +199,8 @@ public class PostDTO {
     public int getViews() { return views; }
 
     public void setViews(int views) { this.views = views; }
+
+    public PollDTO getPoll() { return poll; }
+
+    public void setPoll(PollDTO poll) { this.poll = poll; }
 }

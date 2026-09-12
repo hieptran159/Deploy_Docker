@@ -18,6 +18,18 @@ public class CreatePostRequest {
     // "friends" -> chỉ bạn bè xem được; còn lại = công khai
     @JsonProperty(required = false)
     private String visibility;
+    // Phương án bình chọn. Rỗng / dưới 2 phương án -> bài thường, không tạo poll.
+    // Câu hỏi chính là tiêu đề bài viết nên không có trường riêng.
+    @JsonProperty(required = false)
+    private java.util.List<String> pollOptions;
+
+    public java.util.List<String> getPollOptions() {
+        return pollOptions;
+    }
+
+    public void setPollOptions(java.util.List<String> pollOptions) {
+        this.pollOptions = pollOptions;
+    }
 
     public String getVisibility() {
         return visibility;

@@ -49,6 +49,9 @@
             <!-- nội dung: bó lại ~66 ký tự/dòng cho dễ đọc, không kéo hết bề ngang thẻ -->
             <div class="my-4 measure post-body"><LinkText :text="post?.body || ''" /></div>
 
+            <PollBox v-if="post?.poll" :poll="post.poll" :post-id="id" class="mb-4"
+                     @update:poll="(p) => (post.poll = p)" />
+
             <div v-if="post?.hashtags?.length" class="flex flex-wrap gap-1.5 mb-4">
                 <button
                     v-for="t in post.hashtags"
@@ -186,6 +189,7 @@ import { calculateTimeDifference } from '@/js/helper';
 import Comment from '../comment/Comment.vue';
 import AppModal from '@/components/ui/AppModal.vue';
 import AppIcon from '@/components/AppIcon.vue';
+import PollBox from '@/components/Post/PollBox.vue';
 import BaseAvatar from '../BaseAvatar.vue';
 import EmojiPicker from '@/components/EmojiPicker.vue';
 import ReactionBar from '@/components/ReactionBar.vue';
