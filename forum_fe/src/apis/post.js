@@ -28,16 +28,21 @@ export const unLikePostApi = (id) => {
     return authApi.delete(`/post/${id}`);
 }
 
-export const createdPost = (data) => {
-    const { pollOptions, ...rest } = data || {};
-    if (!pollOptions?.length) return authApiFormData.post("/post/new", rest);
-    // Tự dựng FormData để lặp lại cùng một khoá `pollOptions` — Spring gom thẳng vào
-    // List<String>. Để axios tự serialize thì ra `pollOptions[0]`, phụ thuộc auto-grow
-    // của data binder, dễ vỡ hơn.
+// Trường dạng mảng (pollOptions, postImgs) phải LẶP LẠI cùng một khoá thì Spring
+// mới gom vào List. Để axios tự serialize thì ra `pollOptions[0]`, phụ thuộc auto-grow
+// của data binder, dễ vỡ hơn -> tự dựng FormData.
+const toForm = (data) => {
+    const { pollOptions, postImgs, ...rest } = data || {};
+    if (!pollOptions?.length && !postImgs?.length) return rest;
     const form = new FormData();
     Object.entries(rest).forEach(([k, v]) => { if (v !== null && v !== undefined) form.append(k, v); });
-    pollOptions.forEach((o) => form.append('pollOptions', o));
-    return authApiFormData.post("/post/new", form);
+    (pollOptions || []).forEach((o) => form.append('pollOptions', o));
+    (postImgs || []).forEach((f) => form.append('postImgs', f));
+    return form;
+}
+
+export const createdPost = (data) => {
+    return authApiFormData.post("/post/new", toForm(data));
 }
 
 export const getDrafts = (page = 0, size = 20) => {
@@ -81,7 +86,7 @@ export const getPostsByUser = (userId, page = 0, size = 10) => {
 }
 
 export const updatePost = (id, data) => {
-    return authApiFormData.patch(`/post/update/${id}`, data);
+    return authApiFormData.patch(`/post/update/${id}`, toForm(data));
 }
 
 export const searchPost = (key, page = 0, size = 10) => {

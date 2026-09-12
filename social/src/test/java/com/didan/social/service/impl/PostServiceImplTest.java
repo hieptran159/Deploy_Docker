@@ -44,6 +44,7 @@ class PostServiceImplTest {
     @Mock com.didan.social.repository.PollRepository pollRepository;
     @Mock com.didan.social.repository.PollOptionRepository pollOptionRepository;
     @Mock com.didan.social.repository.PollVoteRepository pollVoteRepository;
+    @Mock com.didan.social.repository.PostImageRepository postImageRepository;
 
     PostServiceImpl svc;
     static final String ME = "me-1";
@@ -54,7 +55,8 @@ class PostServiceImplTest {
         svc = new PostServiceImpl(postRepository, userPostRepository, fileUploadsService, userRepository,
                 postLikeRepository, commentRepository, authorizePathService, notificationService,
                 blockRepository, repostRepository, followService, postHashtagRepository, bookmarkRepository,
-                postViewThrottle, pollRepository, pollOptionRepository, pollVoteRepository);
+                postViewThrottle, pollRepository, pollOptionRepository, pollVoteRepository,
+                postImageRepository);
         when(authorizePathService.getUserIdAuthoried()).thenReturn(ME);
         Users me = new Users(); me.setUserId(ME); me.setFullName("Me");
         when(userRepository.findFirstByUserId(ME)).thenReturn(me);
@@ -412,5 +414,82 @@ class PostServiceImplTest {
 
         verify(pollVoteRepository).deleteById(
                 new com.didan.social.entity.keys.PollVoteId("poll-1", ME));
+    }
+
+    /* ---------- Nhiều ảnh ---------- */
+
+    /**
+     * post_images cũng có khoá ngoại trỏ vào posts — bỏ sót là xoá bài thất bại 503,
+     * y hệt bookmarks và polls. Và phải xoá cả FILE, không thì để lại rác trên đĩa.
+     */
+    @Test
+    void deletePostClearsImagesAndTheirFiles() throws Exception {
+        Posts p = post(ME, "published", "public", "T", "B");
+        when(postRepository.findFirstByPostId("p-1")).thenReturn(p);
+        when(userPostRepository.findFirstByPosts_PostIdAndUsers_UserId("p-1", ME)).thenReturn(new UserPosts());
+        when(commentRepository.findCommentIdNotInUserComment()).thenReturn(java.util.Collections.emptyList());
+        when(postImageRepository.findByPostIdOrderByPositionAsc("p-1")).thenReturn(java.util.List.of(
+                new com.didan.social.entity.PostImages("i-1", "p-1", "post/a.jpg", 0),
+                new com.didan.social.entity.PostImages("i-2", "p-1", "post/b.jpg", 1)));
+
+        assertTrue(svc.deletePost("p-1"));
+
+        verify(fileUploadsService).deleteFile("post/a.jpg");
+        verify(fileUploadsService).deleteFile("post/b.jpg");
+        org.mockito.InOrder ord = inOrder(postImageRepository, postRepository);
+        ord.verify(postImageRepository).deleteByPostId("p-1");
+        ord.verify(postRepository).delete(p);
+    }
+
+    @Test
+    void nhieuAnhLuuDungThuTuVaTenFileKhongDeNhau() throws Exception {
+        CreatePostRequest req = new CreatePostRequest();
+        req.setTitle("T"); req.setBody("B");
+        req.setPostImgs(java.util.List.of(img("a.jpg"), img("b.jpg"), img("c.jpg")));
+        when(fileUploadsService.storeFile(any(), eq("post"), anyString()))
+                .thenAnswer(inv -> inv.getArgument(2) + ".jpg");
+
+        assertNotNull(svc.createPost(req));
+
+        ArgumentCaptor<com.didan.social.entity.PostImages> cap =
+                ArgumentCaptor.forClass(com.didan.social.entity.PostImages.class);
+        verify(postImageRepository, times(3)).save(cap.capture());
+        assertEquals(java.util.List.of(0, 1, 2),
+                cap.getAllValues().stream().map(com.didan.social.entity.PostImages::getPosition).toList());
+        // storeFile đặt tên theo id truyền vào -> nhiều ảnh cùng postId sẽ đè lên nhau
+        assertEquals(3, cap.getAllValues().stream()
+                .map(com.didan.social.entity.PostImages::getUrl).distinct().count(),
+                "mỗi ảnh phải ra một tên file khác nhau");
+    }
+
+    /** auto-poster và client cũ vẫn gửi postImg đơn lẻ — không được gãy. */
+    @Test
+    void motAnhKieuCuVanChayVaVanGhiVaoBangMoi() throws Exception {
+        CreatePostRequest req = new CreatePostRequest();
+        req.setTitle("T"); req.setBody("B");
+        req.setPostImg(img("cu.jpg"));
+        when(fileUploadsService.storeFile(any(), eq("post"), anyString())).thenReturn("x.jpg");
+
+        assertNotNull(svc.createPost(req));
+
+        verify(postImageRepository, times(1)).save(any());
+        ArgumentCaptor<Posts> saved = ArgumentCaptor.forClass(Posts.class);
+        verify(postRepository, atLeastOnce()).save(saved.capture());
+        assertEquals("post/x.jpg", saved.getValue().getPostImg(),
+                "cột cũ vẫn phải mang ảnh đầu tiên, làm cầu nối cho client cũ");
+    }
+
+    @Test
+    void khongGuiAnhThiKhongDungToiBangAnh() throws Exception {
+        CreatePostRequest req = new CreatePostRequest();
+        req.setTitle("T"); req.setBody("B");
+        assertNotNull(svc.createPost(req));
+        verify(postImageRepository, never()).save(any());
+        verify(postImageRepository, never()).deleteByPostId(anyString());
+    }
+
+    private org.springframework.web.multipart.MultipartFile img(String name) {
+        return new org.springframework.mock.web.MockMultipartFile(
+                "postImgs", name, "image/jpeg", new byte[]{1, 2, 3});
     }
 }

@@ -9,8 +9,9 @@
             <textarea style="height: 120px" class="field" v-model="data.body"></textarea>
         </div>
         <div>
-            <label class="text-sm muted">Ảnh đính kèm (tuỳ chọn)</label>
-            <input type="file" accept="image/*" @change="onFile" />
+            <label class="text-sm muted">Ảnh đính kèm (tuỳ chọn, tối đa 8)</label>
+            <input type="file" accept="image/*" multiple @change="onFile" />
+            <p v-if="data.postImgs.length" class="muted text-xs mt-1">Đã chọn {{ data.postImgs.length }} ảnh</p>
         </div>
         <div class="flex items-center gap-2">
             <label class="text-sm muted">Ai xem được</label>
@@ -72,7 +73,7 @@ const busy = ref(false);
 const data = ref({
     title: "",
     body: "",
-    postImg: null,
+    postImgs: [],
     visibility: "public",
 });
 
@@ -91,8 +92,11 @@ const openPoll = () => {
 // bài có bình chọn hụt.
 const validOptions = computed(() => pollOptions.value.map((o) => o.trim()).filter(Boolean));
 
+const MAX_IMAGES = 8;
 const onFile = (e) => {
-    data.value.postImg = e.target.files[0] || null;
+    // Cắt ở 8 ngay tại đây để người dùng thấy con số thật, thay vì để backend
+    // lặng lẽ bỏ bớt sau khi đã tải lên.
+    data.value.postImgs = Array.from(e.target.files || []).slice(0, MAX_IMAGES);
 }
 
 const submit = async (draft) => {

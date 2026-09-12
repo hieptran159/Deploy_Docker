@@ -75,7 +75,7 @@ npm run build     # → dist/, served by nginx in the Docker image
 
 ## Tests
 
-JUnit 5 unit-test suite (113 tests) under `social/src/test/java` — **no DB / Docker / Spring
+JUnit 5 unit-test suite (122 tests) under `social/src/test/java` — **no DB / Docker / Spring
 context**, runs on plain `./mvnw test` (deps already in `spring-boot-starter-test` +
 `spring-security-test`). Service tests use `@ExtendWith(MockitoExtension.class)` +
 `@MockitoSettings(strictness = LENIENT)`, mock every constructor dep, and instantiate the
@@ -204,6 +204,21 @@ frontend tests.
   `CreatePostRequest`/`EditPostRequest` carry `visibility`; FE `CreatePost`/`EditPost` have a
   "Ai xem được" select (🌐/👥/🔒); `Post.vue`/`PostDetail.vue` show a "👥 Bạn bè" / "🔒 Chỉ
   mình tôi" badge.
+- Post images: `post_images` (`image_id`, `post_id`, `url`, `position`; Flyway `V10`, which
+  also **backfills** every existing `posts.post_img` as position 0). The table is the source of
+  truth; **`posts.post_img` is still written as a mirror of image[0]** — a deliberate
+  compatibility bridge so the old FE build and the auto-poster (which posts a single `postImg`
+  multipart field) keep working through a rollout. Drop the column in a later migration once
+  nothing reads it. Max `MAX_POST_IMAGES` = 8.
+  Requests take `postImgs` (repeated multipart key, same reason as `pollOptions`) and still
+  accept a single `postImg`; `pickFiles` prefers the list. Sending images on edit **replaces**
+  the whole set. `saveImages` names files `<postId>-<ts>-<i>` because `storeFile` derives the
+  filename from the id it is given — passing `postId` for every image would make them
+  overwrite each other. `deletePost` deletes the files *and* the rows before the post
+  (`post_images.post_id` is an FK — the same trap `bookmarks` sprang). `applyImages` is one
+  batched query per page. `PostDTO.images` is the list and `postImg` is set to `images[0]`, so
+  a client that only knows the old field still renders. FE: `.post-gallery` grid in
+  `PostDetail.vue`, single image left uncropped (`object-fit: contain`).
 - Polls: `polls` / `poll_options` / `poll_votes` (Flyway `V9`). Scope is deliberately narrow —
   **one choice per person, no closing date, not anonymous, options can't be edited after
   creation**; adding those later is easier than taking them away. There is **no `question`
