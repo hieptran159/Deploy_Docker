@@ -13,6 +13,7 @@
                     <span class="link font-medium text-[var(--text)]" @click="goAuthor">{{ userCreatedPost || '—' }}</span>
                     · {{ calculateTimeDifference(post?.postedAt) }} trước
                     <span v-if="post?.editedAt">· đã chỉnh sửa</span>
+                    <span v-if="post?.views > 0">· {{ post.views.toLocaleString('vi-VN') }} lượt xem</span>
                     <span v-if="post?.visibility === 'friends'" class="post-badge ml-1"><AppIcon name="users" :size="12" /> Chỉ bạn bè</span>
                     <span v-else-if="post?.visibility === 'private'" class="post-badge ml-1"><AppIcon name="lock" :size="12" /> Chỉ mình tôi</span>
                 </div>

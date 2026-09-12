@@ -33,6 +33,11 @@ public class Posts {
     @Temporal(TemporalType.TIMESTAMP)
     private Date editedAt;
 
+    // Lượt xem. int chứ không phải tinyint/bigint để khớp Integer — ddl-auto=validate
+    // soi đúng KIỂU cột. Tăng bằng UPDATE nguyên tử ở repository, không đọc-sửa-ghi.
+    @Column(name = "views", nullable = false)
+    private Integer views = 0;   // khởi tạo sẵn: cột NOT NULL, mà createPost không set trường này
+
     // NULL / "published" = đã đăng (hiện trên feed). "draft" = bản nháp (chỉ chủ bài thấy).
     @Column(name = "status", length = 20)
     private String status;
@@ -105,6 +110,14 @@ public class Posts {
 
     public Date getEditedAt() {
         return editedAt;
+    }
+
+    public Integer getViews() {
+        return views;
+    }
+
+    public void setViews(Integer views) {
+        this.views = views;
     }
 
     public void setEditedAt(Date editedAt) {

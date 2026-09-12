@@ -38,6 +38,7 @@ class PostServiceImplTest {
     @Mock FollowService followService;
     @Mock PostHashtagRepository postHashtagRepository;
     @Mock BookmarkRepository bookmarkRepository;
+    @Mock com.didan.social.service.PostViewThrottle postViewThrottle;
 
     PostServiceImpl svc;
     static final String ME = "me-1";
@@ -47,7 +48,8 @@ class PostServiceImplTest {
     void setUp() throws Exception {
         svc = new PostServiceImpl(postRepository, userPostRepository, fileUploadsService, userRepository,
                 postLikeRepository, commentRepository, authorizePathService, notificationService,
-                blockRepository, repostRepository, followService, postHashtagRepository, bookmarkRepository);
+                blockRepository, repostRepository, followService, postHashtagRepository, bookmarkRepository,
+                postViewThrottle);
         when(authorizePathService.getUserIdAuthoried()).thenReturn(ME);
         Users me = new Users(); me.setUserId(ME); me.setFullName("Me");
         when(userRepository.findFirstByUserId(ME)).thenReturn(me);
