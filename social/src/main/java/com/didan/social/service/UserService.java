@@ -12,7 +12,6 @@ public interface UserService {
     // Lấy user từ id
     UserDTO getUserById(String userId);
     //Tìm kiếm
-    List<UserDTO> searchUser(String searchName) throws Exception;
 
     // Sửa thông tin user (email/mật khẩu/avatar — cần mật khẩu hiện tại)
     boolean updateUser(EditUserRequest editUserRequest) throws Exception;
@@ -37,4 +36,10 @@ public interface UserService {
 
     /** Đổi ảnh đại diện. KHÔNG cần mật khẩu — giống đổi ảnh bìa. */
     boolean updateAvatar(org.springframework.web.multipart.MultipartFile avatar) throws Exception;
+
+    /**
+     * Tìm người dùng, phân trang phía server, chỉ trả id/tên/ảnh + số theo dõi + số bài.
+     * Thay cho getAllUser + lọc ở client.
+     */
+    java.util.Map<String, Object> searchUsersLite(String q, int page, int size);
 }

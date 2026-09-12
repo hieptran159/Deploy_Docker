@@ -8,22 +8,11 @@ export const getImg = (name) => {
     return authApi.get(`/${name}`);
 }
 
-export const searchUserApi = (name) => {
-    return authApi.get(`/user/search?name=${name}`);
-}
-
-export const getAllUsers = () => {
-    return authApi.get('/user/getAllUser');
-}
-
-// Dùng cho gợi ý @nhắc-tên: /user/getAllUser khá nặng (N+1 + DTO đầy đủ) nên chỉ gọi
-// 1 lần mỗi phiên, chia sẻ promise cho mọi lần mở bài. Lỗi -> xoá cache để lần sau thử lại.
-let _allUsersPromise = null;
-export const getAllUsersCached = () => {
-    if (!_allUsersPromise) {
-        _allUsersPromise = getAllUsers().catch((e) => { _allUsersPromise = null; throw e; });
-    }
-    return _allUsersPromise;
+// Trả {items,total,page,totalPages}; mỗi item chỉ có userId/fullName/avtUrl/followers/posts.
+// Lọc và phân trang PHÍA SERVER — trước đây tải toàn bộ người dùng về rồi lọc ở client
+// (190 KB, 1,5s cho 43 người vì DTO đầy đủ chạm 4 quan hệ lazy mỗi người).
+export const searchUserApi = (q = '', page = 0, size = 20) => {
+    return authApi.get(`/user/search?q=${encodeURIComponent(q)}&page=${page}&size=${size}`);
 }
 
 export const editUser = (data) => {

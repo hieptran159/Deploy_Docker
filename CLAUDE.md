@@ -75,7 +75,7 @@ npm run build     # → dist/, served by nginx in the Docker image
 
 ## Tests
 
-JUnit 5 unit-test suite (133 tests) under `social/src/test/java` — **no DB / Docker / Spring
+JUnit 5 unit-test suite (149 tests) under `social/src/test/java` — **no DB / Docker / Spring
 context**, runs on plain `./mvnw test` (deps already in `spring-boot-starter-test` +
 `spring-security-test`). Service tests use `@ExtendWith(MockitoExtension.class)` +
 `@MockitoSettings(strictness = LENIENT)`, mock every constructor dep, and instantiate the
@@ -91,8 +91,10 @@ impl directly in `@BeforeEach`:
 | `service/impl/PostServiceImplTest` (poll part) | `deletePost` clears `poll_votes` → `poll_options` → `polls` **in FK order** before the post (same trap `bookmarks` sprang once), and skips those tables when the post has no poll; `createPost` builds a poll only at ≥2 valid options, sanitises option text and caps at 10; `vote` rejects an option from another poll, a post the caller cannot see, and a post with no poll; `unvote` deletes the caller's own row |
 | `entity/BlacklistUserTest` | `isActiveBan` — permanent ban always active, dated ban active before / inactive after its date, non-`blocked` status never counts |
 | `service/impl/AdminServiceImplTest` | temporary bans: no `days` = permanent, `days` sets the right expiry, banning revokes every session, an already-active ban can't be re-applied, re-banning someone whose ban **expired** reuses the existing row (`user_id` is the PK) and keeps `reportedQuantity`, unban clears `bannedUntil` |
+| `service/impl/ReportServiceImplTest` (batching part) | admin report queue loads reporters/posts/comments/open-counts **once each** for the whole page and never calls the per-row finders — the guard that keeps the N+1 from creeping back |
 | `service/impl/ReportServiceImplTest` | `ReportServiceImpl.create` auto-hide threshold: invalid type, below threshold no-hide, at threshold sets `status=hidden` + saves, already-hidden untouched, duplicate open report no-op, threshold `0` disables — `ReflectionTestUtils` for `@Value autoHideThreshold` |
 | `service/PostViewThrottleTest` | dedup window for post views: first hit counts, a refresh inside the window does not, different viewers/posts count separately, expiry re-counts, blank viewer never counts, and the key map is swept instead of growing without bound |
+| `service/impl/UserServiceImplTest` | `searchUsersLite` batches the two count queries onto the right people, short-circuits before touching the DB when nothing matches, clamps page/size; and the list endpoints **mask private fields** — phone hidden when `phonePublic` is off, `dob` never sent for other people, owner still sees their own |
 | `service/impl/NotificationServiceImplTest` | `listMinePaged` page/size clamping (negative page→0, size<1→20, size>50→50) via `ArgumentCaptor<Pageable>` |
 | `utils/EmailTemplateTest` | `EmailTemplate.otp` HTML + HTML-escaping |
 | `utils/HashtagUtilsTest` | `HashtagUtils.extract` (lowercase/dedup, Unicode + `_`, skip all-digit, 20-tag cap) + `normalize` (strip `#`, reject spaces/empty/all-digit/null) |
@@ -211,11 +213,27 @@ frontend tests.
   (`<DxPopup v-if="editing">`) and emits `@refresh`; every parent that lists `<Post>` wires
   `@refresh` to reload. `CreatePost.vue` / `EditPost.vue` show live hashtag chips parsed by
   `helper.js#extractHashtags` (mirrors backend `HashtagUtils`).
-- `PostDetail.vue`'s comment `@mention` autocomplete filters the full user list client-side.
-  That list comes from `GET /user/getAllUser` (heavy: N+1 over followers/posts/participants
-  per user + full DTOs) — fetched **lazily on the first `@` keystroke**, not on mount, and
-  memoised for the SPA session via `apis/user.js#getAllUsersCached`. A server-side
-  `?q=` mention-search endpoint would be the real fix if the user base grows.
+- **User lists go through `GET /user/search?q=&page=&size=`** (`searchUsersLite` →
+  `UserLiteDTO`: only `userId`, `fullName`, `avtUrl`, `followers`, `posts`). Four queries per
+  page regardless of page size — count, the page itself, then follower and post counts batched
+  by id. `name` is still accepted as an alias for `q`.
+  Measured on production before this existed: `/user/getAllUser` returned 43 people in
+  **190,503 bytes / 1.56 s**, because `convertToDTO` touches four lazy collections per user
+  (~173 queries) and ships all 22 fields. The new shape is **93 bytes per person**. Both
+  `SearchUser.vue` (server-side paging + 250 ms debounce) and `PostDetail.vue`'s `@mention`
+  autocomplete (200 ms debounce, `size=6`, stale responses dropped by sequence number) use it;
+  nothing downloads the whole user table any more.
+  `getAllUser` still exists but nothing in the FE calls it — **treat it as deprecated**.
+- **`getAllUser`/`searchUser` used to leak private fields.** `getUserById` has always called
+  `hidePrivate`, those two never did, so `phone` came back for people who had switched
+  `phonePublic` off, and `dob` came back for everyone (it has no public flag at all). Measured
+  on production: 2 phones and 42 dates of birth. `hideForList` now applies to every list row
+  that isn't the caller's own.
+- The admin report queue (`ReportServiceImpl.listForAdmin`) **batch-loads**: one query each
+  for reporters, posts, comments and open-counts-per-target, then builds every row from those
+  maps. It used to run 3-4 queries *per row* (reporter, preview, same-target count, post
+  status) — with the 300-row cap that is ~1,200 queries. `previewOf` takes the pre-loaded maps
+  rather than querying.
 - Reporting: `components/ReportDialog.vue` (singleton in `App.vue`, `provide('openReport')`
   `(targetType, targetId, label)`), a reason radio list (`spam`/`harassment`/`hate`/`nsfw`/
   `misinfo`/`other`) + optional detail → `sendReport(type, id, "<label>: <detail>")`.

@@ -133,23 +133,50 @@ public class ReportServiceImpl implements ReportService {
         List<Reports> rows = "ALL".equals(s)
                 ? reportRepository.findTop300ByOrderByCreatedAtDesc()
                 : reportRepository.findTop300ByStatusOrderByCreatedAtDesc(s);
+        if (rows.isEmpty()) return new ArrayList<>();
+
+        // Nạp theo LÔ. Trước đây mỗi dòng tốn 3-4 truy vấn (người báo cáo, xem trước,
+        // đếm báo cáo cùng đích, và bài viết nếu đích là POST) -> 300 dòng thành ~1.200
+        // truy vấn. Giờ là 5 truy vấn, bất kể bao nhiêu dòng.
+        java.util.Set<String> userIds = new java.util.HashSet<>();
+        java.util.Set<String> postIds = new java.util.HashSet<>();
+        java.util.Set<String> commentIds = new java.util.HashSet<>();
+        java.util.Set<String> targetIds = new java.util.HashSet<>();
+        for (Reports r : rows) {
+            userIds.add(r.getReporterId());
+            targetIds.add(r.getTargetId());
+            if ("USER".equals(r.getTargetType())) userIds.add(r.getTargetId());
+            else if ("POST".equals(r.getTargetType())) postIds.add(r.getTargetId());
+            else commentIds.add(r.getTargetId());
+        }
+        java.util.Map<String, Users> users = new java.util.HashMap<>();
+        for (Users u : userRepository.findByUserIdIn(userIds)) users.put(u.getUserId(), u);
+        java.util.Map<String, Posts> posts = new java.util.HashMap<>();
+        if (!postIds.isEmpty()) for (Posts p : postRepository.findByPostIdIn(postIds)) posts.put(p.getPostId(), p);
+        java.util.Map<String, Comments> comments = new java.util.HashMap<>();
+        if (!commentIds.isEmpty())
+            for (Comments c : commentRepository.findByCommentIdIn(commentIds)) comments.put(c.getCommentId(), c);
+        java.util.Map<String, Long> openCounts = new java.util.HashMap<>();
+        for (Object[] row : reportRepository.countOpenByTargets(targetIds)) {
+            openCounts.put(row[0] + "|" + row[1], ((Number) row[2]).longValue());
+        }
+
         List<ReportDTO> out = new ArrayList<>();
         for (Reports r : rows) {
             ReportDTO d = new ReportDTO();
             d.setReportId(r.getReportId());
             d.setReporterId(r.getReporterId());
-            Users reporter = userRepository.findFirstByUserId(r.getReporterId());
+            Users reporter = users.get(r.getReporterId());
             d.setReporterName(reporter != null ? reporter.getFullName() : r.getReporterId());
             d.setTargetType(r.getTargetType());
             d.setTargetId(r.getTargetId());
             d.setReason(r.getReason());
             d.setStatus(r.getStatus());
             d.setCreatedAt(r.getCreatedAt() == null ? null : r.getCreatedAt().toString());
-            d.setTargetPreview(previewOf(r.getTargetType(), r.getTargetId()));
-            d.setSameTargetOpenCount(
-                    reportRepository.countByTargetTypeAndTargetIdAndStatus(r.getTargetType(), r.getTargetId(), "OPEN"));
+            d.setTargetPreview(previewOf(r.getTargetType(), r.getTargetId(), users, posts, comments));
+            d.setSameTargetOpenCount(openCounts.getOrDefault(r.getTargetType() + "|" + r.getTargetId(), 0L));
             if ("POST".equals(r.getTargetType())) {
-                Posts p = postRepository.findFirstByPostId(r.getTargetId());
+                Posts p = posts.get(r.getTargetId());
                 d.setTargetStatus(p != null ? (p.getStatus() == null ? "published" : p.getStatus()) : "deleted");
             }
             out.add(d);
@@ -157,17 +184,21 @@ public class ReportServiceImpl implements ReportService {
         return out;
     }
 
-    private String previewOf(String type, String id) {
+    /** Dựng từ các map đã nạp sẵn theo lô — không truy vấn thêm gì. */
+    private String previewOf(String type, String id,
+                             java.util.Map<String, Users> users,
+                             java.util.Map<String, Posts> posts,
+                             java.util.Map<String, Comments> comments) {
         try {
             if ("USER".equals(type)) {
-                Users u = userRepository.findFirstByUserId(id);
+                Users u = users.get(id);
                 return u != null ? u.getFullName() + " (" + u.getEmail() + ")" : id;
             }
             if ("POST".equals(type)) {
-                Posts p = postRepository.findFirstByPostId(id);
+                Posts p = posts.get(id);
                 return p != null ? p.getTitle() : "(bài đã xoá)";
             }
-            Comments c = commentRepository.findByCommentId(id);
+            Comments c = comments.get(id);
             if (c == null) return "(bình luận đã xoá)";
             String content = c.getContent() == null ? "" : c.getContent();
             return content.length() > 120 ? content.substring(0, 120) + "…" : content;
