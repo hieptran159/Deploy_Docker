@@ -554,4 +554,102 @@ class PostServiceImplTest {
         verify(postHashtagRepository).findPostsByTags(eq(java.util.List.of("tin", "vuejs")),
                 any(), anyString(), any());
     }
+
+    // ---- Lượt xem của KHÁCH phải phân biệt theo IP ----
+    // Nhánh lấy IP trong countView từng là code chết: getUserIdAuthoried() trả về chuỗi
+    // "anonymousUser" nên meId không bao giờ null, mọi khách dùng chung một khoá chống
+    // trùng, và mỗi bài chỉ đếm được 1 lượt xem khách trong mỗi 30 phút.
+
+    private Posts postDeDem(String id) {
+        Posts p = new Posts();
+        p.setPostId(id);
+        p.setViews(0);
+        return p;
+    }
+
+    private void datIpCuaRequest(String ip) {
+        org.springframework.mock.web.MockHttpServletRequest req =
+                new org.springframework.mock.web.MockHttpServletRequest();
+        req.setRemoteAddr(ip);
+        org.springframework.web.context.request.RequestContextHolder.setRequestAttributes(
+                new org.springframework.web.context.request.ServletRequestAttributes(req));
+    }
+
+    @org.junit.jupiter.api.AfterEach
+    void donRequestContext() {
+        org.springframework.web.context.request.RequestContextHolder.resetRequestAttributes();
+    }
+
+    @Test
+    void khachXemThiKhoaChongTrungLaIPchuKhongPhaiMotKhoaChung() {
+        datIpCuaRequest("203.0.113.9");
+        when(postViewThrottle.shouldCount(anyString(), anyString())).thenReturn(true);
+
+        svc.countView(postDeDem("p-1"), null);   // null = chưa đăng nhập
+
+        verify(postViewThrottle).shouldCount("p-1", "203.0.113.9");
+        verify(postRepository).incrementViews("p-1");
+    }
+
+    @Test
+    void haiIpKhacNhauLaHaiNguoiXemKhacNhau() {
+        when(postViewThrottle.shouldCount(anyString(), anyString())).thenReturn(true);
+
+        datIpCuaRequest("198.51.100.1");
+        svc.countView(postDeDem("p-1"), null);
+        datIpCuaRequest("198.51.100.2");
+        svc.countView(postDeDem("p-1"), null);
+
+        verify(postViewThrottle).shouldCount("p-1", "198.51.100.1");
+        verify(postViewThrottle).shouldCount("p-1", "198.51.100.2");
+        verify(postRepository, times(2)).incrementViews("p-1");
+    }
+
+    @Test
+    void daDangNhapThiKhoaLaUserIdChuKhongPhaiIP() {
+        datIpCuaRequest("203.0.113.9");
+        when(postViewThrottle.shouldCount(anyString(), anyString())).thenReturn(true);
+
+        svc.countView(postDeDem("p-1"), ME);
+
+        verify(postViewThrottle).shouldCount("p-1", ME);
+    }
+
+    @Test
+    void quaNguongChongTrungThiKhongCongThem() {
+        datIpCuaRequest("203.0.113.9");
+        when(postViewThrottle.shouldCount(anyString(), anyString())).thenReturn(false);
+
+        svc.countView(postDeDem("p-1"), null);
+
+        verify(postRepository, never()).incrementViews(anyString());
+    }
+
+    // ---- Khách xem feed: meId = null, KHÔNG được nổ ----
+    // Đổi getUserIdAuthoried() thành "ném lỗi khi chưa đăng nhập" làm meId có thể null ở
+    // những đường trước đây luôn nhận chuỗi "anonymousUser". Feed là trang public dễ thấy
+    // nhất, nên khoá lại: khách vẫn chạy, và các tham số native IN nhận sentinel "-" thay
+    // vì rỗng (IN () là SQL không hợp lệ).
+
+    @Test
+    void khachXemFeedThiDungSentinelVaKhongNem() throws Exception {
+        when(authorizePathService.getUserIdAuthoried()).thenThrow(new Exception("Not Authorized"));
+
+        assertDoesNotThrow(() -> svc.getAllPostsByPage(1));
+
+        verify(postRepository).feedPage(
+                argThat(c -> c.contains("-")), argThat(c -> c.contains("-")), eq("-"), eq(10), eq(0));
+        verify(followService, never()).friendIdsOf(any());
+        verify(blockRepository, never()).blockedIdsOf(any());
+    }
+
+    @Test
+    void khachXemSoTrangThiCungKhongNem() throws Exception {
+        when(authorizePathService.getUserIdAuthoried()).thenThrow(new Exception("Not Authorized"));
+
+        java.util.Map<String, Object> info = svc.feedPageInfo();
+
+        assertEquals(1, info.get("totalPages"), "không có bài nào -> vẫn phải là 1 trang");
+        verify(postRepository).feedCount(argThat(c -> c.contains("-")), argThat(c -> c.contains("-")), eq("-"));
+    }
 }
