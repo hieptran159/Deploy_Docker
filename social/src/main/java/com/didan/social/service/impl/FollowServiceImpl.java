@@ -92,7 +92,7 @@ public class FollowServiceImpl implements FollowService {
     @Override
     // Nằm trên đường đi của MỌI request feed/tìm kiếm/xem bài (lọc bài "bạn bè"),
     // và chỉ đổi khi có người kết bạn hoặc huỷ kết bạn -> đáng cache nhất trong app.
-    @Cacheable(cacheNames = CacheConfig.FRIEND_IDS, key = "#userId", unless = "#userId == null")
+    @Cacheable(cacheNames = CacheConfig.FRIEND_IDS, key = "#userId", condition = "#userId != null")
     public java.util.List<String> friendIdsOf(String userId) {
         java.util.List<String> ids = new ArrayList<>();
         if (userId == null) return ids;

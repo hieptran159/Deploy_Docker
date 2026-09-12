@@ -78,7 +78,7 @@ npm run build     # → dist/, served by nginx in the Docker image
 
 ## Tests
 
-JUnit 5 unit-test suite (167 tests) under `social/src/test/java` — **no DB / Docker / Spring
+JUnit 5 unit-test suite (180 tests) under `social/src/test/java` — **no DB / Docker / Spring
 context**, runs on plain `./mvnw test` (deps already in `spring-boot-starter-test` +
 `spring-security-test`). Service tests use `@ExtendWith(MockitoExtension.class)` +
 `@MockitoSettings(strictness = LENIENT)`, mock every constructor dep, and instantiate the
@@ -96,6 +96,7 @@ impl directly in `@BeforeEach`:
 | `service/impl/AdminServiceImplTest` | temporary bans: no `days` = permanent, `days` sets the right expiry, banning revokes every session, an already-active ban can't be re-applied, re-banning someone whose ban **expired** reuses the existing row (`user_id` is the PK) and keeps `reportedQuantity`, unban clears `bannedUntil` |
 | `service/impl/ReportServiceImplTest` (batching part) | admin report queue loads reporters/posts/comments/open-counts **once each** for the whole page and never calls the per-row finders — the guard that keeps the N+1 from creeping back |
 | `service/impl/ReportServiceImplTest` | `ReportServiceImpl.create` auto-hide threshold: invalid type, below threshold no-hide, at threshold sets `status=hidden` + saves, already-hidden untouched, duplicate open report no-op, threshold `0` disables — `ReflectionTestUtils` for `@Value autoHideThreshold` |
+| `service/impl/PostServiceImplTest` (views part) | `countView` keys a guest view on the **client IP** (two IPs = two viewers) and a member's on the userId, and skips `incrementViews` when the throttle says no — the guard that keeps the IP branch from going dead again. Plus: a guest feed request (auth service throwing) must not blow up and must pass the `"-"` sentinels |
 | `service/PostViewThrottleTest` | dedup window for post views: first hit counts, a refresh inside the window does not, different viewers/posts count separately, expiry re-counts, blank viewer never counts, and the key map is swept instead of growing without bound |
 | `service/impl/UserServiceImplTest` | `searchUsersLite` batches the two count queries onto the right people, short-circuits before touching the DB when nothing matches, clamps page/size; and the list endpoints **mask private fields** — phone hidden when `phonePublic` is off, `dob` never sent for other people, owner still sees their own |
 | `service/impl/NotificationServiceImplTest` | `listMinePaged` page/size clamping (negative page→0, size<1→20, size>50→50) via `ArgumentCaptor<Pageable>` |
@@ -104,6 +105,7 @@ impl directly in `@BeforeEach`:
 | `utils/UserAgentUtilsTest` | `UserAgentUtils.label` — the ordering traps: Edge/Opera/Cốc Cốc all claim to be Chrome, Chrome claims to be Safari, and an Android UA also contains "Linux" |
 | `config/CacheConfigTest` | the two promises that make a Redis dependency safe: the `CacheErrorHandler` swallows every Redis failure (get/put/evict/clear) so a cache outage is a cache miss, not a 503; and every declared cache name has a **finite** TTL — evictions can fail, so an unexpiring cache would keep wrong data forever |
 | `service/impl/FollowServiceCacheTest` | `friendIdsOf` is cached per user and **evicted** on accept / unfriend / block. Runs in a tiny `AnnotationConfigApplicationContext` (mocked repos, in-RAM cache) because `@Cacheable` only works through a proxy — a plain `new FollowServiceImpl()` test would pass whether or not the annotations are there |
+| `service/impl/AuthorizePathServiceImplTest` | "not logged in" is **one** state: an `AnonymousAuthenticationToken` throws instead of returning the string `"anonymousUser"`, a missing context still throws, a real principal comes back, a non-String or blank principal throws instead of a blind cast; and an anonymous session's access token is `null`, not `""` |
 | `utils/JwtUtilsTest` | refresh-token round-trip; `validateRefreshToken` rejects an access token; `validateAccessToken` rejects a refresh token; blacklisted refresh token rejected — `ReflectionTestUtils` for `@Value` secret/expiry |
 | `service/impl/AuthServiceImplTest` | `login` withholds tokens + saves a code + sets `twofaRequired` when 2FA on (issues tokens when off); `verifyTwoFactor` guards (wrong code, expired, 2FA disabled) + happy path (case-insensitive code, clears code, issues access+refresh) — 8 mocked ctor deps |
 
@@ -330,7 +332,8 @@ frontend tests.
   would dirty the entity being mapped. Dedup is `service/PostViewThrottle`, an in-memory
   (postId, viewer) map with a 30-min window (`app.post.view-window-ms`) capped at
   `app.post.view-cache-max` keys; viewer = userId, or the client IP for guests
-  (`ClientIpUtils`). **Same single-instance assumption as `RateLimitFilter`** — per-process
+  (`ClientIpUtils`) — the guest half of that sentence only became true in Sep 2026, see the
+  `"anonymousUser"` note under the auth filter. **Same single-instance assumption as `RateLimitFilter`** — per-process
   RAM, forgotten on restart; move to Redis or a `post_views` table before running more than
   one instance. Without the throttle the number would be "page loads", not views. FE shows
   "· N lượt xem" next to the timestamp and **hides it at 0**; a response with no `views`
@@ -425,7 +428,26 @@ frontend tests.
 - **Auth is a custom JWT filter**, not DB-backed `UserDetails`. `JwtAuthenticationFilter`
   validates the bearer token and sets the Spring `Authentication` principal to the
   **userId string**. Retrieve the current user with
-  `AuthorizePathService.getUserIdAuthoried()`.
+  `AuthorizePathService.getUserIdAuthoried()`, which **throws when nobody is logged in** —
+  including the anonymous case. That last part was a bug for a long time: on a guest-permitted
+  route Spring Security still installs an `AnonymousAuthenticationToken` whose principal is the
+  string **`"anonymousUser"`**, and the method used to hand that straight back as if it were a
+  userId. Nothing in the repo ever checked for that string, so it quietly played the part of a
+  user who does not exist. It was found by reading Redis keys on production —
+  `friendIds::anonymousUser` — not by any failure.
+  Its measurable cost was in `PostServiceImpl.countView`: viewer = `meId`, falling back to the
+  client IP **only when `meId == null`**. `meId` was never null, so the IP branch was **dead
+  code** and every guest on the internet shared one dedup key — each post counted at most
+  **one guest view per 30-minute window** no matter how many people read it.
+  Fixed in one place rather than per call site: every caller wants "the logged-in user's id",
+  none wants a placeholder. Auth-required routes are unaffected (a guest can't reach them), and
+  guest-reachable code already went through `currentUserOrNull()` or its own try/catch, i.e. was
+  written for null all along — every `meId.xxx` dereference on those paths is `meId != null`
+  guarded. `getAccessTokenAuthoried()` got the same treatment: an anonymous session carries an
+  **empty-string** credential, and returning `""` invites it to be compared against a stored
+  token, so it now returns `null`. `countView` is package-private purely so the IP branch has a
+  test; `PostServiceImplTest` also pins that a guest feed request passes the `"-"` sentinels and
+  never touches the friend/block queries.
 - **Sessions are per-device** (`entity/UserSessions`, table `user_sessions`, Flyway `V4`).
   One row per logged-in device: `refresh_hash` (SHA-256, never the raw token),
   `access_token` (kept only so a ban can revoke it — access JWTs are stateless),
@@ -501,7 +523,10 @@ frontend tests.
   `swagger-ui/**`, and **GET** `/post/get`, `/post/pages`, `/post/search`, `/post/by-tag/*`,
   `/post/hashtags/trending` (guest can
   browse the home feed without an account — the SPA's `/` route has no guard; every
-  other route/endpoint still needs a valid JWT, incl. `/post/{id}` and `/user/**`).
+  other route/endpoint still needs a valid JWT, incl. `/user/**`). The guest list also covers
+  GET `/post/*` (so `getPostById` **is** reachable without a token) and GET `/comment/post/*`
+  + `/comment/post/*/page`; GET `/post/drafts` is matched **before** them as `authenticated()`,
+  because `/post/*` would otherwise swallow it.
   Session is STATELESS, CSRF off. Its `authenticationEntryPoint` writes a valid
   `{"success":false,"statusCode":401,"description":...}` JSON body (`application/json;charset=UTF-8`).
   `ResourceWebConfig.extendMessageConverters` also pins the Jackson converter to

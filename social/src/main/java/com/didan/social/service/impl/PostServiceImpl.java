@@ -621,8 +621,12 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
     /**
      * Khách vãng lai phân biệt bằng IP; đăng nhập rồi thì bằng userId. Cùng người,
      * cùng bài, trong một cửa sổ -> chỉ tính một lần (xem PostViewThrottle).
+     *
+     * package-private để test được nhánh IP. Nhánh đó đã từng là CODE CHẾT suốt một thời
+     * gian dài vì `getUserIdAuthoried()` trả về chuỗi "anonymousUser" thay vì báo chưa
+     * đăng nhập, nên meId không bao giờ null và mọi khách gộp vào chung một khoá.
      */
-    private void countView(Posts post, String meId) {
+    void countView(Posts post, String meId) {
         String viewer = meId;
         if (viewer == null) {
             RequestAttributes attrs = RequestContextHolder.getRequestAttributes();
