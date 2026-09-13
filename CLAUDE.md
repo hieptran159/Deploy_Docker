@@ -85,7 +85,7 @@ npm run build     # → dist/, served by nginx in the Docker image
 
 ## Tests
 
-JUnit 5 unit-test suite (180 tests) under `social/src/test/java` — **no DB / Docker / Spring
+JUnit 5 unit-test suite (184 tests) under `social/src/test/java` — **no DB / Docker / Spring
 context**, runs on plain `./mvnw test` (deps already in `spring-boot-starter-test` +
 `spring-security-test`). Service tests use `@ExtendWith(MockitoExtension.class)` +
 `@MockitoSettings(strictness = LENIENT)`, mock every constructor dep, and instantiate the
@@ -106,6 +106,7 @@ impl directly in `@BeforeEach`:
 | `service/impl/PostServiceImplTest` (views part) | `countView` keys a guest view on the **client IP** (two IPs = two viewers) and a member's on the userId, and skips `incrementViews` when the throttle says no — the guard that keeps the IP branch from going dead again. Plus: a guest feed request (auth service throwing) must not blow up and must pass the `"-"` sentinels |
 | `service/PostViewThrottleTest` | dedup window for post views: first hit counts, a refresh inside the window does not, different viewers/posts count separately, expiry re-counts, blank viewer never counts, and the key map is swept instead of growing without bound |
 | `service/impl/UserServiceImplTest` | `searchUsersLite` batches the two count queries onto the right people, short-circuits before touching the DB when nothing matches, clamps page/size; and the list endpoints **mask private fields** — phone hidden when `phonePublic` is off, `dob` never sent for other people, owner still sees their own |
+| `service/impl/CommentServiceImplTest` | editing a comment's image mints a **new** filename (`<commentId>-<ts>`) instead of overwriting `comment/<commentId>`, deletes the old file first, leaves the image alone when only the text changes, and refuses a non-owner — the rule that makes `immutable` on `/images/**` safe |
 | `service/impl/NotificationServiceImplTest` | `listMinePaged` page/size clamping (negative page→0, size<1→20, size>50→50) via `ArgumentCaptor<Pageable>` |
 | `utils/EmailTemplateTest` | `EmailTemplate.otp` HTML + HTML-escaping |
 | `utils/HashtagUtilsTest` | `HashtagUtils.extract` (lowercase/dedup, Unicode + `_`, skip all-digit, 20-tag cap) + `normalize` (strip `#`, reject spaces/empty/all-digit/null) |
@@ -559,7 +560,16 @@ frontend tests.
   Spring web port.
 - Uploaded files land on disk at `./uploads/images/<type>/` (`app.file.upload-dir`).
   `ResourceWebConfig` serves them at `/images/**` from `file:./uploads/images/` (with a
-  `classpath:/static/uploads/images/` fallback for the seeded images). Signup avatar is
+  `classpath:/static/uploads/images/` fallback for the seeded images), with
+  **`Cache-Control: public, max-age=31536000, immutable`** (was `setCachePeriod(3600)`).
+  That is only sound because **every write path mints a new filename** (`<id>-<timestamp>`), so a
+  URL's bytes never change — replacing a picture produces a new URL and the DB row points at it.
+  Editing a comment's image was the one place that broke the rule (it rewrote
+  `comment/<commentId>` in place, so viewers kept the old picture until their cache expired);
+  fixed alongside. **Add a new write path and it must keep that rule** — under `immutable` a
+  reused filename freezes the stale image in every viewer's browser for a year, with no way to
+  bust it. `CommentServiceImplTest` guards the comment path and `SocialApplicationTests` asserts
+  the header actually goes out. Signup avatar is
   optional — `avtUrl` is set to `""` when omitted.
 - `FileUploadsServiceImpl.storeFile` accepts only png/jpg/jpeg (extension + Tika mime),
   rejects `> app.file.max-size-bytes` (`UPLOAD_MAX_BYTES`, default 10MB) with a Vietnamese
