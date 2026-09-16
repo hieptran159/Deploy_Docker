@@ -51,8 +51,29 @@ class SocialApplicationTests {
     @Autowired
     BlockRepository blockRepository;
 
+    @Autowired
+    com.didan.social.repository.PostRepository postRepository;
+
     @Test
     void contextLoads() {
+    }
+
+    /**
+     * Bảng tin "Nổi bật" là truy vấn native (POW/TIMESTAMPDIFF, hai truy vấn con đếm
+     * thích/bình luận) — không có gì kiểm tra nó lúc biên dịch: sai tên cột hay sai cú pháp
+     * MySQL thì phải tới lúc có người mở tab đó trên production mới lộ. Nên phải bắt nó
+     * chạy thật một lần trên MySQL thật. Không cần dữ liệu: DB rỗng vẫn phải trả về rỗng/0,
+     * việc cần kiểm là câu lệnh chạy được.
+     */
+    @Test
+    void truyVanBangTinNoiBatChayDuocTrenMysqlThat() {
+        java.util.List<String> khongLoaiAi = java.util.List.of("-");
+        java.util.List<String> khongCoBanBe = java.util.List.of("-");
+
+        assertTrue(postRepository.hotFeedPage(khongLoaiAi, khongCoBanBe, "-", 10, 0).isEmpty(),
+                "DB rỗng thì trang Nổi bật phải rỗng");
+        assertTrue(postRepository.hotFeedCount(khongLoaiAi, khongCoBanBe, "-") == 0,
+                "DB rỗng thì tổng số bài Nổi bật phải là 0");
     }
 
     /**

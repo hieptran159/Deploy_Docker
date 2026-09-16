@@ -103,6 +103,40 @@ public class PostController {
         }
     }
 
+    @Operation(summary = "Bảng tin Nổi bật (điểm tương tác suy giảm theo thời gian)",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @GetMapping("/feed/hot")
+    public ResponseEntity<?> hotFeed(@RequestParam(value = "page", required = false) Integer page){
+        ResponseData payload = new ResponseData();
+        try {
+            List<PostDTO> data = postService.getHotFeed(page == null ? 1 : page);
+            payload.setDescription(data.isEmpty() ? "No posts in here" : "OK");
+            payload.setData(data);
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e){
+            payload.setSuccess(false);
+            payload.setStatusCode(500);
+            payload.setDescription(e.getMessage());
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
+    @Operation(summary = "Số trang bảng tin Nổi bật", security = @SecurityRequirement(name = "bearerAuth"))
+    @GetMapping("/feed/hot/pages")
+    public ResponseEntity<?> hotFeedPages(){
+        ResponseData payload = new ResponseData();
+        try {
+            payload.setData(postService.hotFeedPageInfo());
+            payload.setDescription("OK");
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e){
+            payload.setSuccess(false);
+            payload.setStatusCode(500);
+            payload.setDescription(e.getMessage());
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
     @Operation(summary = "Get posts by page",
             description = "Enter the page number you want to get posts",
             security = @SecurityRequirement(name = "bearerAuth"))

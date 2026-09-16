@@ -1,9 +1,12 @@
 <template>
     <div class="page">
         <div>
+            <div class="flex items-center gap-2">
+                <button class="link text-sm" @click="route.back()">← Quay lại</button>
+            </div>
             <!-- Măng-sét của mục: ngày bên trái, giờ bên phải — cùng thứ dữ liệu
                  mà cột lề ngoài bảng tin đang mang, để hai màn hình đọc như một. -->
-            <header class="masthead" v-if="post?.postedAt">
+            <header class="masthead mt-1" v-if="post?.postedAt">
                 <span class="masthead__name" style="font-size: var(--fs-lg)">{{ dayLabel(post.postedAt) }}</span>
                 <div class="masthead__tools">
                     <span class="masthead__date tnum">{{ formatTime(post.postedAt) }}</span>

@@ -491,6 +491,28 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         return buildFeedFromRows(rows, meId);
     }
 
+    // Nổi bật: khách xem được như bảng tin thường (currentUserOrNull, không đòi đăng nhập).
+    @Override
+    public List<PostDTO> getHotFeed(int index) throws Exception {
+        if (index < 1) index = 1;
+        String meId = currentUserOrNull();
+        List<Object[]> rows = postRepository.hotFeedPage(feedExcludeParam(meId), visibleAuthorIds(meId),
+                meParam(meId), 10, (index - 1) * 10);
+        return buildFeedFromRows(rows, meId);
+    }
+
+    @Override
+    public java.util.Map<String, Object> hotFeedPageInfo() throws Exception {
+        String meId = currentUserOrNull();
+        long total = postRepository.hotFeedCount(feedExcludeParam(meId), visibleAuthorIds(meId), meParam(meId));
+        int totalPages = (int) Math.max(1, Math.ceil(total / 10.0));
+        java.util.Map<String, Object> m = new java.util.HashMap<>();
+        m.put("total", total);
+        m.put("pageSize", 10);
+        m.put("totalPages", totalPages);
+        return m;
+    }
+
     @Override
     public java.util.Map<String, Object> friendsFeedPageInfo() throws Exception {
         String meId = authorizePathService.getUserIdAuthoried();

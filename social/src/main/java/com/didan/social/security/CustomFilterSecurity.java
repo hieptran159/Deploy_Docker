@@ -55,6 +55,7 @@ public class CustomFilterSecurity {
                 // (react/comment/report/bookmark) và /user/** vẫn cần đăng nhập.
                 .requestMatchers(org.springframework.http.HttpMethod.GET,
                         "/post/get", "/post/pages", "/post/search", "/post/*",
+                        "/post/feed/hot", "/post/feed/hot/pages",
                         "/post/by-tag/*", "/post/hashtags/trending",
                         "/comment/post/*", "/comment/post/*/page")
                 .permitAll()

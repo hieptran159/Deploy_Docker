@@ -721,6 +721,30 @@ class PostServiceImplTest {
         verify(postRepository).feedCount(argThat(c -> c.contains("-")), argThat(c -> c.contains("-")), eq("-"));
     }
 
+    // Nổi bật cũng là trang khách xem được (nằm trong permit list), nên nó phải chịu được
+    // meId = null y như feed thường — cùng một cái bẫy sentinel "-".
+    @Test
+    void khachXemBangTinNoiBatThiCungDungSentinelVaKhongNem() throws Exception {
+        when(authorizePathService.getUserIdAuthoried()).thenThrow(new Exception("Not Authorized"));
+
+        assertDoesNotThrow(() -> svc.getHotFeed(1));
+
+        verify(postRepository).hotFeedPage(
+                argThat(c -> c.contains("-")), argThat(c -> c.contains("-")), eq("-"), eq(10), eq(0));
+        verify(followService, never()).friendIdsOf(any());
+    }
+
+    // Trang 0 / trang âm đến từ ?page= trên URL, người dùng gõ tay được. Không kẹp lại thì
+    // OFFSET thành số âm và MySQL ném lỗi cú pháp.
+    @Test
+    void trangNhoHonMotCuaBangTinNoiBatBiKepVeTrangDau() throws Exception {
+        when(authorizePathService.getUserIdAuthoried()).thenThrow(new Exception("Not Authorized"));
+
+        svc.getHotFeed(0);
+
+        verify(postRepository).hotFeedPage(any(), any(), eq("-"), eq(10), eq(0));
+    }
+
     // ---- Duyệt / từ chối bài đang chờ — chỉ admin ----
 
     private Users admin() {

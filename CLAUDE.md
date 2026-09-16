@@ -100,6 +100,7 @@ impl directly in `@BeforeEach`:
 | `service/impl/PostServiceImplTest` | `createPost` visibility (`friends`/`private`/default `public`) + draft rules (title-only ok, empty rejected, published missing body); `publishPost` guards (non-author, already published, missing content, happy path); `repost` guards (friends-only, own post, draft, idempotent, saves + notifies) — `ArgumentCaptor<Posts>` |
 | `service/impl/PostServiceImplTest` (poll part) | `deletePost` clears `poll_votes` → `poll_options` → `polls` **in FK order** before the post (same trap `bookmarks` sprang once), and skips those tables when the post has no poll; `createPost` builds a poll only at ≥2 valid options, sanitises option text and caps at 10; `vote` rejects an option from another poll, a post the caller cannot see, and a post with no poll; `unvote` deletes the caller's own row |
 | `service/impl/PostServiceImplTest` (moderation + category part) | a first-ever post gets `"pending"`, the second+ gets `"published"` (mocking `countEverPublishedByAuthor`, **not** relying on Mockito's default `0` for `long`); a draft is never pending; a valid `categoryId` is stored, an id that no longer exists is dropped rather than blocking the post; editing a post with **no** `categoryId` field keeps the old one, an **empty string** clears it, a real id changes it; only an admin can list/approve/reject the pending queue; approving flips the status and notifies the author, rejecting deletes the post (via the same helper `deletePost` uses) and notifies with the reason; approving/rejecting a post that isn't `"pending"` is rejected |
+| `service/impl/PostServiceImplTest` (hot feed part) | the "Nổi bật" feed survives a guest (`meId == null`) and passes the `"-"` sentinels instead of empty collections, and `?page=0`/negative is clamped to page 1 — an unclamped page makes `OFFSET` negative and MySQL rejects the statement. The scoring SQL itself can only be checked against a real MySQL, hence the Testcontainers test below |
 | `entity/BlacklistUserTest` | `isActiveBan` — permanent ban always active, dated ban active before / inactive after its date, non-`blocked` status never counts |
 | `service/impl/AdminServiceImplTest` | temporary bans: no `days` = permanent, `days` sets the right expiry, banning revokes every session, an already-active ban can't be re-applied, re-banning someone whose ban **expired** reuses the existing row (`user_id` is the PK) and keeps `reportedQuantity`, unban clears `bannedUntil`; category CRUD — name required, slug auto-generated from a Vietnamese name with diacritics stripped, a colliding slug gets a `-2`/`-3` suffix instead of hitting the `UNIQUE` constraint, renaming without changing the name keeps the old slug (a saved/shared URL shouldn't move), deleting an unknown category is rejected, non-admin is rejected for every one of these |
 | `service/impl/ReportServiceImplTest` (batching part) | admin report queue loads reporters/posts/comments/open-counts **once each** for the whole page and never calls the per-row finders — the guard that keeps the N+1 from creeping back |
@@ -248,6 +249,27 @@ frontend tests.
   rows require the author be a friend; repost rows require the **reposter** be a friend.
   `PostServiceImpl` now injects `FollowService`; row→DTO building is shared via
   `buildFeedFromRows`. FE `Home.vue` has an "Tất cả" / "Bạn bè" tab (login only).
+- **"Nổi bật" feed** (Sep 2026): `GET /post/feed/hot?page=` + `/post/feed/hot/pages`
+  (`PostService.getHotFeed` / `hotFeedPageInfo`). Score is Hacker-News style with time
+  decay — `(likes + comments + 1) / (age_hours + 2)^1.8`, computed in
+  `PostRepository.hotFeedPage` (native: `POW` + `TIMESTAMPDIFF`, two grouped subqueries
+  counting `post_likes` and `user_comment` per post). The `+1` keeps a post nobody has
+  touched at a score > 0 so it still orders by age instead of tying at zero; the decay is
+  what stops one old high-score post from owning page 1 forever. It deliberately does
+  **not** UNION reposts like `FEED_UNION`: this ranks the *post*, not its spread, and
+  without the union each post is already one row (no `GROUP BY` needed).
+  Guest-readable (in the `CustomFilterSecurity` permit list next to `/post/get`), so the
+  service goes through `currentUserOrNull()` and the same `"-"` sentinels — `hotFeedCount`
+  must repeat `HOT_WHERE` exactly or the page count drifts from what's listable.
+  **The `ledger__day` date rule is suppressed in this mode in `Home.vue`** — the list is
+  ordered by score, so a per-day separator would repeat the same day and jump backwards.
+  The tab strip is no longer `v-if="isLogin"` (guests get "Mới nhất" / "Nổi bật"; the
+  friends/hashtag tabs stay login-only). Native SQL isn't checked at compile time, so
+  `SocialApplicationTests#truyVanBangTinNoiBatChayDuocTrenMysqlThat` executes both queries
+  against the real MySQL container — that test is the only thing standing between a typo'd
+  column name and a 503 on production.
+  ponytail ceiling: full scan + filesort (~6k posts, a few ms). Past ~10^5 posts, move to a
+  stored score column refreshed on a schedule rather than computing it on the read path.
 - `EditProfile.vue` opens with a public-profile **preview card** (cover/avatar/name/public
   fields + link to `/user/{me}`) above a "Cài đặt tài khoản" heading; `UserProfile.vue`
   shows a "Chỉnh sửa hồ sơ" button on your own profile.

@@ -16,6 +16,14 @@ export const getFriendsFeedPages = () => {
     return authApi.get('/post/feed/friends/pages');
 }
 
+export const getHotFeed = (page = 1) => {
+    return authApi.get(`/post/feed/hot?page=${page}`);
+}
+
+export const getHotFeedPages = () => {
+    return authApi.get('/post/feed/hot/pages');
+}
+
 export const getPostById = (id) => {
     return authApi.get(`/post/${id}`);
 }

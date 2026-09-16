@@ -23,6 +23,10 @@ public interface PostService {
     List<PostDTO> getFriendsFeed(int index) throws Exception;
     java.util.Map<String, Object> friendsFeedPageInfo() throws Exception;
 
+    // Bảng tin "Nổi bật": xếp theo điểm tương tác có suy giảm theo thời gian
+    List<PostDTO> getHotFeed(int index) throws Exception;
+    java.util.Map<String, Object> hotFeedPageInfo() throws Exception;
+
     // Lấy bài viết theo id
     PostDTO getPostById(String postId) throws Exception;
 
