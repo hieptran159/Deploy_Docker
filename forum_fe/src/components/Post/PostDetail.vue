@@ -1,21 +1,30 @@
 <template>
     <div class="page">
-        <div class="card">
+        <div>
+            <!-- Măng-sét của mục: ngày bên trái, giờ bên phải — cùng thứ dữ liệu
+                 mà cột lề ngoài bảng tin đang mang, để hai màn hình đọc như một. -->
+            <header class="masthead" v-if="post?.postedAt">
+                <span class="masthead__name" style="font-size: var(--fs-lg)">{{ dayLabel(post.postedAt) }}</span>
+                <div class="masthead__tools">
+                    <span class="masthead__date tnum">{{ formatTime(post.postedAt) }}</span>
+                </div>
+            </header>
+
             <!-- dòng tác giả -->
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 mt-4">
                 <BaseAvatar
                     :linkAvt="linkAvt"
                     :userCreatedPost="userCreatedPost"
                     :userId="post?.userCreatedPost"
                     :is-show="false"
                 />
-                <div class="text-sm muted min-w-0 flex-1 truncate">
-                    <span class="link font-medium text-[var(--text)]" @click="goAuthor">{{ userCreatedPost || '—' }}</span>
-                    · {{ calculateTimeDifference(post?.postedAt) }} trước
-                    <span v-if="post?.editedAt">· đã chỉnh sửa</span>
-                    <span v-if="post?.views > 0">· {{ post.views.toLocaleString('vi-VN') }} lượt xem</span>
-                    <span v-if="post?.visibility === 'friends'" class="post-badge ml-1"><AppIcon name="users" :size="12" /> Chỉ bạn bè</span>
-                    <span v-else-if="post?.visibility === 'private'" class="post-badge ml-1"><AppIcon name="lock" :size="12" /> Chỉ mình tôi</span>
+                <div class="text-sm muted min-w-0 flex-1 flex items-center gap-3 flex-wrap">
+                    <span class="link font-semibold text-[var(--text)]" @click="goAuthor">{{ userCreatedPost || '—' }}</span>
+                    <span>{{ calculateTimeDifference(post?.postedAt) }} trước</span>
+                    <span v-if="post?.editedAt">đã sửa</span>
+                    <span v-if="post?.views > 0" class="tnum">{{ post.views.toLocaleString('vi-VN') }} lượt xem</span>
+                    <span v-if="post?.visibility === 'friends'" class="post-badge"><AppIcon name="users" :size="12" /> Chỉ bạn bè</span>
+                    <span v-else-if="post?.visibility === 'private'" class="post-badge"><AppIcon name="lock" :size="12" /> Chỉ mình tôi</span>
                 </div>
                 <div
                     class="relative flex-none"
@@ -52,13 +61,13 @@
             <PollBox v-if="post?.poll" :poll="post.poll" :post-id="id" class="mb-4"
                      @update:poll="(p) => (post.poll = p)" />
 
-            <div v-if="post?.hashtags?.length" class="flex flex-wrap gap-1.5 mb-4">
+            <div v-if="post?.hashtags?.length" class="tag-list mb-4">
                 <button
                     v-for="t in post.hashtags"
                     :key="t"
                     class="tag-chip tag-chip--sm"
                     @click="route.push('/tag/' + encodeURIComponent(t))"
-                >#{{ t }}</button>
+                >{{ t }}</button>
             </div>
 
             <div v-if="images.length" class="post-gallery" :class="{ 'is-single': images.length === 1 }">
@@ -194,7 +203,7 @@ import { checkBookmark, toggleBookmark } from '@/apis/bookmark';
 import { searchUserApi } from '@/apis/user';
 import { markReadByTarget } from '@/apis/notification';
 import { useRouter } from 'vue-router';
-import { calculateTimeDifference } from '@/js/helper';
+import { calculateTimeDifference, dayLabel, formatTime } from '@/js/helper';
 import Comment from '../comment/Comment.vue';
 import AppModal from '@/components/ui/AppModal.vue';
 import AppIcon from '@/components/AppIcon.vue';

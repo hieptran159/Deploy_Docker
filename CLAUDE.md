@@ -665,7 +665,7 @@ frontend tests.
   JDBC connection at startup (per HHH90000025). The old conflicting `database-platform=MySQL5Dialect`
   (ignored) + `properties.hibernate.dialect=MySQL8Dialect` (deprecated) lines were removed.
 
-## Frontend design system ("Bảng hiệu")
+## Frontend design system ("Sổ ghi chép")
 
 `src/main.css` is the whole design layer — tokens + primitives. 12 of the 29 `.vue` files
 carry no raw Tailwind colour/radius/shadow at all, so changing the tokens re-skins the app;
@@ -673,11 +673,32 @@ the rest are neutralised by a Tailwind-override block at the bottom of `main.css
 (`.bg-gray-*`, `.rounded-*`, `.shadow*`, `.text-gray-*`, `.bg-blue/red/green-*` all map onto
 tokens). **Add new colour through a token, not a raw Tailwind class.**
 
-Concept: Vietnamese public notice board / hand-painted signboard. Flat colour blocks, hard
-2px borders, and a **solid offset shadow** (`--lift: 5px 5px 0`) — never a blurred grey one
-(`--shadow` is now `none`; three popovers that referenced it were moved to `--lift`).
+Concept (Sep 2026): **a ledger — the record of who said what, when.** The forum's own nature,
+not a decorative theme. The signboard bones are kept: hard 2px borders and a **solid offset
+shadow** (`--lift: 5px 5px 0`), never a blurred grey one (`--shadow` is `none`).
 
-Palette (`--ink` #0E3B3E, `--paper` #FCF8ED, `--turmeric` #F2B01E, `--cinnabar` #D6402F).
+It replaced a first pass that had drifted into the five most recognisable marks of
+machine-made design. Named here so they don't creep back: **(1)** a cream/ivory ground with a
+warm amber-terracotta accent — the single most common AI-design signature; **(2)** a hero made
+of "big number + small label + supporting stat"; **(3)** meta strings joined with middle dots
+(`Tác giả · 6 phút trước · 1 lượt xem`); **(4)** 999px pills around every hashtag, turning
+classification into a decorative word-cloud; **(5)** one centred column with even padding and
+no compositional tension. All five are gone; the tests for them are visual, so check a
+screenshot rather than the CSS.
+
+Structure carries information — that is the whole idea. Each post is an `.entry`: a fixed
+**left margin column holding the real posting time** (`.entry__margin`, tabular), then the
+body. The grid is asymmetric on purpose; symmetric columns are what a broadsheet template
+does. A `.ledger__day` rule marks where the date changes, like turning a page. Below 640px
+the margin folds up into a line above the title — still the same data, not dropped.
+
+**Two line weights, never mixed**: `--rule` 1px separates entries inside the content flow;
+`--stroke` 2px is only ever drawn around something you can interact with (button, input,
+dialog). Hairlines everywhere is its own generic template.
+
+Palette (`--ink` #14312F, `--paper` #EDEFE9 — a cool grey-green ledger stock, `--turmeric`
+#E8A81C, `--cinnabar` #C3402E, `--rule` #C6CCC2). Dark mode is carbon-copy paper (#121917),
+a cool grey rather than a blue-black.
 Colour encodes, it does not decorate:
 - **turmeric** = the site's voice / active state (selected tab, `.seg__btn.is-on`, online,
   `.act-pill.is-live`). **Never text on a light ground** — 1.9:1. Fills only, ink text on top.
@@ -687,15 +708,24 @@ Colour encodes, it does not decorate:
   `--ink` becomes the *background*, so borders need their own colour (#35595C).
 - `--wash` (neutral ink tint) is for static surfaces; `--turmeric-wash` only for hover/selected.
 
-Every pair passes WCAG AA in both themes, verified in-browser. Two need per-theme inversion:
-`.act-pill.is-on` and `.chip--cinnabar` use white-on-cinnabar-ink in light but
-**ink-on-cinnabar in dark** (white-on-cinnabar is only 3.7:1 there).
+Every pair passes WCAG AA in both themes, measured — "your action" in red ink is 6.14:1 on
+paper and 7.14:1 on carbon; body text 14.1:1 / 15.3:1; muted text 5.2:1 / 7.9:1. `.chip--cinnabar`
+is still a **filled** block and so still needs the per-theme inversion (white-on-cinnabar-ink in
+light, **ink-on-cinnabar in dark** — white-on-cinnabar is only 3.7:1 there). `.act-pill.is-on`
+no longer does: unfilled red ink clears AA from a single token in both themes, which is why
+that rule could be deleted rather than maintained twice.
 
 Radius is a hierarchy, not one value: `0` structural blocks · `--radius-control` 3px form
-controls · `999px` identity (avatars, pills).
+controls · `999px` **identity only** (avatars). Nothing else may be a pill.
 
-Type: **Be Vietnam Pro** (Google Fonts, loaded in `index.html`), one family, weights
-400/500/600/800. Scale is a 1.25 major third: `--fs-xs`12 `--fs-sm`13 `--fs-ui`14
+Type: **two faces with separate jobs** — `--font-display` **Bricolage Grotesque** for
+headings/titles only (a face with real character that nothing reaches for by default), and
+`--font-body` **Be Vietnam Pro** for body and UI, weights 400/500/600/800. **Check the
+Vietnamese subset before adopting any face**: fetch its `css2` URL and grep for
+`vietnamese` — Instrument Serif was the first candidate here and has no Vietnamese coverage
+at all, which would have shredded every diacritic on the site. Numerals use
+`font-variant-numeric: tabular-nums` (`.tnum`), never a mono face — mono for small labels is
+itself one of the generic tells. Scale is a 1.25 major third: `--fs-xs`12 `--fs-sm`13 `--fs-ui`14
 `--fs-base`16 `--fs-lg`20 `--fs-xl`25 `--fs-2xl`31 `--fs-3xl`39. `--measure` 66ch caps
 reading width (`.measure`, `.post-body`); `.post-title--hero` caps at 30ch.
 
@@ -707,8 +737,16 @@ classification; `.post-badge`; `.status-on`; `.rule`; `.field` every input/texta
 secondary, `--quiet` (+`--quiet-danger`) = borderless, `--block` = full width) — icon-only
 buttons stay `.icon-btn`.
 
-**`.post-row` left tick colour encodes post kind** — turmeric = normal, cinnabar
-(`--repost`) = shared, muted (`--draft`) = draft, hatched (`--hidden`).
+**The entry's left tick colour encodes post kind** — turmeric = normal, cinnabar
+(`--entry--repost`) = shared, muted (`--entry--draft`) = draft, hatched (`--entry--hidden`).
+It lives on `.entry__body`'s `border-left`; `.post-row` keeps the old absolute-positioned
+version for the screens not yet converted (saved / drafts / profile / admin).
+
+**`.tag-chip` is not a chip any more** — no border, no pill, no background. The `#` is drawn
+by CSS (`::before`, in stamp red), so **templates must not print their own `#`** or it renders
+`##tin`. `.act-pill` likewise lost its border and its filled `is-on` state: "your action" is
+now red ink on paper, which clears AA in both themes from one token and deleted the per-theme
+inversion rule that the filled version needed.
 
 Motion: one non-user-triggered moment only — the home banner's post count eases up once
 (`Home.vue#countTo`, respects `prefers-reduced-motion`). Everything else answers an action.

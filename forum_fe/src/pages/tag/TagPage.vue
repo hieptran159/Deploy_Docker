@@ -7,7 +7,7 @@
             <div class="flex items-center gap-3 flex-wrap mt-1">
                 <div class="section-title mb-0">
                     #{{ tag }}
-                    <span class="muted font-normal text-sm">{{ total ? `· ${total} bài viết` : '' }}</span>
+                    <span class="muted font-normal text-sm">{{ total ? `${total} bài viết` : '' }}</span>
                 </div>
                 <button
                     v-if="isLogin"

@@ -53,6 +53,38 @@ export function formatTime(input) {
     return `${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
+/**
+ * Mốc ngày cho cột lề của sổ: "16.09" — bỏ năm khi vẫn trong năm nay, vì năm
+ * lặp lại ở mọi dòng là nhiễu chứ không phải thông tin.
+ */
+export function dayStamp(input) {
+    const d = parseDate(input);
+    if (!d) return '';
+    const p = (n) => String(n).padStart(2, '0');
+    const sameYear = d.getFullYear() === new Date().getFullYear();
+    return `${p(d.getDate())}.${p(d.getMonth() + 1)}` + (sameYear ? '' : `.${d.getFullYear()}`);
+}
+
+/** Khoá so sánh ngày (không có giờ) — dùng để biết chỗ nào phải kẻ dòng sang ngày mới. */
+export function dayKey(input) {
+    const d = parseDate(input);
+    if (!d) return '';
+    return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+}
+
+/** "Hôm nay" / "Hôm qua" / "16.09" — nhãn cho dòng kẻ sang ngày. */
+export function dayLabel(input) {
+    const d = parseDate(input);
+    if (!d) return '';
+    const today = new Date();
+    const diff = Math.round(
+        (new Date(today.getFullYear(), today.getMonth(), today.getDate()) -
+         new Date(d.getFullYear(), d.getMonth(), d.getDate())) / 86400000);
+    if (diff === 0) return 'Hôm nay';
+    if (diff === 1) return 'Hôm qua';
+    return dayStamp(input);
+}
+
 export function convertName(name){
     const names = name.split(" ");
     return names[0][0] + names[names.length-1][0];

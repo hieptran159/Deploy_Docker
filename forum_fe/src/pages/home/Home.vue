@@ -1,36 +1,38 @@
 <template>
     <div class="page">
-        <!-- Tấm biển đầu trang: mang số liệu thật + hashtag đang chạy,
-             không phải khối trang trí. Gộp luôn thẻ "Hashtag nổi bật" cũ. -->
-        <section class="board board--framed">
-            <div class="board__inner">
-                <h1 class="board__lede">Chuyện đang được bàn hôm nay</h1>
-                <p class="board__sub">
-                    {{ isLogin ? 'Đọc, chia sẻ lại, hoặc mở một chủ đề của riêng bạn.'
-                        : 'Bạn đang xem với tư cách khách. Đăng nhập để viết bài và bình luận.' }}
-                </p>
-
-                <div class="board-stats mt-6">
-                    <div>
-                        <div class="board-stat__num">{{ shownTotal.toLocaleString('vi-VN') }}</div>
-                        <div class="board-stat__label">bài viết</div>
-                    </div>
-                    <div v-if="trendingTags.length">
-                        <div class="board-stat__num">{{ trendingTags.length }}</div>
-                        <div class="board-stat__label">hashtag đang chạy</div>
-                    </div>
-                </div>
-
-                <div v-if="trendingTags.length" class="flex flex-wrap gap-2 mt-6">
-                    <button
-                        v-for="t in trendingTags"
-                        :key="t.tag"
-                        class="tag-chip"
-                        @click="router.push('/tag/' + encodeURIComponent(t.tag))"
-                    >#{{ t.tag }} <span class="tag-chip__count">{{ t.count }}</span></button>
-                </div>
+        <!-- Măng-sét: tên sổ + ngày hôm nay + tổng số mục đã ghi.
+             KHÔNG phải khối "con số to + nhãn nhỏ" — đó là hero mặc định mà trang
+             nào cũng có. Ở đây số nằm trong câu, đọc như một dòng ghi chú. -->
+        <header class="masthead">
+            <h1 class="masthead__name">Bảng tin</h1>
+            <div class="masthead__tools">
+                <input
+                    type="search"
+                    class="field field--sm"
+                    style="width: 190px"
+                    v-model="searchText"
+                    @keyup.enter="handleSearch"
+                    @input="onSearchChanged"
+                    placeholder="Tìm trong sổ…"
+                />
+                <span class="masthead__date tnum">{{ todayStamp }}</span>
             </div>
-        </section>
+        </header>
+        <p class="masthead__note" style="margin-top: 0">
+            {{ isLogin ? 'Đọc, chia sẻ lại, hoặc mở một chủ đề của riêng bạn.'
+                : 'Bạn đang xem với tư cách khách. Đăng nhập để viết bài và bình luận.' }}
+            Đã ghi <b class="tnum">{{ shownTotal.toLocaleString('vi-VN') }}</b> mục.
+        </p>
+
+        <!-- Hashtag đang chạy: một dòng chữ, không phải đám mây viên thuốc -->
+        <div v-if="trendingTags.length" class="tag-list">
+            <button
+                v-for="t in trendingTags"
+                :key="t.tag"
+                class="tag-chip"
+                @click="router.push('/tag/' + encodeURIComponent(t.tag))"
+            >{{ t.tag }} <span class="tag-chip__count">{{ t.count }}</span></button>
+        </div>
 
         <div v-if="isLogin" class="card flex items-center gap-3 flex-wrap sm:flex-nowrap">
             <BaseAvatar
@@ -59,14 +61,13 @@
             </AppModal>
         </div>
 
-        <div class="card">
-            <div class="flex items-center gap-3 mb-4 flex-wrap">
+        <div>
+            <div class="flex items-center gap-3 mb-2 flex-wrap">
                 <div v-if="isLogin" class="seg">
                     <button class="seg__btn" :class="{ 'is-on': feedMode === 'all' }" @click="setFeedMode('all')">Tất cả</button>
                     <button class="seg__btn" :class="{ 'is-on': feedMode === 'friends' }" @click="setFeedMode('friends')">Bạn bè</button>
                     <button class="seg__btn" :class="{ 'is-on': feedMode === 'tags' }" @click="setFeedMode('tags')">Hashtag</button>
                 </div>
-                <span v-else class="section-title mb-0 flex-1">Bài đăng mới nhất</span>
                 <span class="flex-1"></span>
                 <button v-if="isLogin" class="icon-btn" title="Bài đã lưu" @click="router.push('/saved')">
                     <AppIcon name="bookmark" :size="18" />
@@ -74,15 +75,6 @@
                 <button v-if="isLogin" class="icon-btn" title="Bản nháp" @click="router.push('/drafts')">
                     <AppIcon name="file-text" :size="18" />
                 </button>
-                <input
-                    type="search"
-                    style="width: 200px"
-                    class="field"
-                    v-model="searchText"
-                    @keyup.enter="handleSearch"
-                    @input="onSearchChanged"
-                    placeholder="Tìm bài viết…"
-                />
             </div>
 
             <div v-if="searchMode" class="mb-3 text-sm muted flex items-center gap-2">
@@ -103,8 +95,14 @@
                 <template v-else>Chưa có bài viết nào. Viết bài đầu tiên đi.</template>
             </div>
 
-            <div v-for="post in posts" :key="post.postId" class="border-b last:border-b-0">
-                <Post :post="post" @refresh="getListPost" />
+            <div class="ledger">
+                <template v-for="(post, i) in posts" :key="post.postId">
+                    <!-- Sang ngày mới thì kẻ một dòng, như sang trang sổ -->
+                    <div v-if="dayKey(post.postedAt) !== dayKey(posts[i - 1]?.postedAt)" class="ledger__day">
+                        {{ dayLabel(post.postedAt) }}
+                    </div>
+                    <Post :post="post" @refresh="getListPost" />
+                </template>
             </div>
 
             <div v-if="searchMode" class="text-center mt-4">
@@ -141,6 +139,7 @@
 import Post from '../../components/Post/Post.vue';
 import AppModal from '@/components/ui/AppModal.vue';
 import { getFollowedTagsFeed, getListPostApi, searchPost, getFeedPages, getFriendsFeed, getFriendsFeedPages, getTrendingHashtags } from '@/apis/post';
+import { dayKey, dayLabel, dayStamp } from '@/js/helper';
 import { computed, inject, nextTick, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import BaseAvatar from '@/components/BaseAvatar.vue';
@@ -191,6 +190,9 @@ const loadPageInfo = async () => {
 /* Chuyển động duy nhất không do người dùng kích hoạt trên trang này: con số trên
    tấm biển đếm tăng một lần khi tải xong. Ai bật "giảm chuyển động" thì nhảy thẳng
    tới số cuối. */
+// Ngày hôm nay ở măng-sét — đọc một lần khi mở trang, không cần phản ứng gì
+const todayStamp = dayStamp(new Date());
+
 const shownTotal = ref(0);
 const countTo = (target) => {
     const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
