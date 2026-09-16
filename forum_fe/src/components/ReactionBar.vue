@@ -106,7 +106,8 @@ onBeforeUnmount(() => { clearTimeout(openT); clearTimeout(closeT); });
     align-items: center;
     gap: 8px;
 }
-/* Khớp với .act-pill trong main.css để "Thích / Lưu / Chia sẻ" cùng một cỡ */
+/* Cùng bộ với .act-pill trong main.css: không viền, không nền đặc — chữ là chữ,
+   không phải viên thuốc. "Đã thích" = mực đỏ, giống mọi hành động-của-bạn khác. */
 .reaction-trigger {
     display: inline-flex;
     align-items: center;
@@ -115,25 +116,18 @@ onBeforeUnmount(() => { clearTimeout(openT); clearTimeout(closeT); });
     font-size: var(--fs-sm);
     font-weight: 600;
     line-height: 1.2;
-    padding: 6px 12px;
-    border-radius: 999px;
-    border: 1.5px solid var(--line-soft);
+    padding: 4px 8px;
+    margin-left: -8px;
+    border-radius: var(--radius-control);
+    border: 0;
     background: transparent;
     color: var(--text-muted);
     cursor: pointer;
-    transition: background .12s, border-color .12s, color .12s;
+    transition: background .12s, color .12s;
 }
-.reaction-trigger:hover { background: var(--turmeric-wash); border-color: var(--stroke); color: var(--text); }
-.reaction-trigger.is-active {
-    border-color: var(--cinnabar-ink);
-    background: var(--cinnabar-ink);
-    color: #FFF;
-}
-:root[data-theme="dark"] .reaction-trigger.is-active {
-    border-color: var(--cinnabar);
-    background: var(--cinnabar);
-    color: var(--ink);
-}
+.reaction-trigger:hover { background: var(--wash); color: var(--text); }
+.reaction-trigger.is-active { color: var(--cinnabar-ink); }
+.reaction-trigger.is-active:hover { background: var(--wash); }
 .rx-ico { display: inline-flex; line-height: 0; }
 .rx-ico :deep(svg) { display: block; width: 100%; height: 100%; }
 .rx-ico--sm { width: 16px; height: 16px; }

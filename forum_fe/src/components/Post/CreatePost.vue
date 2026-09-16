@@ -4,9 +4,23 @@
             <label class="text-sm muted">Tiêu đề</label>
             <input type="text" class="field" v-model="data.title" />
         </div>
+        <div class="flex items-center gap-2">
+            <label class="text-sm muted flex-none">Chuyên mục</label>
+            <select v-model="data.categoryId" class="field flex-1" style="padding: 6px 10px">
+                <option value="">— Không chọn —</option>
+                <option v-for="c in categories" :key="c.categoryId" :value="c.categoryId">{{ c.name }}</option>
+            </select>
+        </div>
         <div>
             <label class="text-sm muted">Nội dung</label>
-            <textarea style="height: 120px" class="field" v-model="data.body"></textarea>
+            <MarkdownToolbar :textarea="bodyEl" />
+            <textarea
+                ref="bodyEl"
+                style="height: 140px; border-top-left-radius: 0; border-top-right-radius: 0"
+                class="field"
+                v-model="data.body"
+            ></textarea>
+            <p class="muted text-xs mt-1">Hỗ trợ markdown: **đậm**, _nghiêng_, &gt; trích dẫn, `code`, [chữ](link).</p>
         </div>
         <div>
             <label class="text-sm muted">Ảnh đính kèm (tuỳ chọn, tối đa 8)</label>
@@ -52,6 +66,9 @@
             <span class="muted">Hashtag:</span>
             <span v-for="t in tags" :key="t" class="tag-chip tag-chip--sm">{{ t }}</span>
         </div>
+        <p v-if="willBePending" class="text-xs muted">
+            Đây là bài đầu tiên của bạn — bài sẽ hiện sau khi được quản trị viên duyệt.
+        </p>
         <div class="flex justify-end gap-2">
             <button type="button" class="sign-btn sign-btn--outline" :disabled="busy" @click="() => submit(true)">Lưu nháp</button>
             <button type="button" class="sign-btn" :disabled="busy" @click="() => submit(false)">Đăng bài</button>
@@ -61,20 +78,45 @@
 
 <script setup>
 import AppIcon from '@/components/AppIcon.vue';
-import { createdPost } from '@/apis/post';
-import { ref, computed, inject } from 'vue';
+import MarkdownToolbar from '@/components/Post/MarkdownToolbar.vue';
+import { createdPost, getCategories, getPostsByUser } from '@/apis/post';
+import { ref, computed, inject, onMounted } from 'vue';
 import { extractHashtags } from '@/js/helper';
+import { LOCALKEYS, getItemLocal } from '@/storages/localStorage';
 
 const emits = defineEmits(['close', 'post-fail']);
 const showDialog = inject('openDialogError', null);
 const toast = inject('toast', null);
 
 const busy = ref(false);
+const bodyEl = ref(null);
 const data = ref({
     title: "",
     body: "",
     postImgs: [],
     visibility: "public",
+    categoryId: "",
+});
+
+const categories = ref([]);
+onMounted(async () => {
+    try { categories.value = (await getCategories())?.data?.data || []; }
+    catch (e) { /* dropdown rỗng vẫn đăng bài được bình thường, không cần báo lỗi */ }
+});
+
+// Gợi ý riêng cho tài khoản CHƯA từng có bài lọt duyệt — hỏi thẳng API
+// (GET /post/by-user trả đúng "total" theo PUBLISHED, khớp luật firstPostStatus
+// ở backend) thay vì đoán bằng localStorage: một cờ lưu máy sẽ nói SAI ngay khi
+// người dùng lâu năm đổi máy hoặc xoá cache trình duyệt, làm họ tưởng nhầm bài
+// của mình phải chờ duyệt. Chỉ là gợi ý hiển thị — quyết định thật vẫn ở backend,
+// sai một nhịp ở đây cũng không hỏng gì, chỉ là dòng chữ không khớp.
+const willBePending = ref(false);
+onMounted(async () => {
+    try {
+        const myId = getItemLocal(LOCALKEYS.USER_ID);
+        const total = (await getPostsByUser(myId, 0, 1))?.data?.data?.total ?? 0;
+        willBePending.value = total === 0;
+    } catch (e) { /* không đoán được thì thôi, không chặn đăng bài vì việc này */ }
 });
 
 const tags = computed(() => extractHashtags(data.value.title, data.value.body));
@@ -111,6 +153,7 @@ const submit = async (draft) => {
     busy.value = true;
     try {
         const payload = { ...data.value };
+        if (!payload.categoryId) delete payload.categoryId;
         if (pollOn.value) payload.pollOptions = validOptions.value;
         if (draft) payload.draft = 'true';
         await createdPost(payload);

@@ -38,6 +38,26 @@ public interface PostRepository extends JpaRepository<Posts, String> {
 
     long countByStatus(String status);
 
+    // "Đã từng có bài lọt duyệt chưa" — quyết định bài mới của người này có phải
+    // xếp hàng chờ QTV hay đăng thẳng. Chỉ chạy lúc TẠO bài, không phải trên đường đọc.
+    // Tên KHÁC hẳn countPublishedByAuthor(userId, vids, me) bên dưới dù nghe gần giống:
+    // cái đó đếm theo quyền xem của NGƯỜI XEM hồ sơ (dùng cho trang /by-user), cái này
+    // đếm tuyệt đối không phân quyền — trộn hai cái sẽ cho pending sai người.
+    @Query("SELECT COUNT(p) FROM posts p WHERE " + PUBLISHED
+         + " AND p.userPost.users.userId = :userId")
+    long countEverPublishedByAuthor(@Param("userId") String userId);
+
+    // Hàng chờ duyệt (admin): cũ nhất trước, để bài chờ lâu nhất được xử lý trước.
+    List<Posts> findByStatusOrderByPostedAtAsc(String status, Pageable pageable);
+
+    // Bài đang chờ duyệt CỦA CHÍNH một người — nếu không có chỗ nào cho họ xem lại,
+    // bài "biến mất" ngay sau khi đăng: không ở feed (chưa PUBLISHED), không ở
+    // "Bài viết của tôi" (cũng lọc PUBLISHED), không ở "Bản nháp" (status khác nhau).
+    @EntityGraph(attributePaths = {"userPost", "userPost.users"})
+    @Query("SELECT p FROM posts p WHERE p.status = 'pending' AND p.userPost.users.userId = :uid "
+         + "ORDER BY p.postedAt DESC")
+    List<Posts> findMyPending(@Param("uid") String uid);
+
     // Số bài đã đăng theo ngày, từ mốc :since (cho biểu đồ dashboard)
     @Query(value = "SELECT DATE(posted_at) d, COUNT(*) c FROM posts "
                  + "WHERE (status IS NULL OR status = 'published') AND posted_at >= :since "

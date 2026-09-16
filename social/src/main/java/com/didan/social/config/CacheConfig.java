@@ -48,6 +48,7 @@ public class CacheConfig implements CachingConfigurer {
     public static final String DEACTIVATED_IDS = "deactivatedIds";
     public static final String TRENDING = "trending";
     public static final String FEED_COUNT = "feedCount";
+    public static final String CATEGORIES = "categories";
 
     /**
      * TTL đặt theo "đọc bản cũ bao lâu thì còn chấp nhận được", không phải theo độ nặng
@@ -69,6 +70,9 @@ public class CacheConfig implements CachingConfigurer {
         TTL.put(DEACTIVATED_IDS, Duration.ofSeconds(60));
         TTL.put(TRENDING, Duration.ofMinutes(5));
         TTL.put(FEED_COUNT, Duration.ofSeconds(60));
+        // Danh sách chuyên mục gần như tĩnh, nhưng admin có thể thêm/sửa/xoá -> TTL
+        // ngắn thay vì vô thời hạn, để một lần sửa không cần chờ deploy mới thấy.
+        TTL.put(CATEGORIES, Duration.ofMinutes(10));
     }
 
     /** Cache nào quên khai TTL vẫn phải hết hạn, không được nằm lại vĩnh viễn. */

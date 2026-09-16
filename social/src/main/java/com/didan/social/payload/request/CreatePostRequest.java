@@ -30,6 +30,18 @@ public class CreatePostRequest {
     // "friends" -> chỉ bạn bè xem được; còn lại = công khai
     @JsonProperty(required = false)
     private String visibility;
+    // Tuỳ chọn. Id không tồn tại/rỗng -> service bỏ qua, không chặn đăng bài vì
+    // một chuyên mục bị xoá đúng lúc người dùng đang soạn.
+    @JsonProperty(required = false)
+    private String categoryId;
+
+    public String getCategoryId() {
+        return categoryId;
+    }
+
+    public void setCategoryId(String categoryId) {
+        this.categoryId = categoryId;
+    }
     // Phương án bình chọn. Rỗng / dưới 2 phương án -> bài thường, không tạo poll.
     // Câu hỏi chính là tiêu đề bài viết nên không có trường riêng.
     @JsonProperty(required = false)

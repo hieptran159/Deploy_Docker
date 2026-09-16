@@ -442,6 +442,91 @@ public class PostController {
         }
     }
 
+    @Operation(summary = "Danh sách chuyên mục để chọn khi đăng bài. Khách xem được.")
+    @GetMapping("/categories")
+    public ResponseEntity<?> categories(){
+        ResponseData payload = new ResponseData();
+        try {
+            payload.setData(postService.getCategories());
+            payload.setDescription("OK");
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e){
+            payload.setSuccess(false);
+            payload.setStatusCode(500);
+            payload.setDescription(e.getMessage());
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
+    @Operation(summary = "Bài đang chờ duyệt CỦA CHÍNH tôi — không có nơi nào khác xem lại được.",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @GetMapping("/pending/mine")
+    public ResponseEntity<?> myPendingPosts(){
+        ResponseData payload = new ResponseData();
+        try {
+            payload.setData(postService.getMyPendingPosts());
+            payload.setDescription("OK");
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e){
+            payload.setSuccess(false);
+            payload.setStatusCode(500);
+            payload.setDescription(e.getMessage());
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
+    @Operation(summary = "Hàng chờ duyệt (bài đăng đầu tiên của tài khoản mới). Chỉ admin.",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @GetMapping("/admin/pending")
+    public ResponseEntity<?> pendingPosts(@RequestParam(defaultValue = "0") int page,
+                                          @RequestParam(defaultValue = "20") int size){
+        ResponseData payload = new ResponseData();
+        try {
+            payload.setData(postService.getPendingPosts(page, size));
+            payload.setDescription("OK");
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e){
+            payload.setSuccess(false);
+            payload.setStatusCode(500);
+            payload.setDescription(e.getMessage());
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
+    @Operation(summary = "Duyệt một bài đang chờ. Chỉ admin.", security = @SecurityRequirement(name = "bearerAuth"))
+    @PatchMapping("/admin/pending/{post_id}/approve")
+    public ResponseEntity<?> approvePending(@PathVariable("post_id") String postId){
+        ResponseData payload = new ResponseData();
+        try {
+            payload.setData(postService.approvePendingPost(postId));
+            payload.setDescription("Đã duyệt bài viết");
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e){
+            payload.setSuccess(false);
+            payload.setStatusCode(500);
+            payload.setDescription(e.getMessage());
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
+    @Operation(summary = "Từ chối một bài đang chờ (xoá bài, báo lý do). Chỉ admin.",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @DeleteMapping("/admin/pending/{post_id}")
+    public ResponseEntity<?> rejectPending(@PathVariable("post_id") String postId,
+                                           @RequestParam(required = false) String reason){
+        ResponseData payload = new ResponseData();
+        try {
+            payload.setData(postService.rejectPendingPost(postId, reason));
+            payload.setDescription("Đã từ chối bài viết");
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e){
+            payload.setSuccess(false);
+            payload.setStatusCode(500);
+            payload.setDescription(e.getMessage());
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
     @Operation(summary = "Danh sách bài mà một người dùng đã chia sẻ", security = @SecurityRequirement(name = "bearerAuth"))
     @GetMapping("/reposts/{user_id}")
     public ResponseEntity<?> repostsOf(@PathVariable("user_id") String userId,

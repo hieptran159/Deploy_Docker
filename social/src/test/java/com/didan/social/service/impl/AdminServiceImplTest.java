@@ -15,6 +15,7 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
 import java.util.Date;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -46,6 +47,7 @@ class AdminServiceImplTest {
     @Mock AdminLogRepository adminLogRepository;
     @Mock AdminLogService adminLogService;
     @Mock SessionService sessionService;
+    @Mock com.didan.social.repository.CategoryRepository categoryRepository;
 
     AdminServiceImpl svc;
     static final String ADMIN = "admin-1";
@@ -56,7 +58,7 @@ class AdminServiceImplTest {
         svc = new AdminServiceImpl(authorizePathService, userRepository, blacklistUserRepository,
                 blacklistTokenRepository, postRepository, commentRepository, conversationRepository,
                 messageRepository, bookmarkRepository, blockRepository, reportRepository,
-                adminLogRepository, adminLogService, sessionService);
+                adminLogRepository, adminLogService, sessionService, categoryRepository);
 
         when(authorizePathService.getUserIdAuthoried()).thenReturn(ADMIN);
         Users admin = new Users();
@@ -157,5 +159,70 @@ class AdminServiceImplTest {
         assertEquals("pending", b.getStatus());
         assertNull(b.getBannedUntil(), "còn sót mốc cũ thì lần cấm sau sẽ mang theo hạn cũ");
         assertFalse(b.isActiveBan());
+    }
+
+    // ---- Chuyên mục: CRUD chỉ admin, slug tự sinh và không trùng ----
+
+    @Test
+    void nguoiThuongKhongTaoDuocChuyenMuc() {
+        when(userRepository.findFirstByUserId(ADMIN)).thenReturn(null); // authAdmin() không tìm thấy -> coi như không phải admin
+        assertThrows(Exception.class, () -> svc.createCategory("Thể thao", 0));
+    }
+
+    @Test
+    void taoChuyenMucSinhSlugTuTenCoDauTiengViet() throws Exception {
+        when(categoryRepository.findAll()).thenReturn(List.of());
+
+        com.didan.social.dto.CategoryDTO out = svc.createCategory("Thể Thao", 3);
+
+        assertEquals("Thể Thao", out.getName());
+        assertEquals("the-thao", out.getSlug());
+        ArgumentCaptor<com.didan.social.entity.Category> c =
+                ArgumentCaptor.forClass(com.didan.social.entity.Category.class);
+        verify(categoryRepository).save(c.capture());
+        assertEquals(3, c.getValue().getPosition());
+    }
+
+    @Test
+    void tenTrungThiSlugThemHauToSo() throws Exception {
+        com.didan.social.entity.Category existing =
+                new com.didan.social.entity.Category("c-old", "Thể thao", "the-thao", 0);
+        when(categoryRepository.findAll()).thenReturn(List.of(existing));
+
+        com.didan.social.dto.CategoryDTO out = svc.createCategory("Thể Thao", 0);
+
+        assertEquals("the-thao-2", out.getSlug(), "trùng slug với chuyên mục khác -> thêm hậu tố, không văng lỗi SQL UNIQUE");
+    }
+
+    @Test
+    void tenRongBiTuChoi() {
+        assertThrows(Exception.class, () -> svc.createCategory("   ", 0));
+        verify(categoryRepository, never()).save(any());
+    }
+
+    @Test
+    void suaChuyenMucKhongDoiTenThiGiuNguyenSlugCu() throws Exception {
+        com.didan.social.entity.Category c =
+                new com.didan.social.entity.Category("c-1", "Thảo luận chung", "thao-luan-chung", 0);
+        when(categoryRepository.findById("c-1")).thenReturn(java.util.Optional.of(c));
+
+        svc.updateCategory("c-1", null, 9);
+
+        assertEquals("thao-luan-chung", c.getSlug(), "chỉ đổi vị trí -> URL cũ không được đổi theo");
+        assertEquals(9, c.getPosition());
+    }
+
+    @Test
+    void xoaChuyenMucKhongTonTaiThiBaoLoi() {
+        when(categoryRepository.existsById("khong-co")).thenReturn(false);
+        assertThrows(Exception.class, () -> svc.deleteCategory("khong-co"));
+        verify(categoryRepository, never()).deleteById(any());
+    }
+
+    @Test
+    void xoaChuyenMucHopLe() throws Exception {
+        when(categoryRepository.existsById("c-1")).thenReturn(true);
+        assertTrue(svc.deleteCategory("c-1"));
+        verify(categoryRepository).deleteById("c-1");
     }
 }

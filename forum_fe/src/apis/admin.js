@@ -34,3 +34,20 @@ export const banUser = (userId, days = 0) => {
 export const unbanUser = (userId) => {
     return authApi.delete(`/admin/unban/${userId}`);
 }
+
+/* ---------- chuyên mục ---------- */
+
+export const createCategory = (name, position = 0) => {
+    return authApi.post(`/admin/categories?name=${encodeURIComponent(name)}&position=${position}`);
+}
+
+export const updateCategory = (id, { name, position } = {}) => {
+    const params = new URLSearchParams();
+    if (name !== undefined && name !== null) params.set('name', name);
+    if (position !== undefined && position !== null) params.set('position', position);
+    return authApi.patch(`/admin/categories/${id}?${params.toString()}`);
+}
+
+export const deleteCategory = (id) => {
+    return authApi.delete(`/admin/categories/${id}`);
+}
