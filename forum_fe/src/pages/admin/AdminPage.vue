@@ -57,6 +57,55 @@
             </div>
 
             <div class="card">
+                <div class="section-title">Chuyên mục</div>
+                <div class="flex gap-2 mb-3">
+                    <input type="text" class="field flex-1" v-model="newCategoryName"
+                        placeholder="Tên chuyên mục mới" @keyup.enter="doCreateCategory" />
+                    <button type="button" class="sign-btn" :disabled="!newCategoryName.trim()" @click="doCreateCategory">Thêm</button>
+                </div>
+                <div v-if="!categories.length" class="state">Chưa có chuyên mục nào</div>
+                <div v-for="c in categories" :key="c.categoryId" class="flex items-center gap-2 py-1.5 border-b last:border-b-0">
+                    <input
+                        v-if="editingCategoryId === c.categoryId"
+                        type="text"
+                        class="field flex-1"
+                        v-model="editingCategoryName"
+                        @keyup.enter="() => doRenameCategory(c)"
+                    />
+                    <span v-else class="flex-1">{{ c.name }}</span>
+                    <template v-if="editingCategoryId === c.categoryId">
+                        <button type="button" class="sign-btn sign-btn--quiet" @click="() => doRenameCategory(c)">Lưu</button>
+                        <button type="button" class="sign-btn sign-btn--quiet" @click="editingCategoryId = null">Huỷ</button>
+                    </template>
+                    <template v-else>
+                        <button type="button" class="sign-btn sign-btn--quiet" @click="() => { editingCategoryId = c.categoryId; editingCategoryName = c.name; }">Sửa</button>
+                        <button type="button" class="sign-btn sign-btn--quiet sign-btn--quiet-danger" @click="() => doDeleteCategory(c)">Xoá</button>
+                    </template>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="section-title">Bài đang chờ duyệt ({{ pendingTotal }})</div>
+                <p class="muted text-sm mb-2">Chỉ áp dụng cho bài đăng đầu tiên của mỗi tài khoản.</p>
+                <div v-if="!pendingPosts.length" class="state">Không có bài nào đang chờ</div>
+                <div v-for="p in pendingPosts" :key="p.postId" class="border-b last:border-b-0 py-3">
+                    <router-link :to="`/post/${p.postId}`" class="link font-semibold">{{ p.title || '(chưa có tiêu đề)' }}</router-link>
+                    <div class="muted text-sm line-clamp-2 whitespace-pre-wrap mt-0.5">{{ p.body }}</div>
+                    <div class="text-xs muted mt-1 flex items-center gap-3">
+                        <span>{{ p.authorName }}</span>
+                        <span>{{ timeAgo(p.postedAt) }}</span>
+                    </div>
+                    <div class="flex gap-2 mt-2">
+                        <button type="button" class="sign-btn sign-btn--outline" @click="() => doApprovePending(p)">Duyệt</button>
+                        <button type="button" class="sign-btn sign-btn--outline sign-btn--outline-danger" @click="() => doRejectPending(p)">Từ chối</button>
+                    </div>
+                </div>
+                <div v-if="pendingPosts.length < pendingTotal" class="pt-2 text-center">
+                    <button class="link text-sm" @click="() => loadPending(false)">Xem thêm</button>
+                </div>
+            </div>
+
+            <div class="card">
                 <div class="flex items-center gap-3 mb-2">
                     <span class="section-title mb-0 flex-1">Hàng đợi báo cáo</span>
                     <select v-model="reportFilter" @change="loadReports"
@@ -161,8 +210,10 @@
 <script setup>
 import { onMounted, ref, inject } from 'vue';
 import { useRouter } from 'vue-router';
-import { getBlacklist, grantAdmin, banUser, unbanUser, getAdminStats, getAdminLogs } from '@/apis/admin';
+import { getBlacklist, grantAdmin, banUser, unbanUser, getAdminStats, getAdminLogs,
+    createCategory, updateCategory, deleteCategory } from '@/apis/admin';
 import { getReports, handleReport, removeReportedTarget, restoreReportedTarget } from '@/apis/report';
+import { getCategories, getPendingPosts, approvePendingPost, rejectPendingPost } from '@/apis/post';
 import { timeAgo } from '@/js/helper';
 
 const router = useRouter();
@@ -343,5 +394,101 @@ const doUnban = (userId) => {
     });
 }
 
-onMounted(() => { loadStats(); loadBlacklist(); loadReports(); loadLogs(true); });
+/* ---------- chuyên mục ---------- */
+
+const categories = ref([]);
+const newCategoryName = ref('');
+const editingCategoryId = ref(null);
+const editingCategoryName = ref('');
+
+const loadCategories = async () => {
+    try { categories.value = (await getCategories())?.data?.data || []; }
+    catch (e) { categories.value = []; }
+}
+
+const doCreateCategory = async () => {
+    const name = newCategoryName.value.trim();
+    if (!name) return;
+    try {
+        await createCategory(name, categories.value.length);
+        newCategoryName.value = '';
+        await loadCategories();
+        toast?.('Đã thêm chuyên mục');
+    } catch (e) {
+        showDialog?.('Thông báo', e?.description || 'Thêm chuyên mục thất bại');
+    }
+}
+
+const doRenameCategory = async (c) => {
+    const name = editingCategoryName.value.trim();
+    if (!name) return;
+    try {
+        await updateCategory(c.categoryId, { name });
+        editingCategoryId.value = null;
+        await loadCategories();
+        toast?.('Đã cập nhật chuyên mục');
+    } catch (e) {
+        showDialog?.('Thông báo', e?.description || 'Cập nhật thất bại');
+    }
+}
+
+const doDeleteCategory = (c) => {
+    openConfirm?.('Xoá chuyên mục', `Xoá chuyên mục "${c.name}"? Bài đã đăng trong đó chỉ mất nhãn, không bị xoá.`, async () => {
+        try {
+            await deleteCategory(c.categoryId);
+            await loadCategories();
+            toast?.('Đã xoá chuyên mục');
+        } catch (e) {
+            showDialog?.('Thông báo', e?.description || 'Xoá thất bại');
+        }
+    }, { danger: true, confirmText: 'Xoá' });
+}
+
+/* ---------- bài chờ duyệt ---------- */
+
+const PENDING_SIZE = 20;
+const pendingPosts = ref([]);
+const pendingTotal = ref(0);
+const pendingPage = ref(0);
+
+const loadPending = async (reset = true) => {
+    const p = reset ? 0 : pendingPage.value + 1;
+    try {
+        const d = (await getPendingPosts(p, PENDING_SIZE))?.data?.data || {};
+        const items = d.items || [];
+        pendingPosts.value = reset ? items : [...pendingPosts.value, ...items];
+        pendingTotal.value = d.total ?? pendingPosts.value.length;
+        pendingPage.value = p;
+    } catch (e) {
+        if (reset) { pendingPosts.value = []; pendingTotal.value = 0; }
+    }
+}
+
+const doApprovePending = async (p) => {
+    try {
+        await approvePendingPost(p.postId);
+        pendingPosts.value = pendingPosts.value.filter((x) => x.postId !== p.postId);
+        pendingTotal.value = Math.max(0, pendingTotal.value - 1);
+        toast?.('Đã duyệt bài viết');
+        loadLogs(true);
+    } catch (e) {
+        showDialog?.('Thông báo', e?.description || 'Duyệt thất bại');
+    }
+}
+
+const doRejectPending = (p) => {
+    openConfirm?.('Từ chối bài viết', `Từ chối "${p.title}"? Bài sẽ bị xoá, tác giả nhận được thông báo.`, async () => {
+        try {
+            await rejectPendingPost(p.postId, 'Nội dung chưa phù hợp với nội quy diễn đàn');
+            pendingPosts.value = pendingPosts.value.filter((x) => x.postId !== p.postId);
+            pendingTotal.value = Math.max(0, pendingTotal.value - 1);
+            toast?.('Đã từ chối bài viết');
+            loadLogs(true);
+        } catch (e) {
+            showDialog?.('Thông báo', e?.description || 'Từ chối thất bại');
+        }
+    }, { danger: true, confirmText: 'Từ chối' });
+}
+
+onMounted(() => { loadStats(); loadBlacklist(); loadReports(); loadLogs(true); loadCategories(); loadPending(); });
 </script>

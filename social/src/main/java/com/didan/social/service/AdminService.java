@@ -17,4 +17,9 @@ public interface AdminService {
     java.util.Map<String, Object> getStats() throws Exception;
     // Nhật ký hành động admin (mới nhất trước), phân trang
     java.util.List<com.didan.social.entity.AdminLog> getLogs(int page, int size) throws Exception;
+
+    // Chuyên mục (đọc công khai qua PostService.getCategories; CRUD chỉ admin)
+    com.didan.social.dto.CategoryDTO createCategory(String name, Integer position) throws Exception;
+    com.didan.social.dto.CategoryDTO updateCategory(String categoryId, String name, Integer position) throws Exception;
+    boolean deleteCategory(String categoryId) throws Exception;
 }

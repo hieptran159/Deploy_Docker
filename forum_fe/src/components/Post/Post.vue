@@ -33,6 +33,7 @@
                 <span v-if="post?.editedAt" class="text-xs muted">đã sửa</span>
                 <span v-if="post?.visibility === 'friends'" class="post-badge"><AppIcon name="users" :size="12" /> Bạn bè</span>
                 <span v-else-if="post?.visibility === 'private'" class="post-badge"><AppIcon name="lock" :size="12" /> Chỉ mình tôi</span>
+                <span v-if="post?.categoryName" class="post-badge">{{ post.categoryName }}</span>
             </div>
 
             <!-- nội dung: tiêu đề + trích đoạn -->
@@ -64,10 +65,13 @@
                 <AppIcon name="edit" :size="16" />
                 Sửa
             </button>
-            <span class="act-pill" style="cursor: default">
-                <AppIcon name="heart" :size="16" />
-                <span class="tnum">{{ post?.likesQuantity ?? 0 }}</span>
-            </span>
+            <ReactionBar
+                :my-reaction="post?.myReaction"
+                :counts="post?.reactionCounts || {}"
+                @click.stop
+                @react="reactPost"
+                @unreact="unreactPost"
+            />
             <span class="act-pill" style="cursor: default">
                 <AppIcon name="message-circle" :size="16" />
                 <span class="tnum">{{ post?.commentsQuantity ?? 0 }}</span>
@@ -103,6 +107,7 @@
             :title="post.title"
             :body="post.body"
             :visibility="post.visibility || 'public'"
+            :categoryId="post.categoryId || ''"
             @close="() => { editing = false; emit('refresh') }"
             @post-fail="showDialog?.('Thông báo', 'Cập nhật bài viết thất bại')"
         />
@@ -117,7 +122,8 @@ import { calculateTimeDifference, formatTime } from '../../js/helper';
 import { IMAGE_BASE } from '@/config';
 import { useRouter } from 'vue-router';
 import { LOCALKEYS, getItemLocal } from '@/storages/localStorage';
-import { repostPost, unrepostPost } from '@/apis/post';
+import { repostPost, unrepostPost, likePostApi, unLikePostApi } from '@/apis/post';
+import ReactionBar from '@/components/ReactionBar.vue';
 import { avatarUpdates } from '@/storages/appState';
 import EditPost from '@/components/Post/EditPost.vue';
 import AppIcon from '@/components/AppIcon.vue';
@@ -170,6 +176,43 @@ const viewDetail = () => {
 
 const goProfile = () => {
     if (post.value?.userCreatedPost) route.push(`/user/${post.value.userCreatedPost}`);
+}
+
+const needLogin = () => {
+    if (isLogin.value) return false;
+    route.push('/login');
+    return true;
+}
+
+const reactPost = async (type) => {
+    if (needLogin()) return;
+    try {
+        await likePostApi(post.value.postId, type);
+        const prevType = post.value.myReaction;
+        const counts = { ...(post.value.reactionCounts || {}) };
+        if (prevType) counts[prevType] = Math.max(0, (counts[prevType] || 0) - 1);
+        counts[type] = (counts[type] || 0) + 1;
+        post.value.reactionCounts = counts;
+        post.value.myReaction = type;
+    } catch (e) {
+        showDialog?.('Thông báo', e?.description || 'Thao tác thất bại');
+    }
+}
+
+const unreactPost = async () => {
+    if (needLogin()) return;
+    try {
+        await unLikePostApi(post.value.postId);
+        const prevType = post.value.myReaction;
+        if (prevType) {
+            const counts = { ...(post.value.reactionCounts || {}) };
+            counts[prevType] = Math.max(0, (counts[prevType] || 0) - 1);
+            post.value.reactionCounts = counts;
+        }
+        post.value.myReaction = null;
+    } catch (e) {
+        showDialog?.('Thông báo', e?.description || 'Thao tác thất bại');
+    }
 }
 
 const toggleRepost = async () => {

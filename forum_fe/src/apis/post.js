@@ -123,3 +123,30 @@ export const unfollowTag = (tag) => {
 export const getFollowedTagsFeed = (page = 0, size = 10) => {
     return authApi.get(`/post/feed/hashtags?page=${page}&size=${size}`);
 }
+
+/* ---------- chuyên mục ---------- */
+
+// Khách xem được (dropdown khi soạn bài không cần đăng nhập để thấy danh sách)
+export const getCategories = () => {
+    return authApi.get('/post/categories');
+}
+
+// Bài đang chờ duyệt CỦA CHÍNH mình — không hiện ở feed, "Bài viết của tôi" hay
+// "Bản nháp" nên cần một chỗ riêng để không "biến mất" sau khi đăng.
+export const getMyPendingPosts = () => {
+    return authApi.get('/post/pending/mine');
+}
+
+/* ---------- duyệt bài lần đầu (chỉ admin) ---------- */
+
+export const getPendingPosts = (page = 0, size = 20) => {
+    return authApi.get(`/post/admin/pending?page=${page}&size=${size}`);
+}
+
+export const approvePendingPost = (id) => {
+    return authApi.patch(`/post/admin/pending/${id}/approve`);
+}
+
+export const rejectPendingPost = (id, reason = '') => {
+    return authApi.delete(`/post/admin/pending/${id}${reason ? `?reason=${encodeURIComponent(reason)}` : ''}`);
+}

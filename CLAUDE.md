@@ -85,7 +85,7 @@ npm run build     # → dist/, served by nginx in the Docker image
 
 ## Tests
 
-JUnit 5 unit-test suite (184 tests) under `social/src/test/java` — **no DB / Docker / Spring
+JUnit 5 unit-test suite (207 tests) under `social/src/test/java` — **no DB / Docker / Spring
 context**, runs on plain `./mvnw test` (deps already in `spring-boot-starter-test` +
 `spring-security-test`). Service tests use `@ExtendWith(MockitoExtension.class)` +
 `@MockitoSettings(strictness = LENIENT)`, mock every constructor dep, and instantiate the
@@ -99,8 +99,9 @@ impl directly in `@BeforeEach`:
 | `service/impl/FollowServiceImplTest` | block/unblock guards (self, already-blocked no-op, not-blocked reject), `friendStatus` block direction (`blocked_out`/`blocked_in`/`self`/`none`), `isBlockedEither`, `sendRequest` guards (blocked, deactivated target, self) — Mockito, no context |
 | `service/impl/PostServiceImplTest` | `createPost` visibility (`friends`/`private`/default `public`) + draft rules (title-only ok, empty rejected, published missing body); `publishPost` guards (non-author, already published, missing content, happy path); `repost` guards (friends-only, own post, draft, idempotent, saves + notifies) — `ArgumentCaptor<Posts>` |
 | `service/impl/PostServiceImplTest` (poll part) | `deletePost` clears `poll_votes` → `poll_options` → `polls` **in FK order** before the post (same trap `bookmarks` sprang once), and skips those tables when the post has no poll; `createPost` builds a poll only at ≥2 valid options, sanitises option text and caps at 10; `vote` rejects an option from another poll, a post the caller cannot see, and a post with no poll; `unvote` deletes the caller's own row |
+| `service/impl/PostServiceImplTest` (moderation + category part) | a first-ever post gets `"pending"`, the second+ gets `"published"` (mocking `countEverPublishedByAuthor`, **not** relying on Mockito's default `0` for `long`); a draft is never pending; a valid `categoryId` is stored, an id that no longer exists is dropped rather than blocking the post; editing a post with **no** `categoryId` field keeps the old one, an **empty string** clears it, a real id changes it; only an admin can list/approve/reject the pending queue; approving flips the status and notifies the author, rejecting deletes the post (via the same helper `deletePost` uses) and notifies with the reason; approving/rejecting a post that isn't `"pending"` is rejected |
 | `entity/BlacklistUserTest` | `isActiveBan` — permanent ban always active, dated ban active before / inactive after its date, non-`blocked` status never counts |
-| `service/impl/AdminServiceImplTest` | temporary bans: no `days` = permanent, `days` sets the right expiry, banning revokes every session, an already-active ban can't be re-applied, re-banning someone whose ban **expired** reuses the existing row (`user_id` is the PK) and keeps `reportedQuantity`, unban clears `bannedUntil` |
+| `service/impl/AdminServiceImplTest` | temporary bans: no `days` = permanent, `days` sets the right expiry, banning revokes every session, an already-active ban can't be re-applied, re-banning someone whose ban **expired** reuses the existing row (`user_id` is the PK) and keeps `reportedQuantity`, unban clears `bannedUntil`; category CRUD — name required, slug auto-generated from a Vietnamese name with diacritics stripped, a colliding slug gets a `-2`/`-3` suffix instead of hitting the `UNIQUE` constraint, renaming without changing the name keeps the old slug (a saved/shared URL shouldn't move), deleting an unknown category is rejected, non-admin is rejected for every one of these |
 | `service/impl/ReportServiceImplTest` (batching part) | admin report queue loads reporters/posts/comments/open-counts **once each** for the whole page and never calls the per-row finders — the guard that keeps the N+1 from creeping back |
 | `service/impl/ReportServiceImplTest` | `ReportServiceImpl.create` auto-hide threshold: invalid type, below threshold no-hide, at threshold sets `status=hidden` + saves, already-hidden untouched, duplicate open report no-op, threshold `0` disables — `ReflectionTestUtils` for `@Value autoHideThreshold` |
 | `service/impl/PostServiceImplTest` (views part) | `countView` keys a guest view on the **client IP** (two IPs = two viewers) and a member's on the userId, and skips `incrementViews` when the throttle says no — the guard that keeps the IP branch from going dead again. Plus: a guest feed request (auth service throwing) must not blow up and must pass the `"-"` sentinels |
@@ -354,6 +355,41 @@ frontend tests.
   author. `GET /post/drafts` (mine), `PATCH /post/publish/{id}` (author-only; requires
   title+body, bumps `postedAt` to now). FE: `CreatePost.vue` "Lưu nháp" button, `/drafts`
   page (edit via `EditPost` popup / publish / delete), header tab id 6.
+- **Categories**: `entity/Category` (table `categories`, Flyway `V14`, seeded with 5:
+  Thảo luận chung / Hỏi đáp / Chia sẻ / Thông báo / Khác). `posts.category_id` is a plain
+  `VARCHAR(36)` with **no foreign key** — deleting a category must not cascade-delete or
+  block-delete every post filed under it; posts just lose the label (`applyCategories`
+  looks the id up in a cached full list and skips silently if it's gone). `GET
+  /post/categories` is in the guest permit list (matches `/post/*`, one segment). CRUD is
+  admin-only, under `/admin/categories` (`AdminService.createCategory` / `updateCategory` /
+  `deleteCategory`, slug auto-generated via `Normalizer` accent-stripping +
+  `-2`/`-3` suffix on collision — no new dependency for that). The list is
+  `@Cacheable(CacheConfig.CATEGORIES, 10 min)`; every write path `@CacheEvict`s it.
+  FE: `CreatePost.vue` / `EditPost.vue` have a category `<select>`; `EditPostRequest` treats
+  a **missing** `categoryId` as "leave alone" and an **empty string** as "clear it" — the
+  distinction only matters for API clients that don't always send the field.
+- **First-post moderation queue** (like AowVN's "your first post needs QTV approval"):
+  `Posts.status` gains `"pending"`. `PostServiceImpl.firstPostStatus` checks
+  `PostRepository.countEverPublishedByAuthor(userId)` — zero means this account has never
+  had a post go live, so the new one is `"pending"` instead of `"published"`; from the
+  **second** post on it publishes immediately, no whitelist needed (the auto-poster bot
+  clears this after its first post same as anyone). `getPostById` treats `pending` like
+  `draft`/`hidden` — author or admin only. `GET /post/pending/mine` exists because a pending
+  post is otherwise **invisible to its own author**: not on the feed (not PUBLISHED yet), not
+  under "Bài viết của tôi" (same PUBLISHED filter), not under drafts (different status) —
+  `Drafts.vue` shows a "Đang chờ duyệt" block above the drafts using it.
+  Admin: `GET /post/admin/pending` (paged, oldest first) + `PATCH
+  /post/admin/pending/{id}/approve` (→ `"published"`, notifies the author,
+  `POST_APPROVED`) + `DELETE /post/admin/pending/{id}?reason=` (deletes the post via the
+  same `deletePostData` helper `deletePost` uses, notifies with the reason,
+  `POST_REJECTED` — no `"rejected"` status was added; a rejected post just doesn't exist
+  any more). Both live in `PostService`, not `AdminService` — this is post moderation, not
+  account moderation, and `PostServiceImpl` already has every dependency
+  (`deletePostData`, `notificationService`) the admin one would have had to duplicate.
+  FE: `AdminPage.vue` "Bài đang chờ duyệt" card; `CreatePost.vue` shows a one-line heads-up
+  ("bài sẽ hiện sau khi được quản trị viên duyệt") for a first-time poster, worked out by
+  calling `GET /post/by-user/{me}?size=1` and checking `total === 0` — **not** a
+  `localStorage` flag, which would lie to a returning user who cleared their browser data.
 - Hashtag follows: `hashtag_follows` (PK `(user_id, tag)`, Flyway `V11`).
   `POST` / `DELETE /post/hashtags/{tag}/follow`, `GET /post/hashtags/following`, and
   `GET /post/feed/hashtags?page=&size=` (0-based page, unlike `/post/get`) which returns
@@ -886,6 +922,19 @@ but `VITE_API_URL` in `.env.local` is **not** — Vite loads `.env.local` in bui
 - The `location /api` proxy in `nginx.conf` points at a docs page and is not the real
   data path; the SPA talks to the backend directly via the absolute `BASE_URL`.
 - Path alias `@` → `src/`.
+- **Post bodies render as markdown** (Sep 2026): `components/MarkdownBody.vue` (see the XSS
+  note under Security) + `components/Post/MarkdownToolbar.vue`, a toolbar that edits the
+  `<textarea>` directly via `selectionStart`/`selectionEnd` (bold/italic/quote/code/link/list)
+  — no editor library, `dispatchEvent(new Event('input'))` is what makes `v-model` pick up the
+  change. The link button inserts `[chữ](url)` for the user to fill in; it does **not** upload
+  images inline — that would need a new upload-then-embed endpoint and orphaned-image cleanup
+  for posts abandoned mid-draft, so images stay on the existing "Ảnh đính kèm" picker (shown as
+  a gallery, not embedded in the text). `LinkText.vue` (the old plain-text auto-linkifier) was
+  deleted once `MarkdownBody` took over the only place it was used.
+  **`ReactionBar.vue` is now used in both `Post.vue` (feed/list cards) and `PostDetail.vue`** —
+  liking used to only be possible from the detail page (the feed card's heart was a
+  non-interactive `<span>`). Its CSS was pulled off `border-radius: 999px` at the same time to
+  match `.act-pill` (see the design-system note): reactions are chips of *text*, not pills.
 
 ## Caution
 
@@ -919,7 +968,14 @@ but `VITE_API_URL` in `.env.local` is **not** — Vite loads `.env.local` in bui
   Several callers interpolate user-controlled names (`fullName`, group name) into the
   message → stored XSS that could exfiltrate `localStorage` tokens. Now rendered as text
   (`{{ content }}` + `white-space: pre-line`). **Never reintroduce `v-html` for dialog
-  content.** Post/comment bodies are already rendered with `{{ }}` / `whitespace-pre-wrap`.
+  content.** Comment bodies are still rendered with `{{ }}` / `whitespace-pre-wrap`.
+  Post bodies are the **one deliberate exception** (Sep 2026, markdown support):
+  `components/MarkdownBody.vue` renders through `markdown-it` (`html: false` — raw HTML typed
+  into a post is never turned into tags) and then `DOMPurify.sanitize()` with an explicit
+  `ALLOWED_TAGS`/`ALLOWED_ATTR` allowlist, before it ever reaches `v-html`. **Both layers are
+  load-bearing** — dropping either one reopens this exact class of bug. Don't add a second
+  `v-html` site without the same two-layer treatment; adding a rich-text field is not itself
+  a reason to skip it.
 - Display strings are sanitized on write (strip `<` `>` + control chars, length cap):
   `UserServiceImpl.clean` (profile), `AuthServiceImpl.signup` (fullName),
   `ChatServiceImpl.createConversation` / `renameConversation` (group name).

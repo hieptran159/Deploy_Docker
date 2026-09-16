@@ -1,5 +1,17 @@
 <template>
     <div class="page">
+        <!-- Bài chờ duyệt: không có ở feed, "Bài viết của tôi" hay bản nháp — không
+             có khối này thì bài "biến mất" ngay sau khi đăng, không dấu vết. Chỉ đọc,
+             sửa/xoá thì vào thẳng bài (đường /post/{id} đã cho tác giả xem bài pending). -->
+        <div v-if="pending.length" class="card">
+            <div class="section-title">Đang chờ duyệt ({{ pending.length }})</div>
+            <p class="muted text-sm mb-2">Quản trị viên duyệt xong, bài sẽ tự hiện trên bảng tin.</p>
+            <div v-for="p in pending" :key="p.postId" class="py-2 border-b last:border-b-0">
+                <router-link :to="`/post/${p.postId}`" class="link font-semibold">{{ p.title || '(chưa có tiêu đề)' }}</router-link>
+                <div class="text-xs muted mt-1">Đăng {{ timeAgo(p.postedAt) }}</div>
+            </div>
+        </div>
+
         <div class="card">
             <div class="flex flex-wrap items-center gap-2 mb-1">
                 <div class="section-title flex-1">Bản nháp ({{ total }})</div>
@@ -55,7 +67,7 @@
 <script setup>
 import { onMounted, ref, inject } from 'vue';
 import AppModal from '@/components/ui/AppModal.vue';
-import { getDrafts, publishPost, deletePost, publishAllDrafts, deleteAllDrafts } from '@/apis/post';
+import { getDrafts, publishPost, deletePost, publishAllDrafts, deleteAllDrafts, getMyPendingPosts } from '@/apis/post';
 import { timeAgo } from '@/js/helper';
 import EditPost from '@/components/Post/EditPost.vue';
 
@@ -66,6 +78,7 @@ const openConfirm = inject('openConfirm', null);
 const toast = inject('toast', null);
 
 const drafts = ref([]);
+const pending = ref([]);
 const total = ref(0);
 const page = ref(0);
 const loading = ref(false);
@@ -150,5 +163,9 @@ const confirmDeleteAll = () => {
     }, { danger: true, confirmText: 'Xoá tất cả' });
 };
 
-onMounted(reload);
+onMounted(async () => {
+    reload();
+    try { pending.value = (await getMyPendingPosts())?.data?.data || []; }
+    catch (e) { /* không tải được thì chỉ ẩn khối này, không chặn xem bản nháp */ }
+});
 </script>

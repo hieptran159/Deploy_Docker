@@ -47,6 +47,7 @@ public class AdminServiceImpl implements AdminService {
     private final AdminLogRepository adminLogRepository;
     private final AdminLogService adminLogService;
     private final com.didan.social.service.SessionService sessionService;
+    private final com.didan.social.repository.CategoryRepository categoryRepository;
     private final Logger logger = LoggerFactory.getLogger(AdminServiceImpl.class);
     @Autowired
     public AdminServiceImpl(AuthorizePathServiceImpl authorizePathService, UserRepository userRepository,
@@ -56,7 +57,9 @@ public class AdminServiceImpl implements AdminService {
                             BookmarkRepository bookmarkRepository, BlockRepository blockRepository,
                             ReportRepository reportRepository, AdminLogRepository adminLogRepository,
                             AdminLogService adminLogService,
-                            com.didan.social.service.SessionService sessionService) {
+                            com.didan.social.service.SessionService sessionService,
+                            com.didan.social.repository.CategoryRepository categoryRepository) {
+        this.categoryRepository = categoryRepository;
         this.sessionService = sessionService;
         this.authorizePathService = authorizePathService;
         this.userRepository = userRepository;
@@ -71,6 +74,83 @@ public class AdminServiceImpl implements AdminService {
         this.reportRepository = reportRepository;
         this.adminLogRepository = adminLogRepository;
         this.adminLogService = adminLogService;
+    }
+
+    /** Bỏ dấu tiếng Việt bằng JDK thuần (Normalizer) — không cần thêm thư viện cho một hàm nhỏ. */
+    private static String slugify(String name) {
+        String noAccent = java.text.Normalizer.normalize(name, java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{InCombiningDiacriticalMarks}+", "")
+                .replace('đ', 'd').replace('Đ', 'D');
+        String slug = noAccent.toLowerCase().trim()
+                .replaceAll("[^a-z0-9\\s-]", "")
+                .replaceAll("[\\s-]+", "-")
+                .replaceAll("^-|-$", "");
+        return slug.isEmpty() ? "muc" : slug;
+    }
+
+    /** Slug trùng thì thêm hậu tố -2, -3... (UNIQUE trên cột slug) thay vì để lỗi SQL khó hiểu văng ra. */
+    private String uniqueSlug(String base, String excludeId) {
+        String exclude = excludeId == null ? "" : excludeId;
+        List<com.didan.social.entity.Category> all = categoryRepository.findAll();
+        String slug = base;
+        for (int i = 2; ; i++) {
+            String candidate = slug;
+            boolean taken = all.stream()
+                    .anyMatch(c -> c.getSlug().equals(candidate) && !c.getCategoryId().equals(exclude));
+            if (!taken) return slug;
+            slug = base + "-" + i;
+        }
+    }
+
+    @Override
+    @org.springframework.cache.annotation.CacheEvict(cacheNames = com.didan.social.config.CacheConfig.CATEGORIES, allEntries = true)
+    public com.didan.social.dto.CategoryDTO createCategory(String name, Integer position) throws Exception {
+        authAdmin();
+        if (!org.springframework.util.StringUtils.hasText(name)) {
+            throw new Exception("Tên chuyên mục không được để trống");
+        }
+        String clean = UserServiceImpl.clean(name, 60);
+        com.didan.social.entity.Category c = new com.didan.social.entity.Category(
+                java.util.UUID.randomUUID().toString(), clean,
+                uniqueSlug(slugify(clean), null), position == null ? 0 : position);
+        categoryRepository.save(c);
+        adminLogService.record("CREATE_CATEGORY", "category", c.getCategoryId(), clean);
+        return new com.didan.social.dto.CategoryDTO(c.getCategoryId(), c.getName(), c.getSlug());
+    }
+
+    @Override
+    @org.springframework.cache.annotation.CacheEvict(cacheNames = com.didan.social.config.CacheConfig.CATEGORIES, allEntries = true)
+    public com.didan.social.dto.CategoryDTO updateCategory(String categoryId, String name, Integer position) throws Exception {
+        authAdmin();
+        com.didan.social.entity.Category c = categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new Exception("Không tìm thấy chuyên mục"));
+        if (org.springframework.util.StringUtils.hasText(name)) {
+            String clean = UserServiceImpl.clean(name, 60);
+            c.setName(clean);
+            // Chỉ sinh lại slug khi tên đổi thật -> URL cũ (nếu ai đã lưu/chia sẻ) ổn định
+            // qua những lần sửa không đổi nghĩa (ví dụ chỉ đổi vị trí hiển thị).
+            if (!clean.equals(c.getName())) c.setSlug(uniqueSlug(slugify(clean), categoryId));
+        }
+        if (position != null) c.setPosition(position);
+        categoryRepository.save(c);
+        adminLogService.record("UPDATE_CATEGORY", "category", categoryId, c.getName());
+        return new com.didan.social.dto.CategoryDTO(c.getCategoryId(), c.getName(), c.getSlug());
+    }
+
+    @Override
+    @org.springframework.cache.annotation.CacheEvict(cacheNames = com.didan.social.config.CacheConfig.CATEGORIES, allEntries = true)
+    public boolean deleteCategory(String categoryId) throws Exception {
+        authAdmin();
+        if (!categoryRepository.existsById(categoryId)) {
+            throw new Exception("Không tìm thấy chuyên mục");
+        }
+        // Cố ý KHÔNG đụng vào posts.category_id của các bài đang trỏ tới đây (không có
+        // khoá ngoại — xem V14__categories.sql): chúng chỉ mất nhãn chuyên mục,
+        // applyCategories bỏ qua id không tìm thấy. Xoá cả nghìn bài để dọn một
+        // chuyên mục là việc không ai muốn.
+        categoryRepository.deleteById(categoryId);
+        adminLogService.record("DELETE_CATEGORY", "category", categoryId, null);
+        return true;
     }
 
     @Override

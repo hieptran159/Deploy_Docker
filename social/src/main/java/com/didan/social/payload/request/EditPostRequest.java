@@ -24,6 +24,20 @@ public class EditPostRequest {
     private String body;
     @JsonProperty(required = false)
     private String visibility;
+    // null = không đổi chuyên mục hiện tại; chuỗi rỗng "" = bỏ chuyên mục.
+    // Khác createPost (chỉ có "chọn" hoặc "không chọn"): sửa bài cần phân biệt được
+    // "giữ nguyên" với "cố ý gỡ", nên tham số optional thường (null từ multipart
+    // không set) đã đủ diễn đạt "giữ nguyên", còn "" diễn đạt "gỡ".
+    @JsonProperty(required = false)
+    private String categoryId;
+
+    public String getCategoryId() {
+        return categoryId;
+    }
+
+    public void setCategoryId(String categoryId) {
+        this.categoryId = categoryId;
+    }
 
     public EditPostRequest() {
     }

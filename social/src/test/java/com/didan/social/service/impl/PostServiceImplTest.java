@@ -10,6 +10,8 @@ import com.didan.social.repository.*;
 import com.didan.social.service.AuthorizePathService;
 import com.didan.social.service.FollowService;
 import com.didan.social.service.NotificationService;
+import java.util.Date;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -46,6 +48,7 @@ class PostServiceImplTest {
     @Mock com.didan.social.repository.PollVoteRepository pollVoteRepository;
     @Mock com.didan.social.repository.PostImageRepository postImageRepository;
     @Mock com.didan.social.repository.HashtagFollowRepository hashtagFollowRepository;
+    @Mock com.didan.social.repository.CategoryRepository categoryRepository;
 
     PostServiceImpl svc;
     static final String ME = "me-1";
@@ -57,7 +60,7 @@ class PostServiceImplTest {
                 postLikeRepository, commentRepository, authorizePathService, notificationService,
                 blockRepository, repostRepository, followService, postHashtagRepository, bookmarkRepository,
                 postViewThrottle, pollRepository, pollOptionRepository, pollVoteRepository,
-                postImageRepository, hashtagFollowRepository);
+                postImageRepository, hashtagFollowRepository, categoryRepository);
         when(authorizePathService.getUserIdAuthoried()).thenReturn(ME);
         Users me = new Users(); me.setUserId(ME); me.setFullName("Me");
         when(userRepository.findFirstByUserId(ME)).thenReturn(me);
@@ -79,6 +82,10 @@ class PostServiceImplTest {
         p.setVisibility(visibility);
         p.setTitle(title);
         p.setBody(body);
+        // basePostDTO() duyệt hai tập này bằng .stream()/.size() — rỗng thay vì null,
+        // để bài test nào lỡ đi tới convertToDTO() (như updatePost) không NPE.
+        p.setPostLikes(new java.util.HashSet<>());
+        p.setUserComments(new java.util.HashSet<>());
         return p;
     }
 
@@ -86,11 +93,72 @@ class PostServiceImplTest {
 
     @Test
     void createPostFriendsVisibility() throws Exception {
+        // Đã có bài lọt duyệt trước đó -> đăng thẳng, không rơi vào "pending" của
+        // người mới. Test này kiểm tra VISIBILITY, không phải luật duyệt lần đầu —
+        // mock rõ ràng để không phụ thuộc giá trị mặc định 0 của Mockito cho long.
+        when(postRepository.countEverPublishedByAuthor(ME)).thenReturn(1L);
         svc.createPost(req("T", "B", null, "friends"));
         ArgumentCaptor<Posts> c = ArgumentCaptor.forClass(Posts.class);
         verify(postRepository).save(c.capture());
         assertEquals("friends", c.getValue().getVisibility());
         assertEquals("published", c.getValue().getStatus());
+    }
+
+    // ---- Duyệt bài lần đầu (giống nội quy AowVN: chỉ chặn bài ĐẦU TIÊN) ----
+
+    @Test
+    void baiDauTienCuaTaiKhoanMoiThiChoDuyet() throws Exception {
+        when(postRepository.countEverPublishedByAuthor(ME)).thenReturn(0L);
+        svc.createPost(req("T", "B", null, null));
+        ArgumentCaptor<Posts> c = ArgumentCaptor.forClass(Posts.class);
+        verify(postRepository).save(c.capture());
+        assertEquals("pending", c.getValue().getStatus());
+    }
+
+    @Test
+    void tuBaiThuHaiDangThangKhongCanDuyet() throws Exception {
+        when(postRepository.countEverPublishedByAuthor(ME)).thenReturn(3L);
+        svc.createPost(req("T", "B", null, null));
+        ArgumentCaptor<Posts> c = ArgumentCaptor.forClass(Posts.class);
+        verify(postRepository).save(c.capture());
+        assertEquals("published", c.getValue().getStatus());
+    }
+
+    @Test
+    void banNhapKhongBiChoDuyetDuKhachChuaCoBaiNao() throws Exception {
+        // Nháp không lên feed nên không cần qua hàng chờ; đăng luôn phải mock lại
+        // vì countEverPublishedByAuthor mặc định vẫn 0.
+        when(postRepository.countEverPublishedByAuthor(ME)).thenReturn(0L);
+        svc.createPost(req("Chỉ tiêu đề", null, "true", null));
+        ArgumentCaptor<Posts> c = ArgumentCaptor.forClass(Posts.class);
+        verify(postRepository).save(c.capture());
+        assertEquals("draft", c.getValue().getStatus());
+    }
+
+    // ---- Chuyên mục ----
+
+    @Test
+    void chonChuyenMucHopLeThiLuuLai() throws Exception {
+        when(postRepository.countEverPublishedByAuthor(ME)).thenReturn(1L);
+        when(categoryRepository.existsById("cat-1")).thenReturn(true);
+        CreatePostRequest r = req("T", "B", null, null);
+        r.setCategoryId("cat-1");
+        svc.createPost(r);
+        ArgumentCaptor<Posts> c = ArgumentCaptor.forClass(Posts.class);
+        verify(postRepository).save(c.capture());
+        assertEquals("cat-1", c.getValue().getCategoryId());
+    }
+
+    @Test
+    void chuyenMucKhongTonTaiThiBoQuaKhongChanDangBai() throws Exception {
+        when(postRepository.countEverPublishedByAuthor(ME)).thenReturn(1L);
+        when(categoryRepository.existsById("da-bi-xoa")).thenReturn(false);
+        CreatePostRequest r = req("T", "B", null, null);
+        r.setCategoryId("da-bi-xoa");
+        svc.createPost(r);
+        ArgumentCaptor<Posts> c = ArgumentCaptor.forClass(Posts.class);
+        verify(postRepository).save(c.capture());
+        assertNull(c.getValue().getCategoryId());
     }
 
     @Test
@@ -651,5 +719,147 @@ class PostServiceImplTest {
 
         assertEquals(1, info.get("totalPages"), "không có bài nào -> vẫn phải là 1 trang");
         verify(postRepository).feedCount(argThat(c -> c.contains("-")), argThat(c -> c.contains("-")), eq("-"));
+    }
+
+    // ---- Duyệt / từ chối bài đang chờ — chỉ admin ----
+
+    private Users admin() {
+        Users a = new Users();
+        a.setUserId(ME);
+        a.setIsAdmin(1);
+        return a;
+    }
+
+    @Test
+    void nguoiThuongKhongDuyetBaiDuoc() throws Exception {
+        // admin() không được gọi -> userRepository trả về me từ @BeforeEach (isAdmin mặc định 0)
+        assertThrows(Exception.class, () -> svc.getPendingPosts(0, 20));
+        assertThrows(Exception.class, () -> svc.approvePendingPost("p-1"));
+        assertThrows(Exception.class, () -> svc.rejectPendingPost("p-1", "spam"));
+    }
+
+    @Test
+    void adminDuyetBaiThiChuyenSangPublishedVaBaoChoTacGia() throws Exception {
+        when(userRepository.findFirstByUserId(ME)).thenReturn(admin());
+        Posts p = post(OTHER, "pending", null, "Bài chờ", "nội dung");
+        when(postRepository.findFirstByPostId("p-1")).thenReturn(p);
+        UserPosts up = p.getUserPost();
+        when(userPostRepository.findFirstByPosts_PostId("p-1")).thenReturn(up);
+
+        assertTrue(svc.approvePendingPost("p-1"));
+
+        ArgumentCaptor<Posts> c = ArgumentCaptor.forClass(Posts.class);
+        verify(postRepository).save(c.capture());
+        assertEquals("published", c.getValue().getStatus());
+        verify(notificationService).push(eq(OTHER), isNull(), eq("POST_APPROVED"), eq("p-1"), anyString());
+    }
+
+    @Test
+    void adminTuChoiBaiThiXoaBaiVaBaoLyDoChoTacGia() throws Exception {
+        when(userRepository.findFirstByUserId(ME)).thenReturn(admin());
+        Posts p = post(OTHER, "pending", null, "Bài spam", "nội dung");
+        when(postRepository.findFirstByPostId("p-1")).thenReturn(p);
+        when(userPostRepository.findFirstByPosts_PostId("p-1")).thenReturn(p.getUserPost());
+        when(commentRepository.findCommentIdNotInUserComment()).thenReturn(java.util.List.of());
+
+        assertTrue(svc.rejectPendingPost("p-1", "Nội dung vi phạm nội quy"));
+
+        verify(postRepository).delete(p);
+        verify(notificationService).push(eq(OTHER), isNull(), eq("POST_REJECTED"), isNull(),
+                argThat(msg -> msg.contains("Nội dung vi phạm nội quy")));
+    }
+
+    @Test
+    void khongDuocDuyetBaiKhongOTrangThaiChoDuyet() throws Exception {
+        when(userRepository.findFirstByUserId(ME)).thenReturn(admin());
+        Posts p = post(OTHER, "published", null, "Đã đăng rồi", "nội dung");
+        when(postRepository.findFirstByPostId("p-1")).thenReturn(p);
+
+        assertThrows(Exception.class, () -> svc.approvePendingPost("p-1"));
+        verify(postRepository, never()).save(any());
+    }
+
+    // ---- Danh sách chuyên mục ----
+
+    // ---- Sửa bài: đổi chuyên mục ----
+
+    /**
+     * post() helper (đã có sẵn ở trên) gắn cho bài một UserPosts KHÔNG có UserPostId —
+     * đủ cho mọi test khác nhưng updatePost() đi tới basePostDTO(), và basePostDTO đọc
+     * post.getUserPost().getUserPostId().getUserId() — thiếu là NPE. Vá đúng object đó
+     * (không phải tạo một UserPosts rời không liên quan), rồi cũng dùng nó làm kết quả
+     * mock cho findFirstByPosts_PostIdAndUsers_UserId vì service lấy `.getPosts()` từ đó.
+     */
+    private com.didan.social.entity.UserPosts userPost(Posts p, String userId) {
+        com.didan.social.entity.UserPosts up = p.getUserPost();
+        up.setUserPostId(new com.didan.social.entity.keys.UserPostId(p.getPostId(), userId));
+        up.setPosts(p); // post() helper chỉ nối một chiều Posts -> UserPosts, chiều ngược lại thiếu
+        return up;
+    }
+
+    @Test
+    void suaBaiKhongGuiCategoryIdThiGiuNguyenChuyenMucCu() throws Exception {
+        Posts p = post(ME, "published", "public", "T", "B");
+        p.setPostedAt(new Date());
+        p.setCategoryId("cat-cu");
+        when(userPostRepository.findFirstByPosts_PostIdAndUsers_UserId("p-1", ME)).thenReturn(userPost(p, ME));
+
+        com.didan.social.payload.request.EditPostRequest r = new com.didan.social.payload.request.EditPostRequest();
+        r.setTitle("Tiêu đề mới");
+        svc.updatePost("p-1", r);
+
+        assertEquals("cat-cu", p.getCategoryId());
+    }
+
+    @Test
+    void suaBaiGuiChuoiRongThiBoChuyenMuc() throws Exception {
+        Posts p = post(ME, "published", "public", "T", "B");
+        p.setPostedAt(new Date());
+        p.setCategoryId("cat-cu");
+        when(userPostRepository.findFirstByPosts_PostIdAndUsers_UserId("p-1", ME)).thenReturn(userPost(p, ME));
+
+        com.didan.social.payload.request.EditPostRequest r = new com.didan.social.payload.request.EditPostRequest();
+        r.setCategoryId("");
+        svc.updatePost("p-1", r);
+
+        assertNull(p.getCategoryId());
+    }
+
+    @Test
+    void suaBaiDoiSangChuyenMucHopLe() throws Exception {
+        Posts p = post(ME, "published", "public", "T", "B");
+        p.setPostedAt(new Date());
+        when(userPostRepository.findFirstByPosts_PostIdAndUsers_UserId("p-1", ME)).thenReturn(userPost(p, ME));
+        when(categoryRepository.existsById("cat-moi")).thenReturn(true);
+
+        com.didan.social.payload.request.EditPostRequest r = new com.didan.social.payload.request.EditPostRequest();
+        r.setCategoryId("cat-moi");
+        svc.updatePost("p-1", r);
+
+        assertEquals("cat-moi", p.getCategoryId());
+    }
+
+    @Test
+    void layDuocBaiChoDuyetCuaChinhMinh() throws Exception {
+        Posts p = post(ME, "pending", "public", "Bài của tôi", "nội dung");
+        p.setPostedAt(new Date());
+        userPost(p, ME); // basePostDTO() cần UserPostId — post() helper không tự set
+        when(postRepository.findMyPending(ME)).thenReturn(List.of(p));
+
+        List<PostDTO> out = svc.getMyPendingPosts();
+
+        assertEquals(1, out.size());
+        assertEquals("pending", out.get(0).getStatus());
+    }
+
+    @Test
+    void layDanhSachChuyenMuc() throws Exception {
+        when(categoryRepository.findAllByOrderByPositionAscNameAsc()).thenReturn(java.util.List.of(
+                new com.didan.social.entity.Category("c1", "Hỏi đáp", "hoi-dap", 1)));
+
+        java.util.List<com.didan.social.dto.CategoryDTO> out = svc.getCategories();
+
+        assertEquals(1, out.size());
+        assertEquals("Hỏi đáp", out.get(0).getName());
     }
 }

@@ -1,7 +1,10 @@
 // Nguồn duy nhất cho việc điều hướng khi bấm vào một thông báo.
 // Dùng chung bởi chuông thông báo (TheHeader) và trang Thông báo đầy đủ.
 
-export const POST_TYPES = ['COMMENT', 'COMMENT_LIKE', 'POST_LIKE', 'MENTION', 'REPLY', 'REPOST'];
+// POST_APPROVED có targetId (bài vừa được duyệt, giờ xem được) -> điều hướng tới đó.
+// POST_REJECTED KHÔNG có targetId (bài đã bị xoá) -> cố tình không liệt vào đây,
+// bấm vào chỉ đọc được nội dung thông báo, không có gì để mở.
+export const POST_TYPES = ['COMMENT', 'COMMENT_LIKE', 'POST_LIKE', 'MENTION', 'REPLY', 'REPOST', 'POST_APPROVED'];
 const COMMENT_ANCHOR_TYPES = ['COMMENT', 'COMMENT_LIKE', 'MENTION', 'REPLY'];
 
 /**

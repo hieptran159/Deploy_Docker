@@ -39,8 +39,14 @@ public class Posts {
     private Integer views = 0;   // khởi tạo sẵn: cột NOT NULL, mà createPost không set trường này
 
     // NULL / "published" = đã đăng (hiện trên feed). "draft" = bản nháp (chỉ chủ bài thấy).
+    // "pending" = chờ admin duyệt (chỉ áp dụng bài đăng ĐẦU TIÊN của một tài khoản).
     @Column(name = "status", length = 20)
     private String status;
+
+    // Chuyên mục đã chọn, null nếu không chọn. KHÔNG khai @ManyToOne tới Category —
+    // xem ghi chú trong V14__categories.sql: category_id không có khoá ngoại.
+    @Column(name = "category_id", length = 36)
+    private String categoryId;
 
     // NULL / "public" = mọi người xem được. "friends" = chỉ tác giả + bạn bè của tác giả.
     @Column(name = "visibility", length = 20)
@@ -130,6 +136,14 @@ public class Posts {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public String getCategoryId() {
+        return categoryId;
+    }
+
+    public void setCategoryId(String categoryId) {
+        this.categoryId = categoryId;
     }
 
     public String getVisibility() {

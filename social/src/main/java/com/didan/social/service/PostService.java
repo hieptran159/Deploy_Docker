@@ -80,4 +80,19 @@ public interface PostService {
 
     /** Feed các bài mang bất kỳ hashtag nào tôi đang theo dõi. */
     java.util.Map<String, Object> getFollowedTagsFeed(int page, int size) throws Exception;
+
+    /** Danh sách chuyên mục, theo thứ tự hiển thị. Khách xem được (dropdown lúc đăng bài). */
+    java.util.List<com.didan.social.dto.CategoryDTO> getCategories() throws Exception;
+
+    /** Hàng chờ duyệt (bài đăng đầu tiên của mỗi tài khoản mới) — chỉ admin. */
+    java.util.Map<String, Object> getPendingPosts(int page, int size) throws Exception;
+
+    /** Bài đang chờ duyệt CỦA CHÍNH người gọi — không có nơi nào khác họ xem lại được nó. */
+    java.util.List<com.didan.social.dto.PostDTO> getMyPendingPosts() throws Exception;
+
+    /** Duyệt một bài đang chờ — chuyển "pending" -> "published". Chỉ admin. */
+    boolean approvePendingPost(String postId) throws Exception;
+
+    /** Từ chối một bài đang chờ — xoá bài, báo lý do cho tác giả. Chỉ admin. */
+    boolean rejectPendingPost(String postId, String reason) throws Exception;
 }

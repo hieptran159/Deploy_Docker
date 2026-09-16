@@ -65,8 +65,10 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
                        com.didan.social.repository.PollOptionRepository pollOptionRepository,
                        com.didan.social.repository.PollVoteRepository pollVoteRepository,
                        com.didan.social.repository.PostImageRepository postImageRepository,
-                       com.didan.social.repository.HashtagFollowRepository hashtagFollowRepository
+                       com.didan.social.repository.HashtagFollowRepository hashtagFollowRepository,
+                       com.didan.social.repository.CategoryRepository categoryRepository
     ){
+        this.categoryRepository = categoryRepository;
         this.postImageRepository = postImageRepository;
         this.hashtagFollowRepository = hashtagFollowRepository;
         this.postViewThrottle = postViewThrottle;
@@ -94,6 +96,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
     private final com.didan.social.repository.PollVoteRepository pollVoteRepository;
     private final com.didan.social.repository.PostImageRepository postImageRepository;
     private final com.didan.social.repository.HashtagFollowRepository hashtagFollowRepository;
+    private final com.didan.social.repository.CategoryRepository categoryRepository;
 
     /** Cùng cờ với RateLimitFilter / màn hình phiên: chỉ tin header proxy khi đứng sau proxy. */
     @org.springframework.beans.factory.annotation.Value("${app.ratelimit.trust-forwarded:false}")
@@ -180,6 +183,24 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
             d.setImages(urls);
             // postImg = ảnh đầu tiên, giữ cho client cũ chỉ biết một ảnh
             d.setPostImg(urls.get(0));
+        }
+    }
+
+    /**
+     * Gắn tên chuyên mục cho cả trang bằng một lần đọc danh sách chuyên mục (đã cache,
+     * xem CategoryService.listAll) — KHÔNG phải một `findById` mỗi bài. Số chuyên mục
+     * nhỏ và gần như tĩnh nên đọc cả bảng rẻ hơn hẳn một câu `IN` theo id mỗi trang.
+     */
+    private void applyCategories(List<PostDTO> dtos) {
+        if (dtos == null || dtos.isEmpty()) return;
+        boolean anyCategory = dtos.stream().anyMatch(d -> d.getCategoryId() != null);
+        if (!anyCategory) return;
+        java.util.Map<String, String> nameById = new java.util.HashMap<>();
+        for (com.didan.social.entity.Category c : categoryRepository.findAllByOrderByPositionAscNameAsc()) {
+            nameById.put(c.getCategoryId(), c.getName());
+        }
+        for (PostDTO d : dtos) {
+            if (d.getCategoryId() != null) d.setCategoryName(nameById.get(d.getCategoryId()));
         }
     }
 
@@ -328,10 +349,16 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         UserPosts userPost = new UserPosts();
         UUID postId = UUID.randomUUID();
         post.setPostId(postId.toString());
-        post.setStatus(draft ? "draft" : "published");
+        post.setStatus(draft ? "draft" : firstPostStatus(userId));
         post.setVisibility(normVisibility(createPostRequest.getVisibility()));
         post.setTitle(createPostRequest.getTitle() == null ? "" : createPostRequest.getTitle());
         post.setBody(createPostRequest.getBody() == null ? "" : createPostRequest.getBody());
+        // Id không hợp lệ (chuyên mục vừa bị admin xoá giữa lúc soạn) -> bỏ qua lặng lẽ,
+        // không chặn đăng bài vì một trường không bắt buộc.
+        String catId = createPostRequest.getCategoryId();
+        if (StringUtils.hasText(catId) && categoryRepository.existsById(catId)) {
+            post.setCategoryId(catId);
+        }
         LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
         Date nowSql = Timestamp.valueOf(now);
         post.setPostedAt(nowSql);
@@ -348,6 +375,18 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         syncHashtags(postId.toString(), post.getTitle(), post.getBody());
         createPoll(postId.toString(), createPostRequest.getPollOptions());
         return postId.toString();
+    }
+
+    /**
+     * Trạng thái cho một bài KHÔNG PHẢI nháp: "pending" nếu đây là bài lọt-duyệt
+     * đầu tiên của người này, "published" nếu đã từng có bài được duyệt trước đó.
+     *
+     * Chỉ chặn LẦN ĐẦU, giống nội quy AowVN ("Lần đăng bài đầu tiên của bạn sẽ phải
+     * được duyệt bởi QTV") — từ bài thứ hai trở đi đăng thẳng như cũ. Bot đăng
+     * ~96 bài/ngày sẽ tự đăng thẳng ngay từ bài thứ hai, không cần whitelist riêng.
+     */
+    private String firstPostStatus(String userId) {
+        return postRepository.countEverPublishedByAuthor(userId) == 0 ? "pending" : "published";
     }
 
     /**
@@ -522,6 +561,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         applyHashtags(out);
         applyPolls(out, meId);
         applyImages(out);
+        applyCategories(out);
         return out;
     }
 
@@ -594,11 +634,12 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
                 return null;
             }
         }
-        // Bản nháp: chỉ chủ bài. Bài bị ẩn (nhiều báo cáo): chủ bài hoặc admin.
+        // Bản nháp / đang chờ duyệt: chỉ chủ bài. Bài bị ẩn (nhiều báo cáo): chủ bài
+        // hoặc admin — admin cũng cần xem để duyệt hàng chờ.
         String st = post.getStatus();
-        if ("draft".equals(st) || "hidden".equals(st)) {
+        if ("draft".equals(st) || "hidden".equals(st) || "pending".equals(st)) {
             boolean isAdmin = false;
-            if (!isAuthor && meId != null && "hidden".equals(st)) {
+            if (!isAuthor && meId != null && !"draft".equals(st)) {
                 Users me = userRepository.findFirstByUserId(meId);
                 isAdmin = me != null && me.getIsAdmin() == 1;
             }
@@ -615,6 +656,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         applyHashtags(java.util.Collections.singletonList(dto));
         applyPolls(java.util.Collections.singletonList(dto), meId);
         applyImages(java.util.Collections.singletonList(dto));
+        applyCategories(java.util.Collections.singletonList(dto));
         return dto;
     }
 
@@ -656,6 +698,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         applyHashtags(items);
         applyPolls(items, meId);
         applyImages(items);
+        applyCategories(items);
         long total = postRepository.countDraftsOfAuthor(meId);
         java.util.Map<String, Object> m = new java.util.HashMap<>();
         m.put("items", items);
@@ -712,6 +755,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         applyHashtags(items);
         applyPolls(items, meId);
         applyImages(items);
+        applyCategories(items);
         long total = postRepository.countPublishedByAuthor(userId, vids, meParam(meId));
         java.util.Map<String, Object> m = new java.util.HashMap<>();
         m.put("items", items);
@@ -800,6 +844,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         applyHashtags(items);
         applyPolls(items, meId);
         applyImages(items);
+        applyCategories(items);
         long total = postHashtagRepository.countPostsByTag(norm, vids, meParam(meId));
         m.put("items", items);
         m.put("total", total);
@@ -857,6 +902,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
             applyHashtags(out);
             applyPolls(out, meId);
             applyImages(out);
+            applyCategories(out);
         }
         long total = repostRepository.countByRepostId_UserId(userId);
         java.util.Map<String, Object> m = new java.util.HashMap<>();
@@ -945,6 +991,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         applyHashtags(out);
         applyPolls(out, meId);
         applyImages(out);
+        applyCategories(out);
         return out;
     }
 
@@ -1026,6 +1073,13 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         if (StringUtils.hasText(editPostRequest.getVisibility())){
             post.setVisibility(normVisibility(editPostRequest.getVisibility()));
         }
+        // null (trường không được gửi lên) = giữ nguyên. Chuỗi rỗng hoặc id không
+        // còn tồn tại (chuyên mục vừa bị admin xoá) = bỏ chuyên mục, không báo lỗi —
+        // một trường tuỳ chọn không đáng chặn việc lưu cả bài sửa.
+        if (editPostRequest.getCategoryId() != null) {
+            String cid = editPostRequest.getCategoryId();
+            post.setCategoryId(StringUtils.hasText(cid) && categoryRepository.existsById(cid) ? cid : null);
+        }
         if (editPostRequest.getPostImg()!= null && !editPostRequest.getPostImg().isEmpty()){
             if(StringUtils.hasText(post.getPostImg())){
                 fileUploadsService.deleteFile(post.getPostImg());
@@ -1042,6 +1096,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         syncHashtags(post.getPostId(), post.getTitle(), post.getBody());
         PostDTO updated = (PostDTO) convertToDTO(post);
         applyImages(java.util.Collections.singletonList(updated));
+        applyCategories(java.util.Collections.singletonList(updated));
         return updated;
     }
 
@@ -1069,46 +1124,145 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
                 logger.error("User {} tried to delete post {} without permission", user.getUserId(), postId);
                 throw new Exception("Bạn không có quyền xoá bài viết này");
             }
-            // Dọn mọi thứ tham chiếu tới bài TRƯỚC khi xoá. Entity Posts chỉ cascade
-            // sang user_posts, post_likes và user_comment; bookmarks có khoá ngoại
-            // nhưng KHÔNG được cascade nên trước đây bài nào đã có người lưu là xoá
-            // thất bại (503). reposts không có khoá ngoại nên không chặn xoá, nhưng
-            // bỏ sót thì để lại hàng mồ côi mà FEED_UNION vẫn gộp vào.
-            // KHÔNG xoá reports ở đây: removeReportedTarget gọi deletePost rồi mới
-            // resolveOpenFor, xoá mất thì nhật ký kiểm duyệt cũng mất theo.
-            postHashtagRepository.deleteByPostHashtagId_PostId(postId);
-            bookmarkRepository.deleteByBookmarkId_PostId(postId);
-            repostRepository.deleteByRepostId_PostId(postId);
-            // Bình chọn: phiếu -> phương án -> cuộc bình chọn, đúng thứ tự khoá ngoại.
-            // polls.post_id có FK trỏ vào posts nên bỏ sót là xoá bài thất bại 503 —
-            // đúng cái bẫy mà bookmarks đã gây ra một lần rồi.
-            // post_images cũng có khoá ngoại trỏ vào posts -> phải dọn trước, và xoá
-            // luôn file trên đĩa kẻo để lại rác không ai tham chiếu.
-            for (com.didan.social.entity.PostImages img : postImageRepository.findByPostIdOrderByPositionAsc(postId)) {
-                try { fileUploadsService.deleteFile(img.getUrl()); } catch (Exception ignore) { }
-            }
-            postImageRepository.deleteByPostId(postId);
-            com.didan.social.entity.Polls poll = pollRepository.findFirstByPostId(postId);
-            if (poll != null) {
-                java.util.List<String> pollIds = java.util.List.of(poll.getPollId());
-                pollVoteRepository.deleteByPollIdIn(pollIds);
-                pollOptionRepository.deleteByPollIdIn(pollIds);
-                pollRepository.deleteByPostId(postId);
-            }
-            postRepository.delete(post);
-            if(StringUtils.hasText(post.getPostImg())){
-                fileUploadsService.deleteFile(post.getPostImg());
-            }
-            List<String> commentIds = commentRepository.findCommentIdNotInUserComment();
-            for (String commentId : commentIds){
-                commentRepository.deleteById(commentId);
-            }
+            deletePostData(post);
             return true;
         } catch (Exception e){
             logger.error(e.getMessage());
             throw new Exception(e.getMessage());
         }
     }
+
+    /**
+     * Phần dọn dẹp dữ liệu dùng chung giữa `deletePost` (tác giả/admin xoá bài đã
+     * đăng) và `rejectPendingPost` (admin từ chối bài đang chờ duyệt) — KHÔNG kiểm
+     * tra quyền, gọi nó nghĩa là quyền đã được xác nhận ở phía trên.
+     */
+    private void deletePostData(Posts post) throws Exception {
+        String postId = post.getPostId();
+        // Dọn mọi thứ tham chiếu tới bài TRƯỚC khi xoá. Entity Posts chỉ cascade
+        // sang user_posts, post_likes và user_comment; bookmarks có khoá ngoại
+        // nhưng KHÔNG được cascade nên trước đây bài nào đã có người lưu là xoá
+        // thất bại (503). reposts không có khoá ngoại nên không chặn xoá, nhưng
+        // bỏ sót thì để lại hàng mồ côi mà FEED_UNION vẫn gộp vào.
+        // KHÔNG xoá reports ở đây: removeReportedTarget gọi deletePost rồi mới
+        // resolveOpenFor, xoá mất thì nhật ký kiểm duyệt cũng mất theo.
+        postHashtagRepository.deleteByPostHashtagId_PostId(postId);
+        bookmarkRepository.deleteByBookmarkId_PostId(postId);
+        repostRepository.deleteByRepostId_PostId(postId);
+        // Bình chọn: phiếu -> phương án -> cuộc bình chọn, đúng thứ tự khoá ngoại.
+        // polls.post_id có FK trỏ vào posts nên bỏ sót là xoá bài thất bại 503 —
+        // đúng cái bẫy mà bookmarks đã gây ra một lần rồi.
+        // post_images cũng có khoá ngoại trỏ vào posts -> phải dọn trước, và xoá
+        // luôn file trên đĩa kẻo để lại rác không ai tham chiếu.
+        for (com.didan.social.entity.PostImages img : postImageRepository.findByPostIdOrderByPositionAsc(postId)) {
+            try { fileUploadsService.deleteFile(img.getUrl()); } catch (Exception ignore) { }
+        }
+        postImageRepository.deleteByPostId(postId);
+        com.didan.social.entity.Polls poll = pollRepository.findFirstByPostId(postId);
+        if (poll != null) {
+            java.util.List<String> pollIds = java.util.List.of(poll.getPollId());
+            pollVoteRepository.deleteByPollIdIn(pollIds);
+            pollOptionRepository.deleteByPollIdIn(pollIds);
+            pollRepository.deleteByPostId(postId);
+        }
+        postRepository.delete(post);
+        if (StringUtils.hasText(post.getPostImg())) {
+            fileUploadsService.deleteFile(post.getPostImg());
+        }
+        List<String> commentIds = commentRepository.findCommentIdNotInUserComment();
+        for (String commentId : commentIds) {
+            commentRepository.deleteById(commentId);
+        }
+    }
+
+    private Users requireAdmin() throws Exception {
+        Users me = userRepository.findFirstByUserId(authorizePathService.getUserIdAuthoried());
+        if (me == null || me.getIsAdmin() == 0) {
+            throw new Exception("Bạn không có quyền quản trị");
+        }
+        return me;
+    }
+
+    @Override
+    public List<CategoryDTO> getCategories() throws Exception {
+        List<CategoryDTO> out = new ArrayList<>();
+        for (Category c : categoryRepository.findAllByOrderByPositionAscNameAsc()) {
+            out.add(new CategoryDTO(c.getCategoryId(), c.getName(), c.getSlug()));
+        }
+        return out;
+    }
+
+    @Override
+    public java.util.Map<String, Object> getPendingPosts(int page, int size) throws Exception {
+        requireAdmin();
+        if (page < 0) page = 0;
+        if (size < 1) size = 20;
+        if (size > 100) size = 100;
+        List<Posts> rows = postRepository.findByStatusOrderByPostedAtAsc(
+                "pending", PageRequest.of(page, size));
+        // meId = null có chủ đích: đây là hàng chờ của MỌI người, "chính chủ" không
+        // có nghĩa với admin đang duyệt — toListDTO không cần phân biệt tác giả.
+        List<PostDTO> items = rows.stream().map(p -> toListDTO(p, null)).collect(Collectors.toList());
+        applyImages(items);
+        applyCategories(items);
+        long total = postRepository.countByStatus("pending");
+        java.util.Map<String, Object> out = new java.util.LinkedHashMap<>();
+        out.put("items", items);
+        out.put("total", total);
+        out.put("page", page);
+        out.put("totalPages", (int) Math.max(1, Math.ceil(total / (double) size)));
+        return out;
+    }
+
+    @Override
+    public List<PostDTO> getMyPendingPosts() throws Exception {
+        String meId = authorizePathService.getUserIdAuthoried();
+        List<Posts> rows = postRepository.findMyPending(meId);
+        List<PostDTO> items = rows.stream().map(p -> toListDTO(p, meId)).collect(Collectors.toList());
+        applyImages(items);
+        applyCategories(items);
+        return items;
+    }
+
+    @Override
+    @Transactional
+    public boolean approvePendingPost(String postId) throws Exception {
+        requireAdmin();
+        Posts post = postRepository.findFirstByPostId(postId);
+        if (post == null || !"pending".equals(post.getStatus())) {
+            throw new Exception("Không tìm thấy bài đang chờ duyệt này");
+        }
+        post.setStatus("published");
+        postRepository.save(post);
+        UserPosts up = userPostRepository.findFirstByPosts_PostId(postId);
+        if (up != null && up.getUsers() != null) {
+            notificationService.push(up.getUsers().getUserId(), null, "POST_APPROVED", postId,
+                    "Bài viết \"" + post.getTitle() + "\" của bạn đã được duyệt");
+        }
+        return true;
+    }
+
+    @Override
+    @Transactional
+    public boolean rejectPendingPost(String postId, String reason) throws Exception {
+        requireAdmin();
+        Posts post = postRepository.findFirstByPostId(postId);
+        if (post == null || !"pending".equals(post.getStatus())) {
+            throw new Exception("Không tìm thấy bài đang chờ duyệt này");
+        }
+        UserPosts up = userPostRepository.findFirstByPosts_PostId(postId);
+        String authorId = up != null && up.getUsers() != null ? up.getUsers().getUserId() : null;
+        String title = post.getTitle();
+        // Thông báo TRƯỚC khi xoá — sau đó bài không còn để tham chiếu targetId nữa.
+        if (authorId != null) {
+            String msg = "Bài viết \"" + title + "\" của bạn không được duyệt"
+                    + (StringUtils.hasText(reason) ? ": " + reason.trim() : "");
+            notificationService.push(authorId, null, "POST_REJECTED", null, msg);
+        }
+        deletePostData(post);
+        return true;
+    }
+
     private static final java.util.List<String> REACTION_TYPES =
             java.util.Arrays.asList("LIKE", "LOVE", "HAHA", "WOW", "SAD", "ANGRY");
 
@@ -1129,6 +1283,7 @@ public class PostServiceImpl extends ConvertDTO implements PostService {
         dto.setPostId(post.getPostId());
         dto.setStatus(post.getStatus());
         dto.setVisibility(post.getVisibility());
+        dto.setCategoryId(post.getCategoryId());
         dto.setUserCreatedPost(post.getUserPost().getUserPostId().getUserId());
         Users author = post.getUserPost().getUsers();
         if (author != null) {

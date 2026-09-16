@@ -122,4 +122,56 @@ public class AdminController{
             return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
         }
     }
+
+    @Operation(summary = "Tạo chuyên mục mới. Chỉ admin.", security = @SecurityRequirement(name = "bearerAuth"))
+    @PostMapping("/categories")
+    public ResponseEntity<?> createCategory(@RequestParam String name,
+                                            @RequestParam(defaultValue = "0") int position){
+        ResponseData payload = new ResponseData();
+        try {
+            payload.setData(adminService.createCategory(name, position));
+            payload.setDescription("Đã tạo chuyên mục");
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e){
+            payload.setSuccess(false);
+            payload.setStatusCode(500);
+            payload.setDescription(e.getMessage());
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
+    @Operation(summary = "Sửa tên/vị trí một chuyên mục. Chỉ admin.", security = @SecurityRequirement(name = "bearerAuth"))
+    @PatchMapping("/categories/{categoryId}")
+    public ResponseEntity<?> updateCategory(@PathVariable String categoryId,
+                                            @RequestParam(required = false) String name,
+                                            @RequestParam(required = false) Integer position){
+        ResponseData payload = new ResponseData();
+        try {
+            payload.setData(adminService.updateCategory(categoryId, name, position));
+            payload.setDescription("Đã cập nhật chuyên mục");
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e){
+            payload.setSuccess(false);
+            payload.setStatusCode(500);
+            payload.setDescription(e.getMessage());
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
+
+    @Operation(summary = "Xoá một chuyên mục. Bài đã đăng trong đó mất nhãn, không bị xoá. Chỉ admin.",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @DeleteMapping("/categories/{categoryId}")
+    public ResponseEntity<?> deleteCategory(@PathVariable String categoryId){
+        ResponseData payload = new ResponseData();
+        try {
+            adminService.deleteCategory(categoryId);
+            payload.setDescription("Đã xoá chuyên mục");
+            return new ResponseEntity<>(payload, HttpStatus.OK);
+        } catch (Exception e){
+            payload.setSuccess(false);
+            payload.setStatusCode(500);
+            payload.setDescription(e.getMessage());
+            return new ResponseEntity<>(payload, HttpStatus.SERVICE_UNAVAILABLE);
+        }
+    }
 }

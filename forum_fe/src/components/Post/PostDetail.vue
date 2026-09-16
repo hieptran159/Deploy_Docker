@@ -25,6 +25,7 @@
                     <span v-if="post?.views > 0" class="tnum">{{ post.views.toLocaleString('vi-VN') }} lượt xem</span>
                     <span v-if="post?.visibility === 'friends'" class="post-badge"><AppIcon name="users" :size="12" /> Chỉ bạn bè</span>
                     <span v-else-if="post?.visibility === 'private'" class="post-badge"><AppIcon name="lock" :size="12" /> Chỉ mình tôi</span>
+                    <span v-if="post?.categoryName" class="post-badge">{{ post.categoryName }}</span>
                 </div>
                 <div
                     class="relative flex-none"
@@ -56,7 +57,7 @@
             <h1 class="post-title post-title--hero">{{ post?.title }}</h1>
 
             <!-- nội dung: bó lại ~66 ký tự/dòng cho dễ đọc, không kéo hết bề ngang thẻ -->
-            <div class="my-4 measure post-body"><LinkText :text="post?.body || ''" /></div>
+            <MarkdownBody class="my-4 measure" :text="post?.body || ''" />
 
             <PollBox v-if="post?.poll" :poll="post.poll" :post-id="id" class="mb-4"
                      @update:poll="(p) => (post.poll = p)" />
@@ -187,6 +188,7 @@
                 :body="post?.body"
                 :title="post?.title"
                 :visibility="post?.visibility || 'public'"
+                :categoryId="post?.categoryId || ''"
                 @close="() => { ishowEditPost = false; getDataPostById() }"
                 @post-fail="showDialog('Cập nhật bài viết thất bại')"
             />
@@ -208,13 +210,13 @@ import Comment from '../comment/Comment.vue';
 import AppModal from '@/components/ui/AppModal.vue';
 import AppIcon from '@/components/AppIcon.vue';
 import PollBox from '@/components/Post/PollBox.vue';
+import MarkdownBody from '@/components/MarkdownBody.vue';
 import BaseAvatar from '../BaseAvatar.vue';
 import EmojiPicker from '@/components/EmojiPicker.vue';
 import ReactionBar from '@/components/ReactionBar.vue';
 import { LOCALKEYS, getItemLocal } from '@/storages/localStorage';
 import { activePostId, bumpNotifRefresh } from '@/storages/appState';
 import EditPost from '@/components/Post/EditPost.vue';
-import LinkText from '@/components/LinkText.vue';
 import { IMAGE_BASE, SOCKET_URL } from '@/config';
 import { io } from 'socket.io-client';
 

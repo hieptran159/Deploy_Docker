@@ -38,6 +38,9 @@ public class PostDTO {
      * TIÊN, giữ lại cho client cũ — đọc `images` nếu có.
      */
     private List<String> images;
+    /** Chuyên mục đã chọn khi đăng, null nếu không chọn. Nạp theo lô ở applyCategories. */
+    private String categoryId;
+    private String categoryName;
 
     public PostDTO() {
     }
@@ -212,4 +215,12 @@ public class PostDTO {
     public List<String> getImages() { return images; }
 
     public void setImages(List<String> images) { this.images = images; }
+
+    public String getCategoryId() { return categoryId; }
+
+    public void setCategoryId(String categoryId) { this.categoryId = categoryId; }
+
+    public String getCategoryName() { return categoryName; }
+
+    public void setCategoryName(String categoryName) { this.categoryName = categoryName; }
 }
