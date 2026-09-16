@@ -76,12 +76,22 @@
             </div>
         </div>
 
-        <div class="card">
-            <div class="section-title">Bài viết {{ postsTotal ? `(${postsTotal})` : '' }}</div>
+        <div>
+            <header class="masthead">
+                <h2 class="masthead__name" style="font-size: var(--fs-lg)">Bài viết</h2>
+                <div class="masthead__tools">
+                    <span class="masthead__date tnum">{{ postsTotal ? `${postsTotal} mục` : '' }}</span>
+                </div>
+            </header>
             <div v-if="loading && !posts.length" class="state">Đang tải…</div>
             <div v-else-if="!posts.length" class="state">Chưa có bài viết</div>
-            <div v-for="post in posts" :key="post.postId" class="border-b last:border-b-0">
-                <Post :post="post" @refresh="() => loadPosts(true)" />
+            <div class="ledger">
+                <template v-for="(post, i) in posts" :key="post.postId">
+                    <div v-if="dayKey(post.postedAt) !== dayKey(posts[i - 1]?.postedAt)" class="ledger__day">
+                        {{ dayLabel(post.postedAt) }}
+                    </div>
+                    <Post :post="post" @refresh="() => loadPosts(true)" />
+                </template>
             </div>
             <div v-if="postsPage < postsTotalPages" class="pt-3 text-center">
                 <button class="link text-sm" :disabled="loading" @click="loadPosts(false)">
@@ -90,10 +100,16 @@
             </div>
         </div>
 
-        <div v-if="reposts.length" class="card">
-            <div class="section-title">Đã chia sẻ {{ repostsTotal ? `(${repostsTotal})` : '' }}</div>
-            <div v-for="post in reposts" :key="'rp-' + post.postId" class="border-b last:border-b-0">
-                <Post :post="post" @refresh="() => loadReposts(true)" />
+        <div v-if="reposts.length">
+            <header class="masthead">
+                <h2 class="masthead__name" style="font-size: var(--fs-lg)">Đã chia sẻ</h2>
+                <div class="masthead__tools">
+                    <span class="masthead__date tnum">{{ repostsTotal ? `${repostsTotal} mục` : '' }}</span>
+                </div>
+            </header>
+            <!-- Không kẻ ngày: xếp theo lúc CHIA SẺ, không theo ngày đăng của bài -->
+            <div class="ledger">
+                <Post v-for="post in reposts" :key="'rp-' + post.postId" :post="post" @refresh="() => loadReposts(true)" />
             </div>
             <div v-if="repostsPage < repostsTotalPages" class="pt-3 text-center">
                 <button class="link text-sm" :disabled="repostsLoading" @click="loadReposts(false)">
@@ -120,6 +136,7 @@ import { openDirectConversation } from '@/apis/chat';
 import { LOCALKEYS, getItemLocal } from '@/storages/localStorage';
 import { bumpNotifRefresh, avatarUpdates } from '@/storages/appState';
 import { IMAGE_BASE } from '@/config';
+import { dayKey, dayLabel } from '@/js/helper';
 
 const showDialog = inject('openDialogError');
 const openConfirm = inject('openConfirm');

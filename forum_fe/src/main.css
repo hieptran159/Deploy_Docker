@@ -63,7 +63,8 @@
     --stroke: #14312F;
 
     /* Bán kính có THỨ BẬC, không phải một giá trị cho mọi thứ:
-       0 = khối cấu trúc · 3px = điều khiển nhập liệu · 999px = danh tính (avatar, thẻ) */
+       0 = khối cấu trúc, 3px = điều khiển nhập liệu, 999px = danh tính (avatar, chấm
+       trạng thái). KHÔNG dùng 999px quanh chữ — đó là viên thuốc, xem quy tắc 3. */
     --radius: 0px;
     --radius-control: 3px;
 

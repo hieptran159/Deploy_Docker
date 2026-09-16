@@ -221,7 +221,7 @@
                                 </div>
 
                                 <span class="text-[11px] muted mt-0.5">
-                                    <template v-if="idx === lastMineIndex && !m.recalled">{{ otherSeen ? 'Đã xem · ' : 'Đã gửi · ' }}</template>{{ formatTime(m.sentAt) }}
+                                    <template v-if="idx === lastMineIndex && !m.recalled">{{ otherSeen ? 'Đã xem ' : 'Đã gửi ' }}</template>{{ formatTime(m.sentAt) }}
                                 </span>
                             </template>
                         </div>
