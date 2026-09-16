@@ -77,15 +77,16 @@
                                     'chip--turmeric': r.targetType === 'USER',
                                 }">{{ r.targetType }}</span>
                             <span class="link" @click="() => openTarget(r)">{{ r.targetPreview || r.targetId }}</span>
-                            <span v-if="r.sameTargetOpenCount > 1" class="text-xs text-[var(--danger)] font-semibold">
-                                · {{ r.sameTargetOpenCount }} báo cáo
+                            <span v-if="r.sameTargetOpenCount > 1" class="text-xs text-[var(--danger)] font-semibold ml-1">
+                                {{ r.sameTargetOpenCount }} báo cáo
                             </span>
                             <span v-if="r.targetStatus === 'hidden'" class="chip chip--cinnabar ml-1">đã tự ẩn</span>
                         </div>
-                        <div class="text-xs muted mt-0.5">
-                            {{ r.reporterName }} · {{ timeAgo(r.createdAt) }}
-                            <template v-if="r.reason"> · “{{ r.reason }}”</template>
-                            <span v-if="r.status !== 'OPEN'" class="font-semibold"> · {{ r.status }}</span>
+                        <div class="text-xs muted mt-0.5 flex items-center gap-3 flex-wrap">
+                            <span>{{ r.reporterName }}</span>
+                            <span>{{ timeAgo(r.createdAt) }}</span>
+                            <template v-if="r.reason"><span>“{{ r.reason }}”</span></template>
+                            <span v-if="r.status !== 'OPEN'" class="font-semibold">{{ r.status }}</span>
                         </div>
                     </div>
                     <div v-if="r.status === 'OPEN'" class="flex gap-1 flex-none">

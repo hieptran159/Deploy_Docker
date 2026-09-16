@@ -46,7 +46,7 @@
             <button type="button" class="sign-btn sign-btn--block" @click="handleVerify">Xác thực & đăng nhập</button>
             <div class="text-sm">
                 <span class="link" @click="handleResend">Gửi lại mã</span>
-                <span class="muted"> · </span>
+                <span class="muted" aria-hidden="true"> | </span>
                 <span class="link" @click="() => route.push('/login')">Về đăng nhập</span>
             </div>
         </div>

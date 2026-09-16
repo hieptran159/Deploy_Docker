@@ -50,7 +50,7 @@
 
         <div v-if="tags.length" class="flex flex-wrap items-center gap-1.5 text-xs">
             <span class="muted">Hashtag:</span>
-            <span v-for="t in tags" :key="t" class="tag-chip tag-chip--sm">#{{ t }}</span>
+            <span v-for="t in tags" :key="t" class="tag-chip tag-chip--sm">{{ t }}</span>
         </div>
         <div class="flex justify-end gap-2">
             <button type="button" class="sign-btn sign-btn--outline" :disabled="busy" @click="() => submit(true)">Lưu nháp</button>

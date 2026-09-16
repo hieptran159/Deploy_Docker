@@ -3,32 +3,48 @@
 @tailwind utilities;
 
 /* ============================================================
-   BẢNG HIỆU — hệ thiết kế của HIPDN-EA Forum
-   Lấy từ bảng tin công cộng & bảng hiệu sơn tay Việt Nam:
-   khối màu phẳng, viền cứng, bóng lệch đặc (không bóng mờ).
+   SỔ GHI CHÉP — hệ thiết kế của HIPDN-EA Forum
 
-   Ba quy tắc chi phối toàn bộ file này:
-   1. Chrome nói to, mặt đọc nói nhỏ. Nền ngà + chữ mực cho mọi thứ để đọc.
-   2. Không bóng mờ. Bóng là khối đặc lệch đi, như tấm biển kê khỏi tường.
-   3. Màu mã hoá thông tin, không trang trí:
-      vàng nghệ = tiếng nói của trang (đang chọn, bài thường)
-      đỏ son    = hành động của BẠN (đã thích, đã chia sẻ)
-      xanh mực  = cấu trúc
+   Diễn đàn là bản ghi ai nói gì lúc nào. Giao diện dựng theo cuốn sổ:
+   mỗi bài là một MỤC, cột lề trái mang giờ, ngày đổi thì kẻ một dòng.
+   Phần khung sườn (viền cứng, bóng lệch đặc) giữ lại từ bản "Bảng hiệu" cũ.
+
+   Bốn quy tắc chi phối toàn bộ file này:
+   1. Cấu trúc MANG THÔNG TIN. Cột lề là giờ thật, không phải khoảng trắng
+      canh cho đẹp; dòng kẻ ngang là mốc sang ngày, không phải đường trang trí.
+   2. HAI loại nét, không trộn:
+        --rule   1px, im lặng — ngăn các mục trong dòng chảy nội dung
+        --stroke 2px, cứng    — CHỈ quanh thứ bấm được (nút, ô nhập, hộp thoại)
+      Trộn vào nhau là rơi vào khuôn "báo giấy kẻ chỉ mảnh".
+   3. Không viên thuốc (pill). Phân loại là CHỮ; bo 999px chỉ dành cho danh
+      tính (avatar). Viền tròn quanh mỗi từ khoá biến nội dung thành đám mây
+      trang trí và làm mọi trang giống hệt nhau.
+   4. Màu mã hoá thông tin, không trang trí:
+      vàng nghệ = tiếng nói của trang (đang chọn, gạch loại bài)
+      đỏ son    = hành động của BẠN + con dấu (#hashtag)
+      mực       = cấu trúc
+
+   Nền CỐ Ý là xám ngả lục lạnh, không phải kem/ngà: kem + accent cam ấm là
+   tổ hợp màu dễ nhận ra nhất của giao diện do máy sinh ra.
    ============================================================ */
 
 :root {
     /* --- màu nền tảng --- */
-    --ink: #0E3B3E;          /* xanh mực — chrome, chữ, viền */
-    --ink-deep: #072528;     /* mực đậm hơn cho bóng lệch */
-    --paper: #FCF8ED;        /* ngà — nền trang */
-    --surface: #FFFFFF;      /* mặt thẻ */
-    --turmeric: #F2B01E;     /* vàng nghệ — CHỈ làm nền khối, không làm chữ trên nền sáng */
-    --turmeric-wash: #FDF0CE;/* vàng rất nhạt cho vùng đang chọn */
-    --cinnabar: #D6402F;     /* đỏ son — nền khối, viền */
-    --cinnabar-ink: #B8291A; /* đỏ son đậm — dùng khi làm CHỮ (đạt AA 5.9:1) */
+    --ink: #14312F;          /* mực xanh đen — chrome, chữ, viền */
+    --ink-deep: #0A1F1E;     /* mực đậm hơn cho bóng lệch */
+    --paper: #EDEFE9;        /* giấy sổ: xám ngả lục, LẠNH — không phải nền kem */
+    --surface: #F6F7F3;      /* mặt thẻ, chỉ sáng hơn giấy một chút chứ không trắng */
+    --turmeric: #E8A81C;     /* vàng nghệ — CHỈ làm nền khối, không làm chữ trên nền sáng */
+    --turmeric-wash: #E7DFC3;/* vệt bút dạ sau mục đang chọn */
+    --cinnabar: #C3402E;     /* đỏ son — con dấu, nền khối, viền */
+    --cinnabar-ink: #A32D1E; /* đỏ son đậm — dùng khi làm CHỮ (đạt AA) */
 
-    --text: #16211F;
-    --text-muted: #5C6B69;
+    --text: #18221F;
+    --text-muted: #5A6663;
+
+    /* Kẻ dòng của sổ: MẢNH và im lặng. Tách hẳn khỏi --stroke (viền cứng 2px),
+       vì hai thứ này làm hai việc khác nhau — xem ghi chú ở mục SỔ GHI CHÉP. */
+    --rule: #C6CCC2;
 
     /* Tên cũ giữ lại để 29 màn hình không phải sửa đồng loạt */
     --bg: var(--paper);
@@ -40,14 +56,15 @@
 
     /* --- đường nét --- */
     --line-w: 2px;
-    --line-soft: rgba(14, 59, 62, .16);
-    --wash: rgba(14, 59, 62, .055);   /* nền trung tính — KHÔNG dùng vàng cho việc này */
+    --line-soft: rgba(20, 49, 47, .18);
+    --wash: rgba(20, 49, 47, .05);   /* nền trung tính — KHÔNG dùng vàng cho việc này */
     /* Màu NÉT, tách khỏi --ink: nền tối cũng cần nét nhìn thấy được, mà --ink
        lúc đó đã là màu nền nên không dùng làm viền được nữa. */
-    --stroke: #0E3B3E;
+    --stroke: #14312F;
 
     /* Bán kính có THỨ BẬC, không phải một giá trị cho mọi thứ:
-       0 = khối cấu trúc · 3px = điều khiển nhập liệu · 999px = danh tính (avatar, thẻ) */
+       0 = khối cấu trúc, 3px = điều khiển nhập liệu, 999px = danh tính (avatar, chấm
+       trạng thái). KHÔNG dùng 999px quanh chữ — đó là viên thuốc, xem quy tắc 3. */
     --radius: 0px;
     --radius-control: 3px;
 
@@ -68,17 +85,22 @@
 
     --measure: 66ch;         /* dài dòng tối đa khi đọc */
     --ease: cubic-bezier(.2, .7, .3, 1);
+
+    /* Hai mặt chữ, hai việc. Chỉ TIÊU ĐỀ dùng mặt chữ có tính cách; thân bài và
+       giao diện giữ Be Vietnam Pro vì nó dựng dấu tiếng Việt tốt hơn cả. */
+    --font-display: "Bricolage Grotesque", "Be Vietnam Pro", Georgia, serif;
+    --font-body: "Be Vietnam Pro", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 :root[data-theme="dark"] {
-    --ink: #0B1A1B;
+    --ink: #0C1616;
     --ink-deep: #000000;
-    --paper: #0F1E1F;
-    --surface: #16292B;
-    --turmeric: #F2B01E;
-    --turmeric-wash: #33280F;
-    --cinnabar: #E4573F;
-    --cinnabar-ink: #F07A62;
+    --paper: #121917;      /* giấy than: xám lạnh, không phải xanh */
+    --surface: #18211F;
+    --turmeric: #E8A81C;
+    --turmeric-wash: #2E2711;
+    --cinnabar: #E05B45;
+    --cinnabar-ink: #F0876F;
 
     --text: #F1EDE3;
     --text-muted: #9DB0AD;
@@ -86,7 +108,8 @@
     --border: #2E4C4E;
     --line-soft: rgba(241, 237, 227, .16);
     --wash: rgba(241, 237, 227, .06);
-    --stroke: #35595C;
+    --stroke: #3A4A47;
+    --rule: #2B3633;
 
     --lift: 5px 5px 0 #04100F;
     --lift-sm: 3px 3px 0 #04100F;
@@ -97,7 +120,7 @@
 html, body {
     background: var(--paper);
     color: var(--text);
-    font-family: "Be Vietnam Pro", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-family: var(--font-body);
     font-size: var(--fs-base);
     line-height: 1.6;              /* dấu tiếng Việt cần chỗ thở */
     -webkit-font-smoothing: antialiased;
@@ -105,8 +128,9 @@ html, body {
 }
 
 h1, h2, h3, h4 {
-    line-height: 1.2;
-    letter-spacing: -.015em;
+    font-family: var(--font-display);
+    line-height: 1.12;
+    letter-spacing: -.02em;
     font-weight: 800;
 }
 
@@ -235,6 +259,7 @@ h1, h2, h3, h4 {
 .card--danger { border-color: var(--cinnabar); }
 
 .section-title {
+    font-family: var(--font-display);
     font-size: var(--fs-lg);
     font-weight: 800;
     letter-spacing: -.015em;
@@ -257,10 +282,113 @@ h1, h2, h3, h4 {
 /* Vạch ngăn cứng, dùng thay cho border-b xám nhạt */
 .rule { border-top: var(--line-w) solid var(--stroke); }
 
-/* ============================ GẠCH LOẠI BÀI ============================
-   Thiết bị cấu trúc mang THÔNG TIN: màu của gạch đứng bên trái mỗi bài
-   cho biết đó là loại bài gì, đọc được ngay khi lướt. */
+/* ============================ SỔ GHI CHÉP ============================
+   Diễn đàn là một cuốn sổ ghi ai nói gì lúc nào. Mỗi bài là một MỤC, và mục
+   nào cũng có cột lề bên trái mang GIỜ — dữ liệu thật, không phải khoảng trắng
+   trang trí. Ngày đổi thì có một dòng kẻ ngang ghi ngày, như sang trang sổ.
 
+   Hai loại nét, cố ý tách hẳn nhau:
+     --rule   1px, im lặng — ngăn các mục trong dòng chảy nội dung
+     --stroke 2px, cứng    — CHỈ quanh thứ bấm được (nút, ô nhập, hộp thoại)
+   Trộn hai thứ này là rơi thẳng vào khuôn "báo giấy kẻ chỉ mảnh", loại bố cục
+   mà máy nào cũng sinh ra được. Nét cứng chỉ dành cho thứ có thể tương tác. */
+
+.masthead {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding-bottom: 10px;
+    border-bottom: var(--line-w) solid var(--stroke);
+}
+.masthead__name {
+    font-family: var(--font-display);
+    font-size: var(--fs-2xl);
+    font-weight: 800;
+    letter-spacing: -.03em;
+    line-height: 1;
+}
+.masthead__tools {
+    margin-left: auto;
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+}
+.masthead__date {
+    font-size: var(--fs-ui);
+    font-weight: 600;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+}
+.masthead__note {
+    font-size: var(--fs-ui);
+    color: var(--text-muted);
+    max-width: 54ch;
+    margin-top: 12px;
+}
+
+.field--sm { padding: 5px 10px; font-size: var(--fs-ui); }
+
+/* Dòng ngày: mốc sang trang, không phải tiêu đề mục */
+.ledger__day {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-top: 30px;
+    margin-bottom: 2px;
+    font-size: var(--fs-sm);
+    font-weight: 700;
+    letter-spacing: .04em;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+}
+.ledger__day {
+    padding-bottom: 6px;
+    border-bottom: var(--line-w) solid var(--stroke);
+}
+
+/* Một mục trong sổ: cột lề cố định + phần thân. Lệch, không đối xứng. */
+.entry {
+    display: grid;
+    grid-template-columns: 74px minmax(0, 1fr);
+    gap: 0 20px;
+    padding: 18px 0;
+    border-bottom: 1px solid var(--rule);
+}
+
+.entry__margin {
+    text-align: right;
+    line-height: 1.25;
+    padding-top: 3px;
+    font-variant-numeric: tabular-nums;
+}
+.entry__time { font-size: var(--fs-ui); font-weight: 700; color: var(--text); }
+
+/* Gạch loại bài vẫn còn — nó MÃ HOÁ thông tin (thường / chia sẻ lại / nháp),
+   chỉ mảnh đi vì giờ cột lề đã gánh phần dẫn mắt. */
+.entry__body {
+    min-width: 0;
+    border-left: 3px solid var(--turmeric);
+    padding-left: 16px;
+    transition: background .12s var(--ease);
+}
+.entry--repost .entry__body { border-left-color: var(--cinnabar); }
+.entry--draft  .entry__body { border-left-color: var(--text-muted); }
+.entry--hidden .entry__body {
+    border-left-color: transparent;
+    border-image: repeating-linear-gradient(45deg, var(--text-muted) 0 3px, transparent 3px 6px) 3;
+}
+.entry:hover .entry__body { background: var(--wash); }
+
+@media (max-width: 640px) {
+    /* Hẹp thì cột lề gập lên thành một dòng trên tiêu đề, vẫn là dữ liệu đó */
+    .entry { grid-template-columns: minmax(0, 1fr); gap: 6px; padding: 14px 0; }
+    .entry__margin { text-align: left; padding-top: 0; padding-left: 19px; }
+    .entry__time { font-size: var(--fs-sm); }
+}
+
+/* Tên cũ .post-row vẫn dùng ở các trang chưa chuyển (đã lưu, nháp, hồ sơ...)
+   nên giữ nguyên hành vi cũ cho chúng, chỉ đổi màu nền khi rê chuột cho khớp. */
 .post-row {
     position: relative;
     padding-left: 18px;
@@ -272,16 +400,19 @@ h1, h2, h3, h4 {
     left: 0;
     top: 14px;
     bottom: 14px;
-    width: 6px;
-    background: var(--turmeric);           /* bài thường */
+    width: 4px;
+    background: var(--turmeric);
 }
-.post-row--repost::before { background: var(--cinnabar); }   /* chia sẻ lại */
-.post-row--draft::before { background: var(--text-muted); }  /* bản nháp */
+.post-row--repost::before { background: var(--cinnabar); }
+.post-row--draft::before { background: var(--text-muted); }
 .post-row--hidden::before { background: repeating-linear-gradient(45deg, var(--text-muted) 0 3px, transparent 3px 6px); }
-.post-row:hover { background: var(--turmeric-wash); }
+.post-row:hover { background: var(--wash); }
 
 /* ============================ NÚT ============================ */
 
+/* Thao tác trên một mục: ĐỌC là con số, không phải là nút.
+   Trước đây mỗi cái là một viên thuốc có viền — bốn viền cạnh nhau dưới mỗi bài
+   làm hàng thao tác nặng hơn cả tiêu đề. Giờ để trần, chỉ hiện nền khi rê chuột. */
 .act-pill {
     display: inline-flex;
     align-items: center;
@@ -290,35 +421,34 @@ h1, h2, h3, h4 {
     font-size: var(--fs-sm);
     font-weight: 600;
     line-height: 1.2;
-    padding: 6px 12px;
-    border-radius: 999px;
-    border: 1.5px solid var(--line-soft);
+    padding: 4px 8px;
+    margin-left: -8px;          /* chữ thẳng hàng với nội dung, không lùi vào vì padding */
+    border-radius: var(--radius-control);
+    border: 0;
     background: transparent;
     color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
     cursor: pointer;
-    transition: background .12s var(--ease), border-color .12s var(--ease), color .12s var(--ease);
+    transition: background .12s var(--ease), color .12s var(--ease);
 }
-.act-pill:hover { background: var(--turmeric-wash); border-color: var(--stroke); color: var(--text); }
+.act-pill + .act-pill { margin-left: 0; }
+.act-pill:hover { background: var(--wash); color: var(--text); }
 .act-pill:disabled { opacity: .5; cursor: default; }
 /* Đã tác động = đỏ son, đúng quy tắc "đỏ son là hành động của bạn".
    Nền sáng: chữ trắng trên son đậm (6.3:1). Nền tối phải đảo lại — trắng trên
    son sáng chỉ được 3.7:1, trượt AA, nên dùng chữ mực trên son (4.7:1). */
+/* Hành động của CHÍNH BẠN: mực đỏ, như đánh dấu bằng bút đỏ vào sổ.
+   Không còn phải đảo màu theo chế độ sáng/tối nữa — trước đây nền đỏ đặc + chữ
+   trắng chỉ đạt 3,66:1 ở nền tối nên phải viết riêng một luật đảo màu; chữ đỏ
+   trên giấy thì cả hai chế độ đều vượt AA bằng chính token --cinnabar-ink. */
 .act-pill.is-on {
-    border-color: var(--cinnabar-ink);
-    background: var(--cinnabar-ink);
-    color: #FFF;
+    color: var(--cinnabar-ink);
+    background: transparent;
 }
-.act-pill.is-on:hover { background: var(--cinnabar); border-color: var(--cinnabar); color: #FFF; }
-:root[data-theme="dark"] .act-pill.is-on {
-    background: var(--cinnabar);
-    border-color: var(--cinnabar);
-    color: var(--ink);
-}
-:root[data-theme="dark"] .act-pill.is-on:hover { background: var(--cinnabar-ink); color: var(--ink); }
+.act-pill.is-on:hover { background: var(--wash); color: var(--cinnabar-ink); }
 /* Trạng thái "đang bật/công khai" — khác với is-on: đây là TRẠNG THÁI, không
    phải hành động của bạn, nên dùng vàng nghệ chứ không dùng đỏ son. */
 .act-pill.is-live {
-    border-color: var(--stroke);
     background: var(--turmeric);
     color: var(--ink);
 }
@@ -505,23 +635,31 @@ textarea.field { resize: vertical; min-height: 60px; }
 
 /* ============================ THẺ HASHTAG ============================ */
 
+/* Hashtag là CHỮ, không phải viên thuốc.
+   Viền bo 999px quanh mỗi từ khoá biến phân loại thành đám mây trang trí và làm
+   mọi trang giống nhau. Ở đây nó được viết như đang viết trong sổ: dấu # đỏ như
+   con dấu, chữ thường, chỉ gạch chân khi rê chuột. */
 .tag-chip {
     display: inline-flex;
-    align-items: center;
-    gap: 5px;
+    align-items: baseline;
+    gap: 0;
     font-size: var(--fs-sm);
     font-weight: 600;
-    padding: 3px 11px;
-    border-radius: 999px;
-    border: 1.5px solid var(--stroke);
+    padding: 0;
+    border-radius: 0;
+    border: 0;
     background: transparent;
     color: var(--text);
     cursor: pointer;
-    transition: background .12s var(--ease), color .12s var(--ease);
+    text-underline-offset: 3px;
+    transition: color .12s var(--ease);
 }
-.tag-chip:hover { background: var(--ink); color: var(--paper); }
-.tag-chip__count { font-weight: 500; opacity: .65; font-variant-numeric: tabular-nums; }
-.tag-chip--sm { font-size: var(--fs-xs); padding: 1px 9px; border-width: 1px; }
+.tag-chip::before { content: "#"; color: var(--cinnabar-ink); font-weight: 800; }
+.tag-chip:hover { color: var(--cinnabar-ink); text-decoration: underline; }
+.tag-chip__count { font-weight: 500; opacity: .6; font-variant-numeric: tabular-nums; font-size: var(--fs-xs); margin-left: 5px; }
+.tag-chip--sm { font-size: var(--fs-xs); }
+/* Danh sách hashtag: cách nhau bằng khoảng trắng thật, không phải bằng viền */
+.tag-list { display: flex; flex-wrap: wrap; gap: 4px 16px; }
 
 /* Nhãn phạm vi xem: viền mảnh, không nền — là siêu dữ liệu, không phải hành động */
 .post-badge {
@@ -560,16 +698,18 @@ textarea.field { resize: vertical; min-height: 60px; }
 
 /* Tiêu đề bài viết — mực đậm, không phải xanh dương lạc bảng màu */
 .post-title {
+    font-family: var(--font-display);
     font-size: var(--fs-xl);
     font-weight: 800;
-    line-height: 1.22;
+    line-height: 1.18;
     letter-spacing: -.02em;
     color: var(--text);
     margin-top: 8px;
     text-underline-offset: 4px;
     text-decoration-thickness: 2px;
 }
-.post-row:hover .post-title { text-decoration: underline; text-decoration-color: var(--turmeric); }
+.post-row:hover .post-title,
+.entry:hover .post-title { text-decoration: underline; text-decoration-color: var(--turmeric); }
 .post-title--sm { font-size: var(--fs-lg); }
 .post-title--hero { font-size: var(--fs-2xl); margin-top: 10px; max-width: 30ch; }
 @media (max-width: 640px) { .post-title--hero { font-size: var(--fs-xl); } }

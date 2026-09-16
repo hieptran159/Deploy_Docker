@@ -14,10 +14,10 @@
                 >
                     {{ userComments || '—' }}
                 </span>
-                <span v-if="comment?.commentAt" class="text-xs muted" :title="formatDateTime(comment.commentAt)">
-                    · {{ timeAgo(comment.commentAt) }}
+                <span v-if="comment?.commentAt" class="text-xs muted ml-2" :title="formatDateTime(comment.commentAt)">
+                    {{ timeAgo(comment.commentAt) }}
                 </span>
-                <span v-if="comment?.editedAt" class="text-xs muted" :title="formatDateTime(comment.editedAt)">· đã sửa</span>
+                <span v-if="comment?.editedAt" class="text-xs muted ml-2" :title="formatDateTime(comment.editedAt)">đã sửa</span>
             </div>
             <div v-if="comment.content" class="mt-0.5 whitespace-pre-wrap">
                 <template v-for="(p, i) in contentParts" :key="i"><span

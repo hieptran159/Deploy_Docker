@@ -7,47 +7,49 @@
     <div v-if="post?.repostNote" class="text-sm pl-[18px] pt-1 whitespace-pre-wrap measure">{{ post.repostNote }}</div>
 
     <div
-        class="post-row py-3 cursor-pointer group"
-        :class="{ 'post-row--repost': !!post?.repostedBy, 'post-row--draft': post?.status === 'draft' }"
+        class="entry cursor-pointer group"
+        :class="{ 'entry--repost': !!post?.repostedBy, 'entry--draft': post?.status === 'draft' }"
         @click="viewDetail"
     >
-        <!-- dòng tác giả -->
-        <div class="flex items-center gap-2">
-            <img
-                v-show="showAvatar"
-                :src="linkAvt"
-                class="size-9 rounded-full object-cover flex-none bg-gray-100"
-                @error="avatarErrored = true"
-                @load="avatarErrored = false"
-            />
-            <div v-if="!showAvatar" class="avatar-fallback size-9 text-sm flex-none">
-                {{ (userCreatedPost || '?')[0] }}
-            </div>
-            <div class="text-sm muted min-w-0 truncate">
-                <span class="link font-medium text-[var(--text)]" @click.stop="goProfile">{{ userCreatedPost || '—' }}</span>
-                · {{ calculateTimeDifference(post?.postedAt) }} trước
-                <span v-if="post?.editedAt">· đã chỉnh sửa</span>
-                <span v-if="post?.views > 0">· {{ post.views.toLocaleString('vi-VN') }} lượt xem</span>
-                <span v-if="post?.visibility === 'friends'" class="post-badge ml-1"><AppIcon name="users" :size="12" /> Bạn bè</span>
-                <span v-else-if="post?.visibility === 'private'" class="post-badge ml-1"><AppIcon name="lock" :size="12" /> Chỉ mình tôi</span>
-            </div>
+        <!-- Cột lề: giờ đăng. Đây là DỮ LIỆU, không phải khoảng trắng canh lề. -->
+        <div class="entry__margin">
+            <span class="entry__time">{{ formatTime(post?.postedAt) }}</span>
         </div>
 
-        <!-- nội dung: tiêu đề + trích đoạn -->
-        <div class="post-title">{{ post?.title }}</div>
-        <div v-if="excerpt" class="text-sm mt-1.5 line-clamp-3 whitespace-pre-wrap measure">{{ excerpt }}</div>
+        <div class="entry__body">
+            <!-- dòng tác giả: ngăn bằng khoảng trắng, KHÔNG nối bằng dấu chấm giữa -->
+            <div class="flex items-center gap-2 flex-wrap">
+                <img
+                    v-show="showAvatar"
+                    :src="linkAvt"
+                    class="size-6 rounded-full object-cover flex-none bg-gray-100"
+                    @error="avatarErrored = true"
+                    @load="avatarErrored = false"
+                />
+                <div v-if="!showAvatar" class="avatar-fallback size-6 text-xs flex-none">
+                    {{ (userCreatedPost || '?')[0] }}
+                </div>
+                <span class="link text-sm font-semibold text-[var(--text)]" @click.stop="goProfile">{{ userCreatedPost || '—' }}</span>
+                <span v-if="post?.editedAt" class="text-xs muted">đã sửa</span>
+                <span v-if="post?.visibility === 'friends'" class="post-badge"><AppIcon name="users" :size="12" /> Bạn bè</span>
+                <span v-else-if="post?.visibility === 'private'" class="post-badge"><AppIcon name="lock" :size="12" /> Chỉ mình tôi</span>
+            </div>
 
-        <PollBox v-if="post?.poll" :poll="post.poll" :post-id="post.postId" @update:poll="(p) => (post.poll = p)" />
+            <!-- nội dung: tiêu đề + trích đoạn -->
+            <div class="post-title">{{ post?.title }}</div>
+            <div v-if="excerpt" class="text-sm mt-1.5 line-clamp-2 whitespace-pre-wrap measure">{{ excerpt }}</div>
 
-        <!-- hashtag -->
-        <div v-if="hashtags.length" class="flex flex-wrap gap-1.5 mt-3">
-            <button
-                v-for="t in hashtags"
-                :key="t"
-                class="tag-chip tag-chip--sm"
-                @click.stop="goTag(t)"
-            >#{{ t }}</button>
-        </div>
+            <PollBox v-if="post?.poll" :poll="post.poll" :post-id="post.postId" @update:poll="(p) => (post.poll = p)" />
+
+            <!-- hashtag -->
+            <div v-if="hashtags.length" class="tag-list mt-3">
+                <button
+                    v-for="t in hashtags"
+                    :key="t"
+                    class="tag-chip tag-chip--sm"
+                    @click.stop="goTag(t)"
+                >{{ t }}</button>
+            </div>
 
         <!-- thanh thao tác -->
         <!-- Số liệu là DỮ LIỆU nên để im lặng; chỉ nút chia sẻ đổi sang đỏ son
@@ -85,6 +87,8 @@
                 <AppIcon name="repeat" :size="16" />
                 <span class="tnum">{{ post.repostCount }}</span>
             </span>
+            <span v-if="post?.views > 0" class="text-xs muted ml-auto tnum">{{ post.views.toLocaleString('vi-VN') }} lượt xem</span>
+            </div>
         </div>
     </div>
 
@@ -109,7 +113,7 @@
 <script setup>
 import { computed, ref, inject } from "vue";
 import AppModal from '@/components/ui/AppModal.vue';
-import { calculateTimeDifference } from '../../js/helper';
+import { calculateTimeDifference, formatTime } from '../../js/helper';
 import { IMAGE_BASE } from '@/config';
 import { useRouter } from 'vue-router';
 import { LOCALKEYS, getItemLocal } from '@/storages/localStorage';

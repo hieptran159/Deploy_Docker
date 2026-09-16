@@ -1,14 +1,17 @@
 <template>
     <div class="page">
-        <div class="card">
+        <div>
             <div class="flex items-center gap-2">
                 <button class="link text-sm" @click="router.back()">← Quay lại</button>
             </div>
-            <div class="flex items-center gap-3 flex-wrap mt-1">
-                <div class="section-title mb-0">
-                    #{{ tag }}
-                    <span class="muted font-normal text-sm">{{ total ? `· ${total} bài viết` : '' }}</span>
+            <!-- Cùng măng-sét với bảng tin: hai màn hình phải đọc như một cuốn sổ -->
+            <header class="masthead mt-1">
+                <h1 class="masthead__name">#{{ tag }}</h1>
+                <div class="masthead__tools">
+                    <span class="masthead__date tnum">{{ total ? `${total} bài viết` : '' }}</span>
                 </div>
+            </header>
+            <div class="flex items-center gap-3 flex-wrap mt-3">
                 <button
                     v-if="isLogin"
                     type="button"
@@ -22,8 +25,13 @@
             <div v-if="loading && !posts.length" class="state">Đang tải…</div>
             <div v-else-if="!posts.length" class="state">Chưa có bài viết nào với hashtag này</div>
 
-            <div v-for="post in posts" :key="post.postId" class="border-b last:border-b-0">
-                <Post :post="post" @refresh="() => load(true)" />
+            <div class="ledger">
+                <template v-for="(post, i) in posts" :key="post.postId">
+                    <div v-if="dayKey(post.postedAt) !== dayKey(posts[i - 1]?.postedAt)" class="ledger__day">
+                        {{ dayLabel(post.postedAt) }}
+                    </div>
+                    <Post :post="post" @refresh="() => load(true)" />
+                </template>
             </div>
 
             <div v-if="page < totalPages" class="pt-3 text-center">
@@ -41,6 +49,7 @@ import { useRouter } from 'vue-router';
 import Post from '@/components/Post/Post.vue';
 import { getPostsByTag, getFollowedTags, followTag, unfollowTag } from '@/apis/post';
 import { LOCALKEYS, getItemLocal } from '@/storages/localStorage';
+import { dayKey, dayLabel } from '@/js/helper';
 
 const router = useRouter();
 const tag = ref(router.currentRoute.value.params.tag || '');

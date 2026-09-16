@@ -1,11 +1,18 @@
 <template>
     <div class="page">
-        <div class="card">
-            <div class="section-title">Bài viết đã lưu ({{ posts.length }})</div>
+        <div>
+            <header class="masthead">
+                <h1 class="masthead__name">Đã lưu</h1>
+                <div class="masthead__tools">
+                    <span class="masthead__date tnum">{{ posts.length }} mục</span>
+                </div>
+            </header>
             <div v-if="loading" class="state">Đang tải…</div>
             <div v-else-if="!posts.length" class="state">Bạn chưa lưu bài viết nào</div>
-            <div v-for="post in posts" :key="post.postId" class="border-b last:border-b-0">
-                <Post :post="post" @refresh="load" />
+            <!-- Không kẻ dòng ngày ở đây: danh sách xếp theo lúc LƯU chứ không theo
+                 ngày đăng, nên mốc ngày sẽ nhảy loạn và thành nhiễu chứ không phải tin. -->
+            <div class="ledger">
+                <Post v-for="post in posts" :key="post.postId" :post="post" @refresh="load" />
             </div>
         </div>
     </div>
