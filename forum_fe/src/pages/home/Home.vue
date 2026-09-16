@@ -63,10 +63,12 @@
 
         <div>
             <div class="flex items-center gap-3 mb-2 flex-wrap">
-                <div v-if="isLogin" class="seg">
-                    <button class="seg__btn" :class="{ 'is-on': feedMode === 'all' }" @click="setFeedMode('all')">Tất cả</button>
-                    <button class="seg__btn" :class="{ 'is-on': feedMode === 'friends' }" @click="setFeedMode('friends')">Bạn bè</button>
-                    <button class="seg__btn" :class="{ 'is-on': feedMode === 'tags' }" @click="setFeedMode('tags')">Hashtag</button>
+                <!-- Nổi bật xem được cả khi chưa đăng nhập, nên dải nút không còn ẩn với khách -->
+                <div class="seg">
+                    <button class="seg__btn" :class="{ 'is-on': feedMode === 'all' }" @click="setFeedMode('all')">Mới nhất</button>
+                    <button class="seg__btn" :class="{ 'is-on': feedMode === 'hot' }" @click="setFeedMode('hot')">Nổi bật</button>
+                    <button v-if="isLogin" class="seg__btn" :class="{ 'is-on': feedMode === 'friends' }" @click="setFeedMode('friends')">Bạn bè</button>
+                    <button v-if="isLogin" class="seg__btn" :class="{ 'is-on': feedMode === 'tags' }" @click="setFeedMode('tags')">Hashtag</button>
                 </div>
                 <span class="flex-1"></span>
                 <button v-if="isLogin" class="icon-btn" title="Bài đã lưu" @click="router.push('/saved')">
@@ -85,7 +87,7 @@
             <div v-if="loading && !posts.length" class="state">Đang tải…</div>
             <div v-else-if="!posts.length" class="state">
                 <template v-if="searchMode">Không có bài nào khớp với từ khoá này. Thử từ ngắn hơn hoặc một hashtag.</template>
-                <template v-else-if="feedMode === 'friends'">Bạn bè của bạn chưa đăng hay chia sẻ gì. Chuyển sang Tất cả để xem toàn diễn đàn.</template>
+                <template v-else-if="feedMode === 'friends'">Bạn bè của bạn chưa đăng hay chia sẻ gì. Chuyển sang Mới nhất để xem toàn diễn đàn.</template>
                 <template v-else-if="feedMode === 'tags' && !followedTags.length">
                     Bạn chưa theo dõi hashtag nào. Mở một hashtag rồi bấm “Theo dõi”.
                 </template>
@@ -97,8 +99,10 @@
 
             <div class="ledger">
                 <template v-for="(post, i) in posts" :key="post.postId">
-                    <!-- Sang ngày mới thì kẻ một dòng, như sang trang sổ -->
-                    <div v-if="dayKey(post.postedAt) !== dayKey(posts[i - 1]?.postedAt)" class="ledger__day">
+                    <!-- Sang ngày mới thì kẻ một dòng, như sang trang sổ. Chỉ đúng khi danh sách
+                         xếp theo thời gian: ở tab Nổi bật thứ tự là theo điểm, dòng ngày sẽ nhảy
+                         tới nhảy lui và lặp lại cùng một ngày -> bỏ hẳn. -->
+                    <div v-if="feedMode !== 'hot' && dayKey(post.postedAt) !== dayKey(posts[i - 1]?.postedAt)" class="ledger__day">
                         {{ dayLabel(post.postedAt) }}
                     </div>
                     <Post :post="post" @refresh="getListPost" />
@@ -138,7 +142,7 @@
 <script setup>
 import Post from '../../components/Post/Post.vue';
 import AppModal from '@/components/ui/AppModal.vue';
-import { getFollowedTagsFeed, getListPostApi, searchPost, getFeedPages, getFriendsFeed, getFriendsFeedPages, getTrendingHashtags } from '@/apis/post';
+import { getFollowedTagsFeed, getListPostApi, searchPost, getFeedPages, getFriendsFeed, getFriendsFeedPages, getHotFeed, getHotFeedPages, getTrendingHashtags } from '@/apis/post';
 import { dayKey, dayLabel, dayStamp } from '@/js/helper';
 import { computed, inject, nextTick, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
@@ -155,7 +159,7 @@ const totalPages = ref(1);
 const gotoPage = ref(currentPage.value);
 const ishowCreatePost = ref(false);
 const loading = ref(false);
-const feedMode = ref('all'); // 'all' | 'friends' | 'tags'
+const feedMode = ref('all'); // 'all' | 'hot' | 'friends' | 'tags'
 const followedTags = ref([]);   // để câu thông báo rỗng nói đúng chuyện gì đang xảy ra
 const trendingTags = ref([]);
 
@@ -180,7 +184,9 @@ const loadPageInfo = async () => {
     // Feed hashtag trả totalPages ngay trong chính phản hồi -> không có endpoint /pages riêng
     if (feedMode.value === 'tags') return;
     try {
-        const fn = feedMode.value === 'friends' ? getFriendsFeedPages : getFeedPages;
+        const fn = feedMode.value === 'hot' ? getHotFeedPages
+                 : feedMode.value === 'friends' ? getFriendsFeedPages
+                 : getFeedPages;
         const info = (await fn())?.data?.data || {};
         totalPages.value = info.totalPages || 1;
         countTo(info.total || 0);
@@ -240,7 +246,9 @@ const getListPost = async () => {
             totalPages.value = d.totalPages || 1;
             return;
         }
-        const fn = (feedMode.value === 'friends' && isLogin.value) ? getFriendsFeed : getListPostApi;
+        const fn = feedMode.value === 'hot' ? getHotFeed
+                 : (feedMode.value === 'friends' && isLogin.value) ? getFriendsFeed
+                 : getListPostApi;
         const data = await fn(currentPage.value);
         posts.value = data?.data?.data || [];
     } catch (e) {

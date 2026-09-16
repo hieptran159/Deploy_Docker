@@ -120,6 +120,40 @@ public interface PostRepository extends JpaRepository<Posts, String> {
     @Query(value = "SELECT COUNT(DISTINCT u.pid) FROM (" + FEED_UNION + ") u", nativeQuery = true)
     long feedCount(@Param("ex") Collection<String> ex, @Param("vids") Collection<String> vids, @Param("me") String me);
 
+    // Bảng tin "Nổi bật": điểm = (thích + bình luận + 1) / (số giờ trôi qua + 2)^1.8 — kiểu
+    // Hacker News. Bài tương tác cao nổi lên nhanh nhưng tự rơi hạng khi cũ đi, nên trang đầu
+    // không bị một bài cũ nhiều lượt thích chiếm chỗ vĩnh viễn. Cộng 1 để bài chưa ai tương
+    // tác vẫn có điểm > 0 và xếp theo tuổi, thay vì chia đều 0 rồi xếp ngẫu nhiên theo post_id.
+    // KHÔNG gộp lượt chia sẻ như FEED_UNION: đây là xếp hạng của BÀI, không phải mức lan truyền,
+    // và một bài chỉ được xuất hiện đúng một dòng nên không cần UNION/GROUP BY.
+    // ponytail: quét toàn bảng + filesort (~6k bài hiện tại, vài ms). Nếu posts vượt ~10^5,
+    // chuyển sang cột score cập nhật định kỳ thay vì tính trong truy vấn đọc.
+    String HOT_WHERE =
+        "(p.status IS NULL OR p.status = 'published') AND up.user_id NOT IN (:ex) " +
+        "AND (p.visibility IS NULL OR p.visibility = 'public' OR up.user_id = :me " +
+        "     OR (p.visibility = 'friends' AND up.user_id IN (:vids)))";
+
+    @Query(value =
+        "SELECT p.post_id AS pid, p.posted_at AS t, 0 AS is_repost, " +
+        "(COALESCE(lc.likes, 0) + COALESCE(cc.cmts, 0) + 1) " +
+        "  / POW(TIMESTAMPDIFF(SECOND, p.posted_at, NOW()) / 3600.0 + 2, 1.8) AS score " +
+        "FROM posts p JOIN user_posts up ON up.post_id = p.post_id " +
+        "LEFT JOIN (SELECT post_id, COUNT(*) AS likes FROM post_likes GROUP BY post_id) lc " +
+        "  ON lc.post_id = p.post_id " +
+        "LEFT JOIN (SELECT post_id, COUNT(*) AS cmts FROM user_comment GROUP BY post_id) cc " +
+        "  ON cc.post_id = p.post_id " +
+        "WHERE " + HOT_WHERE +
+        " ORDER BY score DESC, p.post_id ASC LIMIT :lim OFFSET :off", nativeQuery = true)
+    List<Object[]> hotFeedPage(@Param("ex") Collection<String> ex, @Param("vids") Collection<String> vids,
+                               @Param("me") String me, @Param("lim") int lim, @Param("off") int off);
+
+    // Số bài đủ điều kiện vào bảng tin Nổi bật — không cần đếm thích/bình luận, chỉ cần bộ lọc
+    // hiển thị y hệt hotFeedPage, nếu không số trang sẽ lệch với số bài thực sự liệt kê được.
+    @Query(value = "SELECT COUNT(*) FROM posts p JOIN user_posts up ON up.post_id = p.post_id "
+                 + "WHERE " + HOT_WHERE, nativeQuery = true)
+    long hotFeedCount(@Param("ex") Collection<String> ex, @Param("vids") Collection<String> vids,
+                      @Param("me") String me);
+
     // Bảng tin bạn bè: bài gốc của người trong :ids + lượt chia sẻ do người trong :ids thực hiện.
     // (Không cần lọc "chỉ bạn bè": mọi bài đều của bạn bè / của mình rồi.)
     String FRIEND_FEED_UNION =
