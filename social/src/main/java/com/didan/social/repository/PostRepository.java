@@ -126,6 +126,14 @@ public interface PostRepository extends JpaRepository<Posts, String> {
     // tác vẫn có điểm > 0 và xếp theo tuổi, thay vì chia đều 0 rồi xếp ngẫu nhiên theo post_id.
     // KHÔNG gộp lượt chia sẻ như FEED_UNION: đây là xếp hạng của BÀI, không phải mức lan truyền,
     // và một bài chỉ được xuất hiện đúng một dòng nên không cần UNION/GROUP BY.
+    // GREATEST(..., 0) KHÔNG phải phòng xa thừa: `posted_at` được ghi bằng idiom
+    // Timestamp.valueOf(LocalDateTime.now(Asia/Ho_Chi_Minh)) như 9 chỗ ghi thời gian khác
+    // trong repo, nên trên máy chủ chạy UTC mọi giá trị nằm trước NOW() 7 tiếng. Không kẹp
+    // thì cơ số thành (-7 + 2) = -5, và POW(số âm, 1.8) không có nghiệm thực -> MySQL trả
+    // "DOUBLE value is out of range" và CẢ TAB chết. Đây là chỗ đầu tiên trong repo đem
+    // posted_at ra làm phép tính với một mốc thời gian thật thay vì chỉ hiển thị nó, nên
+    // cái lệch vốn "vô hại" ở đây thành lỗi 503. Kẹp ở 0 = bài chưa kịp già coi như mới
+    // tinh, đúng nghĩa và tự đúng trở lại nếu sau này idiom kia được sửa.
     // ponytail: quét toàn bảng + filesort (~6k bài hiện tại, vài ms). Nếu posts vượt ~10^5,
     // chuyển sang cột score cập nhật định kỳ thay vì tính trong truy vấn đọc.
     String HOT_WHERE =
@@ -136,7 +144,7 @@ public interface PostRepository extends JpaRepository<Posts, String> {
     @Query(value =
         "SELECT p.post_id AS pid, p.posted_at AS t, 0 AS is_repost, " +
         "(COALESCE(lc.likes, 0) + COALESCE(cc.cmts, 0) + 1) " +
-        "  / POW(TIMESTAMPDIFF(SECOND, p.posted_at, NOW()) / 3600.0 + 2, 1.8) AS score " +
+        "  / POW(GREATEST(TIMESTAMPDIFF(SECOND, p.posted_at, NOW()), 0) / 3600.0 + 2, 1.8) AS score " +
         "FROM posts p JOIN user_posts up ON up.post_id = p.post_id " +
         "LEFT JOIN (SELECT post_id, COUNT(*) AS likes FROM post_likes GROUP BY post_id) lc " +
         "  ON lc.post_id = p.post_id " +

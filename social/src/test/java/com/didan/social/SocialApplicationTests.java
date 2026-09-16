@@ -54,6 +54,9 @@ class SocialApplicationTests {
     @Autowired
     com.didan.social.repository.PostRepository postRepository;
 
+    @Autowired
+    org.springframework.jdbc.core.JdbcTemplate jdbc;
+
     @Test
     void contextLoads() {
     }
@@ -61,19 +64,38 @@ class SocialApplicationTests {
     /**
      * Bảng tin "Nổi bật" là truy vấn native (POW/TIMESTAMPDIFF, hai truy vấn con đếm
      * thích/bình luận) — không có gì kiểm tra nó lúc biên dịch: sai tên cột hay sai cú pháp
-     * MySQL thì phải tới lúc có người mở tab đó trên production mới lộ. Nên phải bắt nó
-     * chạy thật một lần trên MySQL thật. Không cần dữ liệu: DB rỗng vẫn phải trả về rỗng/0,
-     * việc cần kiểm là câu lệnh chạy được.
+     * MySQL thì phải tới lúc có người mở tab đó trên production mới lộ.
+     *
+     * Phiên bản đầu của test này chạy trên DB RỖNG và vì thế đã cho lọt một lỗi 503 ra
+     * production: câu lệnh chạy được, nhưng không có dòng nào để POW phải tính. Bài học:
+     * với một biểu thức số học thì "truy vấn chạy được" và "truy vấn tính được" là hai
+     * chuyện khác nhau — phải có ít nhất một dòng thật.
+     *
+     * Dòng đó cố ý để `posted_at` Ở TƯƠNG LAI, vì đó đúng là tình trạng dữ liệu trên
+     * production: posted_at ghi theo giờ VN rồi đọc lại ở máy chạy UTC nên luôn sớm hơn
+     * NOW() 7 tiếng. Không kẹp GREATEST thì POW nhận cơ số âm và MySQL ném
+     * "DOUBLE value is out of range".
      */
     @Test
-    void truyVanBangTinNoiBatChayDuocTrenMysqlThat() {
+    void truyVanBangTinNoiBatChayDuocVoiBaiCoMocThoiGianOTuongLai() {
+        jdbc.update("INSERT IGNORE INTO users (user_id, full_name, email, password, "
+                + "profile_avatar, date_of_birth, is_admin) VALUES (?,?,?,?,?,?,?)",
+                "u-hot-test", "Người kiểm thử", "hot-test@example.com", "x", "", "1990-01-01", 0);
+        jdbc.update("INSERT IGNORE INTO posts (post_id, title, body, posted_at, status) "
+                + "VALUES (?,?,?, NOW() + INTERVAL 7 HOUR, 'published')",
+                "p-hot-test", "Bài mốc thời gian tương lai", "thân bài");
+        jdbc.update("INSERT IGNORE INTO user_posts (post_id, user_id) VALUES (?,?)",
+                "p-hot-test", "u-hot-test");
+
         java.util.List<String> khongLoaiAi = java.util.List.of("-");
         java.util.List<String> khongCoBanBe = java.util.List.of("-");
 
-        assertTrue(postRepository.hotFeedPage(khongLoaiAi, khongCoBanBe, "-", 10, 0).isEmpty(),
-                "DB rỗng thì trang Nổi bật phải rỗng");
-        assertTrue(postRepository.hotFeedCount(khongLoaiAi, khongCoBanBe, "-") == 0,
-                "DB rỗng thì tổng số bài Nổi bật phải là 0");
+        java.util.List<Object[]> rows = postRepository.hotFeedPage(khongLoaiAi, khongCoBanBe, "-", 10, 0);
+
+        assertTrue(rows.stream().anyMatch(r -> "p-hot-test".equals(r[0])),
+                "bài có posted_at ở tương lai phải nằm trong bảng tin Nổi bật, không được làm vỡ truy vấn");
+        assertTrue(postRepository.hotFeedCount(khongLoaiAi, khongCoBanBe, "-") >= 1,
+                "đếm bài Nổi bật phải thấy bài vừa chèn");
     }
 
     /**
