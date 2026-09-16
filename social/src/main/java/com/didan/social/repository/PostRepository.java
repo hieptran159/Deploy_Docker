@@ -126,14 +126,24 @@ public interface PostRepository extends JpaRepository<Posts, String> {
     // tác vẫn có điểm > 0 và xếp theo tuổi, thay vì chia đều 0 rồi xếp ngẫu nhiên theo post_id.
     // KHÔNG gộp lượt chia sẻ như FEED_UNION: đây là xếp hạng của BÀI, không phải mức lan truyền,
     // và một bài chỉ được xuất hiện đúng một dòng nên không cần UNION/GROUP BY.
-    // GREATEST(..., 0) KHÔNG phải phòng xa thừa: `posted_at` được ghi bằng idiom
-    // Timestamp.valueOf(LocalDateTime.now(Asia/Ho_Chi_Minh)) như 9 chỗ ghi thời gian khác
-    // trong repo, nên trên máy chủ chạy UTC mọi giá trị nằm trước NOW() 7 tiếng. Không kẹp
-    // thì cơ số thành (-7 + 2) = -5, và POW(số âm, 1.8) không có nghiệm thực -> MySQL trả
-    // "DOUBLE value is out of range" và CẢ TAB chết. Đây là chỗ đầu tiên trong repo đem
-    // posted_at ra làm phép tính với một mốc thời gian thật thay vì chỉ hiển thị nó, nên
-    // cái lệch vốn "vô hại" ở đây thành lỗi 503. Kẹp ở 0 = bài chưa kịp già coi như mới
-    // tinh, đúng nghĩa và tự đúng trở lại nếu sau này idiom kia được sửa.
+    //
+    // ĐO TRÊN PRODUCTION 17/09/2026, KHÔNG PHẢI SUY LUẬN: `posted_at` trong DB nằm trước
+    // NOW() khoảng 14 TIẾNG. Hai lớp lệch 7 tiếng chồng nhau — idiom ghi
+    // Timestamp.valueOf(LocalDateTime.now(Asia/Ho_Chi_Minh)) (dùng ở 9 chỗ ghi thời gian
+    // trong repo) cộng thêm một lần JDBC driver quy đổi múi giờ lúc ghi. Qua ứng dụng hai
+    // lớp triệt tiêu nhau nên giờ hiển thị vẫn đúng; CHỈ SQL THÔ nhìn thấy cái lệch. Cùng
+    // một bài: API trả 01:30:18, DB lưu 08:30:18, NOW() là 19:27 hôm trước.
+    //
+    // Vì vậy GREATEST(..., 0) là bắt buộc: không kẹp thì cơ số âm và POW(số âm, 1.8) không
+    // có nghiệm thực -> MySQL trả "DOUBLE value is out of range" và CẢ TAB chết 503 (đã xảy
+    // ra thật). Đây là chỗ đầu tiên trong repo đem posted_at ra LÀM PHÉP TÍNH với một mốc
+    // thời gian thật thay vì chỉ hiển thị nó, nên cái lệch vốn vô hại ở đây thành lỗi.
+    //
+    // Hệ quả phải sống chung: mọi bài trẻ hơn ~14 tiếng đều bị kẹp về tuổi 0 nên ĐIỂM BẰNG
+    // NHAU TUYỆT ĐỐI. Do đó tiebreak phải là `posted_at DESC` — để post_id ASC thì thứ tự
+    // trong suốt 14 tiếng đầu là ngẫu nhiên theo UUID. KHÔNG bù cứng 14 tiếng vào truy vấn:
+    // con số đó là hệ quả của một lỗi sẽ được sửa, hằng số hoá nó là tự đặt bẫy cho lần sửa
+    // ấy. Cách hiện tại tự đúng dần khi lệch giờ được khắc phục.
     // ponytail: quét toàn bảng + filesort (~6k bài hiện tại, vài ms). Nếu posts vượt ~10^5,
     // chuyển sang cột score cập nhật định kỳ thay vì tính trong truy vấn đọc.
     String HOT_WHERE =
@@ -151,7 +161,7 @@ public interface PostRepository extends JpaRepository<Posts, String> {
         "LEFT JOIN (SELECT post_id, COUNT(*) AS cmts FROM user_comment GROUP BY post_id) cc " +
         "  ON cc.post_id = p.post_id " +
         "WHERE " + HOT_WHERE +
-        " ORDER BY score DESC, p.post_id ASC LIMIT :lim OFFSET :off", nativeQuery = true)
+        " ORDER BY score DESC, p.posted_at DESC, p.post_id ASC LIMIT :lim OFFSET :off", nativeQuery = true)
     List<Object[]> hotFeedPage(@Param("ex") Collection<String> ex, @Param("vids") Collection<String> vids,
                                @Param("me") String me, @Param("lim") int lim, @Param("off") int off);
 

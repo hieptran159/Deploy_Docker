@@ -265,11 +265,29 @@ frontend tests.
   ordered by score, so a per-day separator would repeat the same day and jump backwards.
   The tab strip is no longer `v-if="isLogin"` (guests get "Mới nhất" / "Nổi bật"; the
   friends/hashtag tabs stay login-only). Native SQL isn't checked at compile time, so
-  `SocialApplicationTests#truyVanBangTinNoiBatChayDuocTrenMysqlThat` executes both queries
-  against the real MySQL container — that test is the only thing standing between a typo'd
-  column name and a 503 on production.
+  `SocialApplicationTests#truyVanBangTinNoiBatChayDuocVoiBaiCoMocThoiGianOTuongLai` executes
+  both queries against the real MySQL container — that test is the only thing standing
+  between a typo'd column name and a 503 on production.
   ponytail ceiling: full scan + filesort (~6k posts, a few ms). Past ~10^5 posts, move to a
   stored score column refreshed on a schedule rather than computing it on the read path.
+- **`posts.posted_at` sits ~14 hours in the FUTURE as far as raw SQL is concerned.**
+  Measured on production 17/09/2026, not inferred: for one post the API returned
+  `01:30:18`, the DB row held `08:30:18`, and `NOW()` was `19:27` the previous day. **Two
+  7-hour skews stack**: the `Timestamp.valueOf(LocalDateTime.now(Asia/Ho_Chi_Minh))` idiom
+  (9 timestamp writes use it) plus a second conversion by the JDBC driver on write. Through
+  the app the two cancel, so displayed times look right — **only raw SQL sees the skew**,
+  which is why it went unnoticed until something did *arithmetic* on the column.
+  This shipped a 503 that took the whole "Nổi bật" tab down: `POW` got a negative base and
+  MySQL answered `DOUBLE value is out of range`. **Any future query comparing a timestamp
+  column against `NOW()` must not assume the column holds a real instant** — clamp with
+  `GREATEST(..., 0)`, and do **not** hardcode a 14-hour correction (that number is the
+  consequence of a bug someone will eventually fix; baking it in sets a trap for that fix).
+  Second-order consequence worth knowing: every post younger than ~14 h clamps to age 0 and
+  therefore **ties on score exactly**, so `hotFeedPage` orders ties by `posted_at DESC` —
+  with the original `post_id ASC` tiebreak, ordering for the first ~14 hours was effectively
+  random UUID order, which is what production actually showed.
+  Fixing the write idiom itself is a separate job: it touches 9 write sites plus every row
+  already stored, and needs a data-migration plan.
 - `EditProfile.vue` opens with a public-profile **preview card** (cover/avatar/name/public
   fields + link to `/user/{me}`) above a "Cài đặt tài khoản" heading; `UserProfile.vue`
   shows a "Chỉnh sửa hồ sơ" button on your own profile.

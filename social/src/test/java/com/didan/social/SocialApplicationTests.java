@@ -81,21 +81,33 @@ class SocialApplicationTests {
         jdbc.update("INSERT IGNORE INTO users (user_id, full_name, email, password, "
                 + "profile_avatar, date_of_birth, is_admin) VALUES (?,?,?,?,?,?,?)",
                 "u-hot-test", "Người kiểm thử", "hot-test@example.com", "x", "", "1990-01-01", 0);
+        // Hai bài CÙNG 0 tương tác, cùng bị kẹp tuổi về 0 -> điểm bằng nhau tuyệt đối.
+        // Id đặt sao cho bài CŨ HƠN lại đứng trước theo post_id ASC: nếu tiebreak vẫn là
+        // post_id (như bản đầu) thì thứ tự ra sai và test này đỏ.
         jdbc.update("INSERT IGNORE INTO posts (post_id, title, body, posted_at, status) "
-                + "VALUES (?,?,?, NOW() + INTERVAL 7 HOUR, 'published')",
-                "p-hot-test", "Bài mốc thời gian tương lai", "thân bài");
+                + "VALUES (?,?,?, NOW() + INTERVAL 14 HOUR, 'published')",
+                "p-hot-a-cu", "Bài cũ hơn", "thân bài");
+        jdbc.update("INSERT IGNORE INTO posts (post_id, title, body, posted_at, status) "
+                + "VALUES (?,?,?, NOW() + INTERVAL 20 HOUR, 'published')",
+                "p-hot-b-moi", "Bài mới hơn", "thân bài");
         jdbc.update("INSERT IGNORE INTO user_posts (post_id, user_id) VALUES (?,?)",
-                "p-hot-test", "u-hot-test");
+                "p-hot-a-cu", "u-hot-test");
+        jdbc.update("INSERT IGNORE INTO user_posts (post_id, user_id) VALUES (?,?)",
+                "p-hot-b-moi", "u-hot-test");
 
         java.util.List<String> khongLoaiAi = java.util.List.of("-");
         java.util.List<String> khongCoBanBe = java.util.List.of("-");
 
-        java.util.List<Object[]> rows = postRepository.hotFeedPage(khongLoaiAi, khongCoBanBe, "-", 10, 0);
+        java.util.List<String> ids = postRepository.hotFeedPage(khongLoaiAi, khongCoBanBe, "-", 10, 0)
+                .stream().map(r -> (String) r[0]).toList();
 
-        assertTrue(rows.stream().anyMatch(r -> "p-hot-test".equals(r[0])),
-                "bài có posted_at ở tương lai phải nằm trong bảng tin Nổi bật, không được làm vỡ truy vấn");
-        assertTrue(postRepository.hotFeedCount(khongLoaiAi, khongCoBanBe, "-") >= 1,
-                "đếm bài Nổi bật phải thấy bài vừa chèn");
+        assertTrue(ids.contains("p-hot-a-cu") && ids.contains("p-hot-b-moi"),
+                "bài có posted_at ở tương lai phải nằm trong bảng tin, không được làm vỡ truy vấn");
+        assertTrue(ids.indexOf("p-hot-b-moi") < ids.indexOf("p-hot-a-cu"),
+                "hai bài hoà điểm thì bài MỚI HƠN phải đứng trước; xếp theo post_id là ngẫu nhiên "
+                + "và trên production đã làm hỏng thứ tự suốt ~14 tiếng đầu");
+        assertTrue(postRepository.hotFeedCount(khongLoaiAi, khongCoBanBe, "-") >= 2,
+                "đếm bài Nổi bật phải thấy hai bài vừa chèn");
     }
 
     /**
